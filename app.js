@@ -1,0 +1,1076 @@
+/* ═══════════════════════════════════════════════
+   ConsorcioPro — App Logic (integrado con API)
+   ═══════════════════════════════════════════════ */
+
+// ── Estado global ─────────────────────────────────────────────
+let state = { role: null, user: null };
+
+// ── Cache liviano para evitar requests redundantes ────────────
+let _cache = {};
+const cache = {
+  set: (key, val, ttlMs = 30000) => { _cache[key] = { val, exp: Date.now() + ttlMs }; },
+  get: (key) => { const e = _cache[key]; return e && e.exp > Date.now() ? e.val : null; },
+  del: (key) => { delete _cache[key]; },
+  clear: () => { _cache = {}; },
+};
+
+// ── Sesión expirada ───────────────────────────────────────────
+window.addEventListener('auth:expired', () => {
+  toast('Sesión expirada. Iniciá sesión nuevamente.', 'error');
+  logout();
+});
+
+// ── Toast ─────────────────────────────────────────────────────
+function toast(msg, type = 'default') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: '✓', error: '✕', default: 'ℹ' };
+  t.innerHTML = `<span>${icons[type] || 'ℹ'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.animation = 'slideOut .3s ease forwards'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+// ── Loading overlay ───────────────────────────────────────────
+function showLoading(show = true) {
+  document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+}
+
+// ── Wrapper para llamadas a API con loading + errores ─────────
+async function apiCall(fn, opts = {}) {
+  const { loading = true, silent = false } = opts;
+  if (loading) showLoading(true);
+  try {
+    const result = await fn();
+    return result;
+  } catch (err) {
+    if (!silent) toast(err.message, 'error');
+    throw err;
+  } finally {
+    if (loading) showLoading(false);
+  }
+}
+
+// ── Routing ───────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === id);
+  });
+}
+
+// ═══════════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════════
+let loginRole = 'owner';
+
+document.querySelectorAll('.role-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    loginRole = tab.dataset.role;
+    document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('owner-fields').classList.toggle('hidden', loginRole !== 'owner');
+    document.getElementById('admin-fields').classList.toggle('hidden', loginRole !== 'admin');
+  });
+});
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const emailField = loginRole === 'admin' ? 'admin-email' : 'owner-email';
+  const passField  = loginRole === 'admin' ? 'admin-pass'  : 'owner-pass';
+  const email      = document.getElementById(emailField).value.trim();
+  const password   = document.getElementById(passField).value.trim();
+
+  if (!email || !password) { toast('Completá email y contraseña', 'error'); return; }
+
+  try {
+    showLoading(true);
+    const res = await api.auth.login(email, password);
+    setToken(res.token);
+    state = { role: res.data.user.role, user: res.data.user };
+    cache.clear();
+    enterApp();
+
+    // Solicitar permisos de notificaciones si es propietario
+    if (state.role === 'owner') {
+      requestNotificationPermission().then(() => checkMonthlyReminder());
+    }
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+});
+
+// ── Restaurar sesión si ya hay token ─────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await api.auth.getMe();
+    state = { role: res.data.user.role, user: res.data.user };
+    enterApp();
+  } catch {
+    clearToken();
+  }
+});
+
+// ── Iniciar app post-login ────────────────────────────────────
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display    = 'flex';
+  setupNav();
+  setupTopBar();
+  if (state.role === 'admin') renderAdminView();
+  else renderOwnerView();
+}
+
+function setupTopBar() {
+  const initials = state.user.name.split(' ').slice(0,2).map(w => w[0]).join('');
+  document.getElementById('avatar').textContent    = initials;
+  document.getElementById('user-name').textContent = state.user.name;
+  document.getElementById('user-role').textContent = state.role === 'admin' ? 'Administrador' : (state.user.unit || '');
+}
+
+function setupNav() {
+  const nav = document.getElementById('bottom-nav');
+  const SVG_DASH = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`;
+  if (state.role === 'admin') {
+    nav.innerHTML = `
+      <button class="nav-item active" data-page="page-admin-home"      onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
+      <button class="nav-item"        data-page="page-admin-dashboard"  onclick="showPage('page-admin-dashboard');renderAdminDashboard()">${SVG_DASH}<span>Dashboard</span></button>
+      <button class="nav-item"        data-page="page-admin-owners"     onclick="showPage('page-admin-owners');renderOwnersList()">${SVG.users}<span>Propietarios</span></button>
+      <button class="nav-item"        data-page="page-admin-notices"    onclick="showPage('page-admin-notices');renderAdminNotices()">${SVG.bell}<span>Avisos</span></button>
+      <button class="nav-item"        data-page="page-admin-settings"   onclick="showPage('page-admin-settings');renderAdminSettings()">${SVG.settings}<span>Config</span></button>`;
+  } else {
+    nav.innerHTML = `
+      <button class="nav-item active" data-page="page-owner-home"    onclick="showPage('page-owner-home');renderOwnerHome()">${SVG.home}<span>Inicio</span></button>
+      <button class="nav-item"        data-page="page-owner-pay"     onclick="showPage('page-owner-pay');renderUploadPage()">${SVG.upload}<span>Pagar</span></button>
+      <button class="nav-item"        data-page="page-owner-history" onclick="showPage('page-owner-history');renderOwnerHistory()">${SVG.list}<span>Historial</span></button>
+      <button class="nav-item"        data-page="page-owner-notices" onclick="showPage('page-owner-notices');renderOwnerNotices()">${SVG.bell}<span>Avisos</span></button>`;
+  }
+}
+
+// ── Logout ────────────────────────────────────────────────────
+document.getElementById('btn-logout').addEventListener('click', logout);
+function logout() {
+  clearToken();
+  cache.clear();
+  state = { role: null, user: null };
+  document.getElementById('app-shell').style.display   = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  ['owner-email','owner-pass','admin-email','admin-pass'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+// ── SVG Icons ─────────────────────────────────────────────────
+const SVG = {
+  home:     `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>`,
+  users:    `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
+  bell:     `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`,
+  settings: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
+  upload:   `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>`,
+  list:     `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>`,
+  check:    `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>`,
+  x:        `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>`,
+  logout:   `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>`,
+};
+
+// ── Skeleton loader ───────────────────────────────────────────
+function skeleton(lines = 3) {
+  return Array.from({ length: lines }, () =>
+    `<div style="height:18px;background:linear-gradient(90deg,#e8eaed 25%,#f3f4f6 50%,#e8eaed 75%);background-size:200%;border-radius:6px;margin-bottom:10px;animation:shimmer 1.4s infinite"></div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════
+// OWNER VIEWS
+// ═══════════════════════════════════════════
+function renderOwnerView() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  showPage('page-owner-home');
+  renderOwnerHome();
+}
+
+async function renderOwnerHome() {
+  const el = document.getElementById('page-owner-home');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
+
+  try {
+    const [cfgRes, payRes] = await Promise.all([
+      api.config.get(),
+      api.payments.getAll({ limit: 10 }),
+    ]);
+
+    const cfg      = cfgRes.data.config;
+    const payments = payRes.data.payments;
+    const owner    = state.user;
+
+    const pending  = payments.filter(p => p.status === 'pending').length;
+    const lastPay  = payments.find(p => p.status === 'approved');
+    const balance  = owner.balance || 0;
+    const isDebtor = owner.isDebtor;
+
+    const balanceColor = balance < 0 ? 'var(--danger)' : 'var(--success)';
+    const balanceBadge = isDebtor ? 'badge-danger' : 'badge-success';
+    const balanceLabel = isDebtor ? 'Deuda pendiente' : 'Al día';
+
+    // Avisos recientes
+    let noticesHtml = '';
+    try {
+      const notRes = await api.notices.getAll({ limit: 2 });
+      noticesHtml = notRes.data.notices.map(n => noticeCard(n)).join('');
+    } catch { noticesHtml = ''; }
+
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <div>
+          <p class="text-muted text-sm">Bienvenido/a,</p>
+          <h1>${owner.name}</h1>
+          <small>${owner.unit || ''}</small>
+        </div>
+
+        <div class="card">
+          <div class="card-header flex between">
+            <h3>Estado de Cuenta</h3>
+            <span class="badge ${balanceBadge}">${balanceLabel}</span>
+          </div>
+          <div class="card-body flex col gap-2">
+            <div class="flex between">
+              <span class="text-muted text-sm">Saldo</span>
+              <span class="bold" style="font-size:1.5rem;color:${balanceColor}">
+                ${balance < 0 ? '-' : ''}$${Math.abs(balance).toLocaleString('es-AR')}
+              </span>
+            </div>
+            <div class="flex between">
+              <span class="text-muted text-sm">Expensa del mes</span>
+              <span class="bold">$${(cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
+            </div>
+            <div class="flex between">
+              <span class="text-muted text-sm">Período actual</span>
+              <span>${cfg.expenseMonth || ''}</span>
+            </div>
+            ${pending > 0 ? `<div style="background:var(--warning-lt);color:var(--warning);padding:.6rem .9rem;border-radius:8px;font-size:.82rem;font-weight:500;">⚠ Tenés ${pending} comprobante${pending > 1 ? 's' : ''} pendiente${pending > 1 ? 's' : ''} de revisión.</div>` : ''}
+            <button class="btn btn-primary w-full mt-1" onclick="showPage('page-owner-pay');renderUploadPage()">
+              ${SVG.upload} Subir Comprobante de Pago
+            </button>
+          </div>
+        </div>
+
+        ${lastPay ? `
+        <div class="card">
+          <div class="card-header"><h3>Último Pago Aprobado</h3></div>
+          <div class="card-body flex between">
+            <div>
+              <p class="bold">$${lastPay.amount.toLocaleString('es-AR')}</p>
+              <small>${formatMonth(lastPay.month)}</small>
+            </div>
+            <div class="flex col" style="align-items:flex-end;gap:.3rem">
+              <span class="badge badge-success">${SVG.check} Aprobado</span>
+              <small>${formatDate(lastPay.createdAt)}</small>
+            </div>
+          </div>
+        </div>` : ''}
+
+        <div>
+          <div class="flex between mt-1" style="margin-bottom:.75rem">
+            <h2>Avisos recientes</h2>
+            <button class="btn btn-ghost btn-sm" onclick="showPage('page-owner-notices');renderOwnerNotices()">Ver todos</button>
+          </div>
+          <div class="flex col gap-1">
+            ${noticesHtml || '<p class="text-muted text-sm">Sin avisos por el momento.</p>'}
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderOwnerHome()');
+  }
+}
+
+async function renderUploadPage() {
+  const el = document.getElementById('page-owner-pay');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+
+  try {
+    const cfgRes = await api.config.get();
+    const cfg    = cfgRes.data.config;
+    const months = getRecentMonths(6);
+
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <div>
+          <h1>Subir Comprobante</h1>
+          <p class="text-muted text-sm mt-1">Adjuntá tu comprobante y completá los datos.</p>
+        </div>
+        <div class="card">
+          <div class="card-body flex col gap-2">
+            <div class="form-group">
+              <label>Período a pagar</label>
+              <select class="select" id="pay-month">
+                ${months.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Importe abonado ($)</label>
+              <input class="input" type="number" id="pay-amount" placeholder="${cfg.expenseAmount}" min="1">
+            </div>
+            <div class="form-group">
+              <label>Comprobante (imagen o PDF)</label>
+              <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+                <div style="font-size:2.5rem">📎</div>
+                <p><strong>Hacé clic para adjuntar</strong> o arrastrá aquí</p>
+                <p style="font-size:.75rem;margin-top:.25rem">JPG, PNG, PDF — máx. 10 MB</p>
+              </div>
+              <input type="file" id="file-input" accept="image/*,.pdf" class="hidden" onchange="handleFileSelect(event)">
+              <div id="file-preview" class="hidden"></div>
+            </div>
+            <div class="form-group">
+              <label>Nota adicional (opcional)</label>
+              <textarea class="input" id="pay-note" placeholder="Ej: Transferencia N° 12345..."></textarea>
+            </div>
+            <button class="btn btn-primary w-full" id="btn-submit-receipt" onclick="submitReceipt()">
+              ${SVG.upload} Enviar Comprobante
+            </button>
+          </div>
+        </div>
+
+        <!-- MercadoPago -->
+        <div class="card">
+          <div class="card-header flex between">
+            <h3>💳 Pagar online</h3>
+            <span class="badge badge-neutral">MercadoPago</span>
+          </div>
+          <div class="card-body flex col gap-2">
+            <p class="text-sm text-muted">Pagá con tarjeta, débito o saldo de MP. Sin adjuntar comprobante.</p>
+            <div class="flex between text-sm">
+              <span>Expensa ${cfg.expenseMonth}</span>
+              <span class="bold">$${(cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
+            </div>
+            <div class="mp-btn-wrap">
+              <button onclick="initMercadoPago()">
+                <img src="https://http2.mlstatic.com/frontend-assets/mp-web-navigation/svg/mercadopago-logo.svg"
+                     alt="MercadoPago" style="height:20px;vertical-align:middle;margin-right:.5rem;filter:brightness(10)">
+                Pagar con MercadoPago
+              </button>
+            </div>
+            <p style="font-size:.72rem;color:var(--muted);text-align:center">Serás redirigido al checkout seguro de MercadoPago</p>
+          </div>
+        </div>
+      </div>`;
+
+    // Drag & drop
+    const zone = document.getElementById('upload-zone');
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFileDrop(e.dataTransfer.files[0]); });
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderUploadPage()');
+  }
+}
+
+// ── Manejo de archivo ─────────────────────────────────────────
+let selectedFile = null;
+function handleFileSelect(e) { selectedFile = e.target.files[0]; showFilePreview(selectedFile); }
+function handleFileDrop(file)  { selectedFile = file; showFilePreview(file); }
+function showFilePreview(file) {
+  if (!file) return;
+  document.getElementById('upload-zone').classList.add('hidden');
+  const preview = document.getElementById('file-preview');
+  preview.classList.remove('hidden');
+  preview.innerHTML = `
+    <div class="upload-preview">
+      <span style="font-size:1.5rem">${file.type.includes('pdf') ? '📄' : '🖼️'}</span>
+      <div style="flex:1;min-width:0">
+        <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${file.name}</p>
+        <small>${(file.size/1024).toFixed(1)} KB</small>
+      </div>
+      <button class="btn-icon" onclick="clearFile()" title="Quitar">✕</button>
+    </div>`;
+}
+function clearFile() {
+  selectedFile = null;
+  document.getElementById('file-preview').classList.add('hidden');
+  document.getElementById('upload-zone').classList.remove('hidden');
+  document.getElementById('file-input').value = '';
+}
+
+// ── Enviar comprobante ────────────────────────────────────────
+async function submitReceipt() {
+  const month  = document.getElementById('pay-month')?.value;
+  const amount = document.getElementById('pay-amount')?.value;
+  const note   = document.getElementById('pay-note')?.value?.trim();
+
+  if (!month)              { toast('Seleccioná el período', 'error'); return; }
+  if (!amount || amount < 1){ toast('Ingresá un importe válido', 'error'); return; }
+  if (!selectedFile)       { toast('Adjuntá un comprobante', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('month', month);
+  formData.append('amount', amount);
+  if (note) formData.append('ownerNote', note);
+  formData.append('receipt', selectedFile);
+
+  const btn = document.getElementById('btn-submit-receipt');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+  try {
+    await api.payments.create(formData);
+    toast('Comprobante enviado. Pendiente de revisión.', 'success');
+    clearFile();
+    document.getElementById('pay-amount').value = '';
+    document.getElementById('pay-note').value   = '';
+    // Refrescar home del propietario
+    cache.del('owner_home');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = `${SVG.upload} Enviar Comprobante`; }
+  }
+}
+
+async function renderOwnerHistory() {
+  const el = document.getElementById('page-owner-history');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  try {
+    const res      = await api.payments.getAll({ limit: 50 });
+    const payments = res.data.payments;
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <h1>Historial de Pagos</h1>
+        ${payments.length === 0
+          ? `<div class="card card-body" style="text-align:center;color:var(--muted)">No hay pagos registrados aún.</div>`
+          : `<div class="card">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Período</th><th>Importe</th><th>Canal</th><th>Estado</th></tr></thead>
+                  <tbody>${payments.map(p => `
+                    <tr>
+                      <td class="bold">${formatMonth(p.month)}</td>
+                      <td>$${p.amount.toLocaleString('es-AR')}</td>
+                      <td><span style="font-size:.75rem">${p.paymentMethod === 'mercadopago' ? '💳 MP' : '📄 Manual'}</span></td>
+                      <td>${statusBadge(p.status)}</td>
+                    </tr>
+                    ${p.rejectionNote ? `<tr><td colspan="4" style="padding:.25rem 1rem .75rem;color:var(--danger);font-size:.78rem">↳ ${p.rejectionNote}</td></tr>` : ''}
+                  `).join('')}</tbody>
+                </table>
+              </div>
+            </div>`}
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderOwnerHistory()');
+  }
+}
+
+async function renderOwnerNotices() {
+  const el = document.getElementById('page-owner-notices');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  try {
+    const res = await api.notices.getAll({ limit: 30 });
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <h1>Avisos y Comunicados</h1>
+        <div class="flex col gap-2">
+          ${res.data.notices.length
+            ? res.data.notices.map(n => noticeCard(n, true)).join('')
+            : '<p class="text-muted text-sm">Sin avisos por el momento.</p>'}
+        </div>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderOwnerNotices()');
+  }
+}
+
+// ═══════════════════════════════════════════
+// ADMIN VIEWS
+// ═══════════════════════════════════════════
+function renderAdminView() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  showPage('page-admin-home');
+  renderAdminHome();
+}
+
+async function renderAdminHome() {
+  const el = document.getElementById('page-admin-home');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
+  try {
+    const [statsRes, pendingRes, cfgRes] = await Promise.all([
+      api.owners.getStats(),
+      api.payments.getAll({ status: 'pending', limit: 20 }),
+      api.config.get(),
+    ]);
+
+    const stats   = statsRes.data;
+    const pending = pendingRes.data.payments;
+    const cfg     = cfgRes.data.config;
+
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <div>
+          <p class="text-muted text-sm">Panel de</p>
+          <h1>Administración</h1>
+          <small>${cfg.consortiumName || 'Consorcio'} · ${cfg.expenseMonth || ''}</small>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Pendientes</span>
+            <span class="stat-value" style="color:var(--warning)">${stats.pendingPayments || 0}</span>
+            <span class="stat-sub">por revisar</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Cumplimiento</span>
+            <span class="stat-value" style="color:var(--success)">${stats.complianceRate || 0}%</span>
+            <span class="stat-sub">${stats.upToDate || 0} de ${stats.totalOwners || 0}</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Morosos</span>
+            <span class="stat-value" style="color:var(--danger)">${stats.debtors || 0}</span>
+            <span class="stat-sub">propietarios</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Recaudado</span>
+            <span class="stat-value" style="color:var(--accent);font-size:1.3rem">$${((stats.totalCollected || 0)/1000).toFixed(0)}k</span>
+            <span class="stat-sub">histórico</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header flex between">
+            <h3>Comprobantes Pendientes</h3>
+            ${pending.length > 0 ? `<span class="badge badge-warning">${pending.length}</span>` : ''}
+          </div>
+          <div class="card-body flex col gap-2">
+            ${pending.length === 0
+              ? '<p class="text-muted text-sm">No hay comprobantes pendientes.</p>'
+              : pending.map(p => `
+                <div class="flex between" style="padding:.6rem 0;border-bottom:1px solid var(--border)">
+                  <div>
+                    <p class="bold text-sm">${p.owner?.name || '—'}</p>
+                    <small>${p.owner?.unit || ''} · ${formatMonth(p.month)} · $${p.amount.toLocaleString('es-AR')}</small>
+                    ${p.receipt?.url ? `<br><a href="${p.receipt.url}" target="_blank" style="font-size:.72rem;color:var(--accent)">Ver comprobante ↗</a>` : ''}
+                  </div>
+                  <div class="flex gap-1">
+                    <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}')">${SVG.check}</button>
+                    <button class="btn btn-danger  btn-sm" onclick="openRejectModal('${p._id}')">${SVG.x}</button>
+                  </div>
+                </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderAdminHome()');
+  }
+}
+
+async function renderAdminDashboard() {
+  const el = document.getElementById('page-admin-dashboard');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
+  try {
+    const [dashRes, statsRes] = await Promise.all([
+      api.payments.getDashboard(),
+      api.owners.getStats(),
+    ]);
+    const dash  = dashRes.data;
+    const stats = statsRes.data;
+    const monthly = dash.monthly || [];
+
+    const maxTotal = Math.max(...monthly.map(m => m.total), 1);
+    const barW = 36, barGap = 16, chartH = 120;
+    const chartW = monthly.length * (barW + barGap);
+    const bars = monthly.map((m, i) => {
+      const h = Math.round((m.total / maxTotal) * chartH);
+      const x = i * (barW + barGap);
+      return `<g>
+        <rect x="${x}" y="${chartH - h}" width="${barW}" height="${h}" rx="5" fill="var(--accent)" opacity=".85"/>
+        <text x="${x + barW/2}" y="${chartH + 16}" text-anchor="middle" font-size="9" fill="var(--muted)">${formatMonth(m._id).slice(0,3)}</text>
+        <text x="${x + barW/2}" y="${chartH - h - 4}" text-anchor="middle" font-size="8" fill="var(--accent)" font-weight="600">$${(m.total/1000).toFixed(0)}k</text>
+      </g>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <h1>Dashboard de Pagos</h1>
+        <div class="stats-grid">
+          <div class="stat-card"><span class="stat-label">Cumplimiento</span><span class="stat-value" style="color:${stats.complianceRate>=70?'var(--success)':'var(--danger)'}">${stats.complianceRate}%</span><span class="stat-sub">${stats.upToDate} de ${stats.totalOwners}</span></div>
+          <div class="stat-card"><span class="stat-label">Total recaudado</span><span class="stat-value" style="color:var(--accent);font-size:1.3rem">$${((stats.totalCollected||0)/1000).toFixed(0)}k</span><span class="stat-sub">histórico</span></div>
+          <div class="stat-card"><span class="stat-label">Morosos</span><span class="stat-value" style="color:var(--danger)">${stats.debtors}</span><span class="stat-sub">propietarios</span></div>
+          <div class="stat-card"><span class="stat-label">Por revisar</span><span class="stat-value" style="color:var(--warning)">${stats.pendingPayments}</span><span class="stat-sub">comprobantes</span></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Recaudación mensual</h3></div>
+          <div class="card-body" style="overflow-x:auto">
+            ${monthly.length > 0
+              ? `<svg width="${Math.max(chartW, 300)}" height="${chartH + 30}" style="display:block;margin:0 auto">${bars}</svg>`
+              : '<p class="text-muted text-sm">Sin datos aún.</p>'}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Detalle por período</h3></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Período</th><th>Aprobados</th><th>Pendientes</th><th>Rechazados</th><th>Recaudado</th></tr></thead>
+              <tbody>${monthly.map(m => `<tr>
+                <td class="bold">${formatMonth(m._id)}</td>
+                <td><span class="badge badge-success">${m.count}</span></td>
+                <td><span class="badge badge-warning">${dash.pending||0}</span></td>
+                <td><span class="badge badge-danger">${dash.rejected||0}</span></td>
+                <td class="bold">$${(m.total||0).toLocaleString('es-AR')}</td>
+              </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">Sin datos</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderAdminDashboard()');
+  }
+}
+
+async function renderOwnersList() {
+  const el = document.getElementById('page-admin-owners');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  try {
+    const res    = await api.owners.getAll({ limit: 100 });
+    const owners = res.data.owners;
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <div class="flex between">
+          <h1>Propietarios</h1>
+          <button class="btn btn-primary btn-sm" onclick="openNewOwnerModal()">+ Agregar</button>
+        </div>
+        <div class="card">
+          <div class="card-body flex col" style="gap:0">
+            ${owners.map(o => `
+              <div class="owner-row">
+                <div class="owner-avatar">${o.name.split(' ').slice(0,2).map(w=>w[0]).join('')}</div>
+                <div class="owner-info">
+                  <p class="name">${o.name}</p>
+                  <p class="unit">${o.unit || '—'}</p>
+                </div>
+                <div class="flex col" style="align-items:flex-end;gap:.25rem">
+                  <span class="badge ${o.isDebtor ? 'badge-danger' : 'badge-success'}">${o.isDebtor ? 'Deuda' : 'Al día'}</span>
+                  ${o.lastPayment ? `<small>${formatMonth(o.lastPayment.month)}</small>` : '<small class="text-muted">Sin pagos</small>'}
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="viewOwnerDetail('${o._id}')">Ver</button>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderOwnersList()');
+  }
+}
+
+async function viewOwnerDetail(ownerId) {
+  openModal();
+  document.getElementById('modal').innerHTML = `<div class="modal-handle"></div>${skeleton(4)}`;
+  try {
+    const res      = await api.owners.getOne(ownerId);
+    const owner    = res.data.owner;
+    const payments = res.data.payments || [];
+    document.getElementById('modal').innerHTML = `
+      <div class="modal-handle"></div>
+      <div class="flex between" style="margin-bottom:1.25rem">
+        <div><h2>${owner.name}</h2><small>${owner.unit || ''} · ${owner.email}</small></div>
+        <span class="badge ${owner.isDebtor ? 'badge-danger' : 'badge-success'}">${owner.isDebtor ? 'Deudor' : 'Al día'}</span>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:1rem" class="flex between">
+        <span class="text-sm text-muted">Saldo</span>
+        <span class="bold" style="color:${(owner.balance||0)<0?'var(--danger)':'var(--success)'}">
+          ${(owner.balance||0)<0?'-':''}$${Math.abs(owner.balance||0).toLocaleString('es-AR')}
+        </span>
+      </div>
+      <h3 style="margin-bottom:.75rem">Historial de Pagos</h3>
+      ${payments.length === 0
+        ? '<p class="text-muted text-sm">Sin pagos registrados.</p>'
+        : `<div class="table-wrap"><table>
+            <thead><tr><th>Período</th><th>Importe</th><th>Estado</th></tr></thead>
+            <tbody>${payments.map(p=>`<tr><td>${formatMonth(p.month)}</td><td>$${p.amount.toLocaleString('es-AR')}</td><td>${statusBadge(p.status)}</td></tr>`).join('')}</tbody>
+          </table></div>`}
+      <div class="flex gap-1 mt-3">
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cerrar</button>
+        <button class="btn btn-primary w-full" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
+          Marcar ${owner.isDebtor ? 'al día' : 'moroso'}
+        </button>
+      </div>`;
+  } catch (err) {
+    document.getElementById('modal').innerHTML = `<div class="modal-handle"></div><p style="color:var(--danger)">${err.message}</p>`;
+  }
+}
+
+async function toggleDebt(ownerId, currentDebt) {
+  try {
+    await api.owners.update(ownerId, { isDebtor: !currentDebt, balance: !currentDebt ? -15000 : 0 });
+    closeModal();
+    toast('Propietario actualizado', 'success');
+    renderOwnersList();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ── Nuevo propietario ─────────────────────────────────────────
+function openNewOwnerModal() {
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1rem">Nuevo Propietario</h2>
+    <div class="flex col gap-2">
+      <div class="form-group"><label>Nombre completo</label><input class="input" id="no-name" placeholder="María García"></div>
+      <div class="form-group"><label>Email</label><input class="input" type="email" id="no-email" placeholder="propietario@mail.com"></div>
+      <div class="form-group"><label>Contraseña temporal</label><input class="input" id="no-pass" placeholder="Mín. 6 caracteres"></div>
+      <div class="form-group"><label>Unidad (lote/casa)</label><input class="input" id="no-unit" placeholder="Lote 12"></div>
+      <div class="form-group"><label>Teléfono</label><input class="input" id="no-phone" placeholder="1122334455"></div>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary w-full" onclick="saveNewOwner()">Crear</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+async function saveNewOwner() {
+  const name  = document.getElementById('no-name')?.value.trim();
+  const email = document.getElementById('no-email')?.value.trim();
+  const pass  = document.getElementById('no-pass')?.value.trim();
+  const unit  = document.getElementById('no-unit')?.value.trim();
+  const phone = document.getElementById('no-phone')?.value.trim();
+  if (!name || !email || !pass) { toast('Nombre, email y contraseña son obligatorios', 'error'); return; }
+  try {
+    await api.owners.create({ name, email, password: pass, unit, phone });
+    closeModal();
+    toast('Propietario creado exitosamente', 'success');
+    renderOwnersList();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ── Aprobar / Rechazar ────────────────────────────────────────
+async function approvePayment(payId) {
+  try {
+    await api.payments.approve(payId);
+    toast('Pago aprobado', 'success');
+    renderAdminHome();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+let _rejectPayId = null;
+function openRejectModal(payId) {
+  _rejectPayId = payId;
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.75rem">Rechazar Comprobante</h2>
+    <p class="text-muted text-sm" style="margin-bottom:1rem">Indicá el motivo para notificar al propietario.</p>
+    <div class="form-group">
+      <label>Motivo</label>
+      <textarea class="input" id="reject-note" placeholder="Ej: Importe incorrecto, imagen ilegible..."></textarea>
+    </div>
+    <div class="flex gap-1 mt-3">
+      <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-danger w-full" onclick="confirmReject()">Rechazar</button>
+    </div>`;
+  openModal();
+}
+
+async function confirmReject() {
+  const note = document.getElementById('reject-note')?.value.trim();
+  if (!note) { toast('Indicá el motivo', 'error'); return; }
+  try {
+    await api.payments.reject(_rejectPayId, note);
+    closeModal();
+    toast('Comprobante rechazado', 'error');
+    renderAdminHome();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ── Avisos Admin ──────────────────────────────────────────────
+async function renderAdminNotices() {
+  const el = document.getElementById('page-admin-notices');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  try {
+    const res = await api.notices.getAll({ limit: 30 });
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <div class="flex between">
+          <h1>Avisos</h1>
+          <button class="btn btn-primary btn-sm" onclick="openNewNoticeModal()">+ Nuevo</button>
+        </div>
+        <div class="flex col gap-2">
+          ${res.data.notices.map(n => `
+            <div class="notice-card">
+              <div class="flex between">
+                <span class="notice-tag tag-${n.tag}">${tagLabel(n.tag)}</span>
+                <button class="btn-icon" style="font-size:.75rem" onclick="deleteNotice('${n._id}')">🗑</button>
+              </div>
+              <h3>${n.title}</h3>
+              <p class="text-sm text-muted">${n.body.slice(0,100)}${n.body.length>100?'…':''}</p>
+              <span class="notice-date">${formatDate(n.createdAt)}</span>
+            </div>`).join('') || '<p class="text-muted text-sm">Sin avisos.</p>'}
+        </div>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderAdminNotices()');
+  }
+}
+
+function openNewNoticeModal() {
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1rem">Nuevo Aviso</h2>
+    <div class="flex col gap-2">
+      <div class="form-group"><label>Título</label><input class="input" id="n-title" placeholder="Título del aviso"></div>
+      <div class="form-group"><label>Mensaje</label><textarea class="input" id="n-body" style="min-height:110px" placeholder="Contenido del comunicado..."></textarea></div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <select class="select" id="n-tag">
+          <option value="info">📢 Informativo</option>
+          <option value="warning">⚠ Advertencia</option>
+          <option value="urgent">🔴 Urgente</option>
+        </select>
+      </div>
+      <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer">
+        <input type="checkbox" id="n-push" checked> Enviar push notification a propietarios
+      </label>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary w-full" onclick="saveNotice()">Publicar</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+async function saveNotice() {
+  const title   = document.getElementById('n-title')?.value.trim();
+  const body    = document.getElementById('n-body')?.value.trim();
+  const tag     = document.getElementById('n-tag')?.value;
+  const sendPush = document.getElementById('n-push')?.checked;
+  if (!title || !body) { toast('Completá todos los campos', 'error'); return; }
+  try {
+    await api.notices.create({ title, body, tag, sendPush });
+    closeModal();
+    toast('Aviso publicado', 'success');
+    renderAdminNotices();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function deleteNotice(id) {
+  if (!confirm('¿Eliminar este aviso?')) return;
+  try {
+    await api.notices.delete(id);
+    toast('Aviso eliminado');
+    renderAdminNotices();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ── Config Admin ──────────────────────────────────────────────
+async function renderAdminSettings() {
+  const el = document.getElementById('page-admin-settings');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  try {
+    const res = await api.config.get();
+    const cfg = res.data.config;
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <h1>Configuración</h1>
+        <div class="card">
+          <div class="card-header"><h3>Expensas del Período</h3></div>
+          <div class="card-body flex col gap-2">
+            <div class="form-group"><label>Período (nombre)</label><input class="input" id="cfg-month" value="${cfg.expenseMonth || ''}" placeholder="Ej: Abril 2025"></div>
+            <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${cfg.expenseMonthCode || ''}" placeholder="YYYY-MM"></div>
+            <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
+            <div class="form-group"><label>Día de vencimiento</label><input class="input" type="number" id="cfg-due" value="${cfg.dueDayOfMonth || 10}" min="1" max="28"></div>
+            <button class="btn btn-primary" onclick="saveSettings()">Guardar cambios</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Datos del Consorcio</h3></div>
+          <div class="card-body flex col gap-2">
+            <div class="form-group"><label>Nombre del consorcio</label><input class="input" id="cfg-name" value="${cfg.consortiumName || ''}" placeholder="Barrio Privado Los Pinos"></div>
+            <div class="form-group"><label>Email de contacto</label><input class="input" id="cfg-email" value="${cfg.adminEmail || ''}"></div>
+            <button class="btn btn-primary" onclick="saveConsortiumSettings()">Guardar</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Integración MercadoPago</h3></div>
+          <div class="card-body flex col gap-2">
+            <p class="text-sm text-muted">Credenciales desde developers.mercadopago.com</p>
+            <div class="form-group"><label>Public Key</label><input class="input" id="cfg-mp-key" placeholder="APP_USR-..." value="${cfg.mpPublicKey || ''}"></div>
+            <div class="form-group"><label>Access Token</label><input class="input" type="password" id="cfg-mp-token" placeholder="APP_USR-..."></div>
+            <button class="btn btn-primary" onclick="saveMPSettings()">Guardar credenciales</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Cuenta</h3></div>
+          <div class="card-body">
+            <button class="btn btn-danger w-full" onclick="logout()">${SVG.logout} Cerrar sesión</button>
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderAdminSettings()');
+  }
+}
+
+async function saveSettings() {
+  try {
+    await api.config.update({
+      expenseMonth:     document.getElementById('cfg-month')?.value.trim(),
+      expenseMonthCode: document.getElementById('cfg-month-code')?.value.trim(),
+      expenseAmount:    Number(document.getElementById('cfg-amount')?.value),
+      dueDayOfMonth:    Number(document.getElementById('cfg-due')?.value),
+    });
+    toast('Configuración guardada', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function saveConsortiumSettings() {
+  try {
+    await api.config.update({
+      consortiumName: document.getElementById('cfg-name')?.value.trim(),
+      adminEmail:     document.getElementById('cfg-email')?.value.trim(),
+    });
+    toast('Datos del consorcio guardados', 'success');
+    setupTopBar();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function saveMPSettings() {
+  const update = {};
+  const key   = document.getElementById('cfg-mp-key')?.value.trim();
+  const token = document.getElementById('cfg-mp-token')?.value.trim();
+  if (key)   update.mpPublicKey   = key;
+  if (token) update.mpAccessToken = token;
+  if (!Object.keys(update).length) { toast('Ingresá al menos una credencial', 'error'); return; }
+  try {
+    await api.config.update(update);
+    toast('Credenciales MP guardadas', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── MercadoPago ───────────────────────────────────────────────
+async function initMercadoPago() {
+  try {
+    showLoading(true);
+    const res = await api.mercadopago.createPreference();
+    const { initPoint, sandboxUrl } = res.data;
+    showLoading(false);
+
+    const url = document.location.hostname === 'localhost' ? sandboxUrl : initPoint;
+    if (url) {
+      window.open(url, '_blank');
+      toast('Redirigiendo a MercadoPago...', 'default');
+    } else {
+      toast('MercadoPago no configurado. Contactá al administrador.', 'error');
+    }
+  } catch (err) {
+    showLoading(false);
+    toast(err.message, 'error');
+  }
+}
+
+// ── Notificaciones push ───────────────────────────────────────
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+}
+
+async function checkMonthlyReminder() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const today = new Date().getDate();
+  if (today > 3) return;
+
+  try {
+    const cfgRes = await api.config.get();
+    const cfg    = cfgRes.data.config;
+    const month  = cfg.expenseMonthCode;
+    const sentKey = `notif_sent_${state.user._id}_${month}`;
+    if (localStorage.getItem(sentKey)) return;
+
+    const payRes = await api.payments.getAll({ month });
+    const paid   = payRes.data.payments.find(p => p.status === 'approved');
+    if (!paid) {
+      new Notification('ConsorcioPro 🏘️', {
+        body: `Recordatorio: las expensas de ${cfg.expenseMonth} vencen el día ${cfg.dueDayOfMonth}. ¡No olvides pagar!`,
+        icon: 'icons/icon-192.png',
+        tag:  `expensa-${month}`,
+      });
+      localStorage.setItem(sentKey, '1');
+    }
+  } catch { /* silencioso */ }
+}
+
+// ── Modal ─────────────────────────────────────────────────────
+function openModal()  { document.getElementById('modal-overlay').classList.remove('hidden'); }
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ── Helpers ───────────────────────────────────────────────────
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+function formatMonth(m) {
+  if (!m) return '—';
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const [y, mo] = m.split('-');
+  return `${months[parseInt(mo)-1]} ${y}`;
+}
+function statusBadge(s) {
+  return {
+    pending:  '<span class="badge badge-warning">⏳ Pendiente</span>',
+    approved: '<span class="badge badge-success">✓ Aprobado</span>',
+    rejected: '<span class="badge badge-danger">✕ Rechazado</span>',
+  }[s] || s;
+}
+function tagLabel(tag) {
+  return { info:'📢 Info', warning:'⚠ Aviso', urgent:'🔴 Urgente' }[tag] || tag;
+}
+function noticeCard(n, full = false) {
+  return `<div class="notice-card">
+    <span class="notice-tag tag-${n.tag}">${tagLabel(n.tag)}</span>
+    <h3>${n.title}</h3>
+    <p class="text-sm text-muted">${full ? n.body : (n.body.slice(0,80)+(n.body.length>80?'…':''))}</p>
+    <span class="notice-date">${formatDate(n.createdAt)}</span>
+  </div>`;
+}
+function currentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+}
+function getRecentMonths(n) {
+  const labels = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const months = [], now = new Date();
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ value: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, label: `${labels[d.getMonth()]} ${d.getFullYear()}` });
+  }
+  return months;
+}
+function errorState(msg, fn = '') {
+  return `<div style="text-align:center;padding:2rem;color:var(--danger)">
+    <p style="font-size:2rem">⚠</p>
+    <p class="bold">${msg}</p>
+    ${fn ? `<button class="btn btn-ghost btn-sm mt-2" onclick="${fn}">Reintentar</button>` : ''}
+  </div>`;
+}
+
+// ── Service Worker ────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
