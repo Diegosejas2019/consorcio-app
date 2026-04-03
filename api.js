@@ -5,7 +5,7 @@
 
 // ── URL base de la API ────────────────────────────────────────
 // En producción reemplazá esta URL con la de tu servidor
-const API_BASE = window.CONSORCIO_API_URL || 'http://localhost:3000/api';
+const API_BASE = window.CONSORCIO_API_URL || 'https://consorcio-api-production.up.railway.app/api';
 
 // ── Gestión del JWT ───────────────────────────────────────────
 const TOKEN_KEY = 'consorcio_token';
