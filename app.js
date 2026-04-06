@@ -1057,28 +1057,23 @@ async function initMercadoPago() {
 }
 
 // ── Push Notifications (Firebase Messaging) ───────────────────
-//
-// CONFIGURACIÓN REQUERIDA:
-// 1. En Firebase Console → Configuración del proyecto → General → "Tus apps" →
-//    agregá una app Web y copiá el firebaseConfig.
-// 2. En Firebase Console → Configuración → Cloud Messaging → Certificados web push →
-//    generá un par de claves y copiá la clave pública (VAPID).
-// 3. Reemplazá los valores YOUR_* de abajo.
-//
 const FIREBASE_WEB_CONFIG = {
-  apiKey:            window.FIREBASE_API_KEY             || 'YOUR_API_KEY',
-  authDomain:        window.FIREBASE_AUTH_DOMAIN         || 'YOUR_PROJECT_ID.firebaseapp.com',
-  projectId:         window.FIREBASE_PROJECT_ID_CLIENT   || 'YOUR_PROJECT_ID',
-  storageBucket:     window.FIREBASE_STORAGE_BUCKET      || 'YOUR_PROJECT_ID.appspot.com',
-  messagingSenderId: window.FIREBASE_MESSAGING_SENDER_ID || 'YOUR_SENDER_ID',
-  appId:             window.FIREBASE_APP_ID              || 'YOUR_APP_ID',
+  apiKey:            'AIzaSyALo-U8cuAO3smKa-pD0u47TFpnFZYhRj0',
+  authDomain:        'consorcio-app-15e78.firebaseapp.com',
+  projectId:         'consorcio-app-15e78',
+  storageBucket:     'consorcio-app-15e78.firebasestorage.app',
+  messagingSenderId: '822644970609',
+  appId:             '1:822644970609:web:29df8183cfbf20cf0937d0',
 };
-const FIREBASE_VAPID_KEY = window.FIREBASE_VAPID_KEY || 'YOUR_VAPID_KEY';
+// VAPID key opcional: si se genera desde Firebase Console (Configuración →
+// Cloud Messaging → Certificados web push), pasarla aquí. Si no se configura,
+// Firebase usa su propia clave por defecto asociada al messagingSenderId.
+const FIREBASE_VAPID_KEY = window.FIREBASE_VAPID_KEY || null;
 
 let _messaging = null;
 
 function _firebaseConfigured() {
-  return FIREBASE_WEB_CONFIG.apiKey !== 'YOUR_API_KEY';
+  return !!FIREBASE_WEB_CONFIG.apiKey;
 }
 
 async function setupPushNotifications() {
@@ -1107,7 +1102,9 @@ async function setupPushNotifications() {
     if (permission !== 'granted') return;
 
     const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    const token = await _messaging.getToken({ vapidKey: FIREBASE_VAPID_KEY, serviceWorkerRegistration: swReg });
+    const tokenOpts = { serviceWorkerRegistration: swReg };
+    if (FIREBASE_VAPID_KEY) tokenOpts.vapidKey = FIREBASE_VAPID_KEY;
+    const token = await _messaging.getToken(tokenOpts);
 
     if (token) {
       // Enviar token al backend solo si cambió
