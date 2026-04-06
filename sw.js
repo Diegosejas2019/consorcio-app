@@ -1,10 +1,13 @@
-const CACHE_NAME = 'consorcio-v1';
+const CACHE_NAME = 'consorcio-v3';
 const ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
   '/app.js',
-  '/manifest.json'
+  '/api.js',
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
 self.addEventListener('install', e => {

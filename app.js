@@ -20,20 +20,17 @@ window.addEventListener('auth:expired', () => {
   logout();
 });
 
-// ── PWA Install ───────────────────────────────────────────────
+// ── PWA Install Banner ────────────────────────────────────────
 let _installPrompt = null;
+const INSTALL_DISMISSED_KEY = 'install_dismissed_until';
 
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
   window.navigator.standalone === true;
 
-const getInstallInstructions = () => {
-  const ua = navigator.userAgent;
-  if (/iphone|ipad|ipod/i.test(ua))
-    return 'En Safari: tocá el botón de compartir (⬆️) y luego "Agregar a pantalla de inicio".';
-  if (/firefox/i.test(ua))
-    return 'En Firefox: abrí el menú (⋮) y tocá "Instalar".';
-  return 'Abrí el menú del navegador (⋮) y buscá "Instalar app" o "Agregar a pantalla de inicio".';
+const installDismissed = () => {
+  const until = localStorage.getItem(INSTALL_DISMISSED_KEY);
+  return until && Date.now() < parseInt(until, 10);
 };
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -43,39 +40,56 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 window.addEventListener('appinstalled', () => {
   _installPrompt = null;
-  document.getElementById('btn-install')?.classList.add('hidden');
+  hideInstallBanner();
   toast('App instalada correctamente.', 'success');
 });
 
-// Mostrar botón siempre que la app no esté ya instalada
-window.addEventListener('load', () => {
-  if (!isStandalone()) {
-    document.getElementById('btn-install')?.classList.remove('hidden');
-  }
-});
+function showInstallBanner() {
+  if (isStandalone() || installDismissed()) return;
+  document.getElementById('install-banner')?.classList.remove('hidden');
+}
 
-document.getElementById('btn-install')?.addEventListener('click', async () => {
+function hideInstallBanner() {
+  document.getElementById('install-banner')?.classList.add('hidden');
+}
+
+async function handleInstallClick() {
   if (_installPrompt) {
     _installPrompt.prompt();
     const { outcome } = await _installPrompt.userChoice;
     if (outcome === 'accepted') {
       _installPrompt = null;
-      document.getElementById('btn-install')?.classList.add('hidden');
+      hideInstallBanner();
     }
   } else {
-    showInstallModal();
+    hideInstallBanner();
+    _showInstallInstructionsModal();
   }
-});
+}
 
-function showInstallModal() {
-  const body = `
+function dismissInstallBanner() {
+  hideInstallBanner();
+  // No volver a mostrar por 7 días
+  localStorage.setItem(INSTALL_DISMISSED_KEY, Date.now() + 7 * 24 * 60 * 60 * 1000);
+}
+
+function _showInstallInstructionsModal() {
+  const ua = navigator.userAgent;
+  let instructions;
+  if (/iphone|ipad|ipod/i.test(ua)) {
+    instructions = 'En Safari, tocá el botón <strong>Compartir ⬆️</strong> en la barra inferior y luego <strong>"Agregar a pantalla de inicio"</strong>.';
+  } else if (/firefox/i.test(ua)) {
+    instructions = 'En Firefox, abrí el menú <strong>⋮</strong> y tocá <strong>"Instalar"</strong>.';
+  } else {
+    instructions = 'Abrí el menú del navegador <strong>⋮</strong> y buscá <strong>"Instalar app"</strong> o <strong>"Agregar a pantalla de inicio"</strong>.';
+  }
+  openModal(`
     <div style="text-align:center;padding:.5rem 0">
-      <div style="font-size:2.5rem;margin-bottom:1rem">📲</div>
+      <img src="icons/icon-192.png" alt="" style="width:64px;height:64px;border-radius:16px;margin-bottom:1rem">
       <h2 style="margin-bottom:.75rem">Instalar ConsorcioPro</h2>
-      <p style="color:var(--muted);font-size:.9rem;line-height:1.6">${getInstallInstructions()}</p>
+      <p style="color:var(--muted);font-size:.9rem;line-height:1.7">${instructions}</p>
       <button class="btn btn-primary w-full" style="margin-top:1.5rem" onclick="closeModal()">Entendido</button>
-    </div>`;
-  openModal(body);
+    </div>`);
 }
 
 // ── Toast ─────────────────────────────────────────────────────
@@ -148,11 +162,6 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     state = { role: res.data.user.role, user: res.data.user };
     cache.clear();
     enterApp();
-
-    // Solicitar permisos de notificaciones si es propietario
-    if (state.role === 'owner') {
-      requestNotificationPermission().then(() => checkMonthlyReminder());
-    }
   } catch (err) {
     toast(err.message, 'error');
   } finally {
@@ -179,8 +188,17 @@ function enterApp() {
   document.getElementById('app-shell').style.display    = 'flex';
   setupNav();
   setupTopBar();
-  if (state.role === 'admin') renderAdminView();
-  else renderOwnerView();
+  if (state.role === 'admin') {
+    renderAdminView();
+  } else {
+    renderOwnerView();
+    setupPushNotifications();
+    checkMonthlyReminder();
+  }
+  // Mostrar banner de instalación a los 4 segundos si no está instalada
+  if (!isStandalone()) {
+    setTimeout(showInstallBanner, 4000);
+  }
 }
 
 function setupTopBar() {
@@ -1038,23 +1056,81 @@ async function initMercadoPago() {
   }
 }
 
-// ── Notificaciones push ───────────────────────────────────────
-async function requestNotificationPermission() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') {
-    await Notification.requestPermission();
+// ── Push Notifications (Firebase Messaging) ───────────────────
+//
+// CONFIGURACIÓN REQUERIDA:
+// 1. En Firebase Console → Configuración del proyecto → General → "Tus apps" →
+//    agregá una app Web y copiá el firebaseConfig.
+// 2. En Firebase Console → Configuración → Cloud Messaging → Certificados web push →
+//    generá un par de claves y copiá la clave pública (VAPID).
+// 3. Reemplazá los valores YOUR_* de abajo.
+//
+const FIREBASE_WEB_CONFIG = {
+  apiKey:            window.FIREBASE_API_KEY             || 'YOUR_API_KEY',
+  authDomain:        window.FIREBASE_AUTH_DOMAIN         || 'YOUR_PROJECT_ID.firebaseapp.com',
+  projectId:         window.FIREBASE_PROJECT_ID_CLIENT   || 'YOUR_PROJECT_ID',
+  storageBucket:     window.FIREBASE_STORAGE_BUCKET      || 'YOUR_PROJECT_ID.appspot.com',
+  messagingSenderId: window.FIREBASE_MESSAGING_SENDER_ID || 'YOUR_SENDER_ID',
+  appId:             window.FIREBASE_APP_ID              || 'YOUR_APP_ID',
+};
+const FIREBASE_VAPID_KEY = window.FIREBASE_VAPID_KEY || 'YOUR_VAPID_KEY';
+
+let _messaging = null;
+
+function _firebaseConfigured() {
+  return FIREBASE_WEB_CONFIG.apiKey !== 'YOUR_API_KEY';
+}
+
+async function setupPushNotifications() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  if (!_firebaseConfigured()) {
+    console.warn('FCM: configurá FIREBASE_WEB_CONFIG en app.js para habilitar push notifications.');
+    return;
+  }
+
+  try {
+    // Inicializar Firebase (solo una vez)
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_WEB_CONFIG);
+    _messaging = firebase.messaging();
+
+    // Mensajes en foreground → mostrar toast
+    _messaging.onMessage((payload) => {
+      const { title = '', body = '' } = payload.notification || {};
+      if (title || body) toast(`${title}${title && body ? ': ' : ''}${body}`, 'default');
+    });
+
+    // Pedir permiso y obtener token FCM
+    const permission = Notification.permission === 'default'
+      ? await Notification.requestPermission()
+      : Notification.permission;
+
+    if (permission !== 'granted') return;
+
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const token = await _messaging.getToken({ vapidKey: FIREBASE_VAPID_KEY, serviceWorkerRegistration: swReg });
+
+    if (token) {
+      // Enviar token al backend solo si cambió
+      const storedToken = localStorage.getItem('fcm_token');
+      if (token !== storedToken) {
+        await api.auth.updateFcmToken(token);
+        localStorage.setItem('fcm_token', token);
+      }
+    }
+  } catch (err) {
+    console.warn('Push notification setup failed:', err.message);
   }
 }
 
 async function checkMonthlyReminder() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const today = new Date().getDate();
-  if (today > 3) return;
+  if (today > 5) return;
 
   try {
-    const cfgRes = await api.config.get();
-    const cfg    = cfgRes.data.config;
-    const month  = cfg.expenseMonthCode;
+    const cfgRes  = await api.config.get();
+    const cfg     = cfgRes.data.config;
+    const month   = cfg.expenseMonthCode;
     const sentKey = `notif_sent_${state.user._id}_${month}`;
     if (localStorage.getItem(sentKey)) return;
 
