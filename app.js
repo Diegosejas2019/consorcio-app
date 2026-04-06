@@ -23,10 +23,22 @@ window.addEventListener('auth:expired', () => {
 // ── PWA Install ───────────────────────────────────────────────
 let _installPrompt = null;
 
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  window.navigator.standalone === true;
+
+const getInstallInstructions = () => {
+  const ua = navigator.userAgent;
+  if (/iphone|ipad|ipod/i.test(ua))
+    return 'En Safari: tocá el botón de compartir (⬆️) y luego "Agregar a pantalla de inicio".';
+  if (/firefox/i.test(ua))
+    return 'En Firefox: abrí el menú (⋮) y tocá "Instalar".';
+  return 'Abrí el menú del navegador (⋮) y buscá "Instalar app" o "Agregar a pantalla de inicio".';
+};
+
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   _installPrompt = e;
-  document.getElementById('btn-install')?.classList.remove('hidden');
 });
 
 window.addEventListener('appinstalled', () => {
@@ -35,15 +47,36 @@ window.addEventListener('appinstalled', () => {
   toast('App instalada correctamente.', 'success');
 });
 
-document.getElementById('btn-install')?.addEventListener('click', async () => {
-  if (!_installPrompt) return;
-  _installPrompt.prompt();
-  const { outcome } = await _installPrompt.userChoice;
-  if (outcome === 'accepted') {
-    _installPrompt = null;
-    document.getElementById('btn-install')?.classList.add('hidden');
+// Mostrar botón siempre que la app no esté ya instalada
+window.addEventListener('load', () => {
+  if (!isStandalone()) {
+    document.getElementById('btn-install')?.classList.remove('hidden');
   }
 });
+
+document.getElementById('btn-install')?.addEventListener('click', async () => {
+  if (_installPrompt) {
+    _installPrompt.prompt();
+    const { outcome } = await _installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      _installPrompt = null;
+      document.getElementById('btn-install')?.classList.add('hidden');
+    }
+  } else {
+    showInstallModal();
+  }
+});
+
+function showInstallModal() {
+  const body = `
+    <div style="text-align:center;padding:.5rem 0">
+      <div style="font-size:2.5rem;margin-bottom:1rem">📲</div>
+      <h2 style="margin-bottom:.75rem">Instalar ConsorcioPro</h2>
+      <p style="color:var(--muted);font-size:.9rem;line-height:1.6">${getInstallInstructions()}</p>
+      <button class="btn btn-primary w-full" style="margin-top:1.5rem" onclick="closeModal()">Entendido</button>
+    </div>`;
+  openModal(body);
+}
 
 // ── Toast ─────────────────────────────────────────────────────
 function toast(msg, type = 'default') {
@@ -1039,7 +1072,10 @@ async function checkMonthlyReminder() {
 }
 
 // ── Modal ─────────────────────────────────────────────────────
-function openModal()  { document.getElementById('modal-overlay').classList.remove('hidden'); }
+function openModal(html) {
+  if (html) document.getElementById('modal').innerHTML = html;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
