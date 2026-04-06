@@ -20,6 +20,31 @@ window.addEventListener('auth:expired', () => {
   logout();
 });
 
+// ── PWA Install ───────────────────────────────────────────────
+let _installPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _installPrompt = e;
+  document.getElementById('btn-install')?.classList.remove('hidden');
+});
+
+window.addEventListener('appinstalled', () => {
+  _installPrompt = null;
+  document.getElementById('btn-install')?.classList.add('hidden');
+  toast('App instalada correctamente.', 'success');
+});
+
+document.getElementById('btn-install')?.addEventListener('click', async () => {
+  if (!_installPrompt) return;
+  _installPrompt.prompt();
+  const { outcome } = await _installPrompt.userChoice;
+  if (outcome === 'accepted') {
+    _installPrompt = null;
+    document.getElementById('btn-install')?.classList.add('hidden');
+  }
+});
+
 // ── Toast ─────────────────────────────────────────────────────
 function toast(msg, type = 'default') {
   const c = document.getElementById('toast-container');
