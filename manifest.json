@@ -1,6 +1,6 @@
 {
-  "name": "ConsorcioPro",
-  "short_name": "ConsorcioPro",
+  "name": "Mi Consorcio",
+  "short_name": "Mi Consorcio",
   "description": "Administración de consorcio para barrio privado",
   "start_url": "/",
   "scope": "/",
@@ -22,6 +22,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

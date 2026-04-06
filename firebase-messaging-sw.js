@@ -19,8 +19,8 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || 'ConsorcioPro';
-  const body  = payload.notification?.body  || '';
+  const title = payload.data?.title || 'Mi Consorcio';
+  const body  = payload.data?.body  || '';
   const data  = payload.data || {};
 
   self.registration.showNotification(title, {

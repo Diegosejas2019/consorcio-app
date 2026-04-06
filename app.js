@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════
-   ConsorcioPro — App Logic (integrado con API)
+   Mi Consorcio — App Logic (integrado con API)
    ═══════════════════════════════════════════════ */
 
 // ── Estado global ─────────────────────────────────────────────
@@ -86,7 +86,7 @@ function _showInstallInstructionsModal() {
   openModal(`
     <div style="text-align:center;padding:.5rem 0">
       <img src="icons/icon-192.png" alt="" style="width:64px;height:64px;border-radius:16px;margin-bottom:1rem">
-      <h2 style="margin-bottom:.75rem">Instalar ConsorcioPro</h2>
+      <h2 style="margin-bottom:.75rem">Instalar Mi Consorcio</h2>
       <p style="color:var(--muted);font-size:.9rem;line-height:1.7">${instructions}</p>
       <button class="btn btn-primary w-full" style="margin-top:1.5rem" onclick="closeModal()">Entendido</button>
     </div>`);
@@ -1090,7 +1090,7 @@ async function setupPushNotifications() {
 
     // Mensajes en foreground → mostrar toast
     _messaging.onMessage((payload) => {
-      const { title = '', body = '' } = payload.notification || {};
+      const { title = '', body = '' } = payload.data || {};
       if (title || body) toast(`${title}${title && body ? ': ' : ''}${body}`, 'default');
     });
 
@@ -1129,7 +1129,7 @@ async function checkMonthlyReminder() {
     const payRes = await api.payments.getAll({ month });
     const paid   = payRes.data.payments.find(p => p.status === 'approved');
     if (!paid) {
-      new Notification('ConsorcioPro 🏘️', {
+      new Notification('Mi Consorcio 🏘️', {
         body: `Recordatorio: las expensas de ${cfg.expenseMonth} vencen el día ${cfg.dueDayOfMonth}. ¡No olvides pagar!`,
         icon: 'icons/icon-192.png',
         tag:  `expensa-${month}`,
