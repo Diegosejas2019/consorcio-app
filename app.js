@@ -1107,12 +1107,7 @@ async function setupPushNotifications() {
     const token = await _messaging.getToken(tokenOpts);
 
     if (token) {
-      // Enviar token al backend solo si cambió
-      const storedToken = localStorage.getItem('fcm_token');
-      if (token !== storedToken) {
-        await api.auth.updateFcmToken(token);
-        localStorage.setItem('fcm_token', token);
-      }
+      await api.auth.updateFcmToken(token);
     }
   } catch (err) {
     console.warn('Push notification setup failed:', err.message);
