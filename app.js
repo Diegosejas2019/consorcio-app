@@ -1068,7 +1068,7 @@ const FIREBASE_WEB_CONFIG = {
 // VAPID key opcional: si se genera desde Firebase Console (Configuración →
 // Cloud Messaging → Certificados web push), pasarla aquí. Si no se configura,
 // Firebase usa su propia clave por defecto asociada al messagingSenderId.
-const FIREBASE_VAPID_KEY = window.FIREBASE_VAPID_KEY || null;
+const FIREBASE_VAPID_KEY = 'BDzNAjBShFNHPbWyWCBTbv31_uqRfuVzyf27A-iCtQafSt5s-6HIZCFh1J7tp1P-T8WEZsxnYQoEZNKwAFygyxw';
 
 let _messaging = null;
 
