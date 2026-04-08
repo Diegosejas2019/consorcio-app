@@ -116,6 +116,8 @@ textarea { resize: vertical; min-height: 90px; }
 .stat-card .stat-label { font-size: .8rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 .stat-card .stat-value { font-size: 2rem; font-weight: 700; }
 .stat-card .stat-sub   { font-size: .8rem; color: var(--muted); }
+.stat-card-clickable   { cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.stat-card-clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
 
 /* ── Login Screen ── */
 #login-screen {

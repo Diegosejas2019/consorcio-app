@@ -252,6 +252,7 @@ const SVG = {
   check:    `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>`,
   x:        `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>`,
   logout:   `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>`,
+  download: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
 };
 
 // ── Skeleton loader ───────────────────────────────────────────
@@ -520,15 +521,16 @@ async function renderOwnerHistory() {
           : `<div class="card">
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Período</th><th>Importe</th><th>Canal</th><th>Estado</th></tr></thead>
+                  <thead><tr><th>Período</th><th>Importe</th><th>Canal</th><th>Estado</th><th></th></tr></thead>
                   <tbody>${payments.map(p => `
                     <tr>
                       <td class="bold">${formatMonth(p.month)}</td>
                       <td>$${p.amount.toLocaleString('es-AR')}</td>
                       <td><span style="font-size:.75rem">${p.paymentMethod === 'mercadopago' ? '💳 MP' : '📄 Manual'}</span></td>
                       <td>${statusBadge(p.status)}</td>
+                      <td>${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p.receipt.url}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}</td>
                     </tr>
-                    ${p.rejectionNote ? `<tr><td colspan="4" style="padding:.25rem 1rem .75rem;color:var(--danger);font-size:.78rem">↳ ${p.rejectionNote}</td></tr>` : ''}
+                    ${p.rejectionNote ? `<tr><td colspan="5" style="padding:.25rem 1rem .75rem;color:var(--danger);font-size:.78rem">↳ ${p.rejectionNote}</td></tr>` : ''}
                   `).join('')}</tbody>
                 </table>
               </div>
@@ -590,25 +592,25 @@ async function renderAdminHome() {
         </div>
 
         <div class="stats-grid">
-          <div class="stat-card">
+          <div class="stat-card stat-card-clickable" onclick="openStatDetail('pending')">
             <span class="stat-label">Pendientes</span>
             <span class="stat-value" style="color:var(--warning)">${stats.pendingPayments || 0}</span>
-            <span class="stat-sub">por revisar</span>
+            <span class="stat-sub">por revisar ›</span>
           </div>
-          <div class="stat-card">
+          <div class="stat-card stat-card-clickable" onclick="openStatDetail('compliance')">
             <span class="stat-label">Cumplimiento</span>
             <span class="stat-value" style="color:var(--success)">${stats.complianceRate || 0}%</span>
-            <span class="stat-sub">${stats.upToDate || 0} de ${stats.totalOwners || 0}</span>
+            <span class="stat-sub">${stats.upToDate || 0} de ${stats.totalOwners || 0} ›</span>
           </div>
-          <div class="stat-card">
+          <div class="stat-card stat-card-clickable" onclick="openStatDetail('debtors')">
             <span class="stat-label">Morosos</span>
             <span class="stat-value" style="color:var(--danger)">${stats.debtors || 0}</span>
-            <span class="stat-sub">propietarios</span>
+            <span class="stat-sub">propietarios ›</span>
           </div>
-          <div class="stat-card">
+          <div class="stat-card stat-card-clickable" onclick="openStatDetail('collected')">
             <span class="stat-label">Recaudado</span>
             <span class="stat-value" style="color:var(--accent);font-size:1.3rem">$${((stats.totalCollected || 0)/1000).toFixed(0)}k</span>
-            <span class="stat-sub">histórico</span>
+            <span class="stat-sub">histórico ›</span>
           </div>
         </div>
 
@@ -703,6 +705,127 @@ async function renderAdminDashboard() {
   }
 }
 
+async function openStatDetail(type) {
+  openModal();
+  document.getElementById('modal').innerHTML = `<div class="modal-handle"></div>${skeleton(4)}`;
+  try {
+    let html = '<div class="modal-handle"></div>';
+
+    if (type === 'pending') {
+      const res = await api.payments.getAll({ status: 'pending', limit: 50 });
+      const payments = res.data.payments;
+      html += `<h2 style="margin-bottom:1.25rem">Comprobantes Pendientes</h2>
+        ${payments.length === 0
+          ? '<p class="text-muted text-sm">No hay comprobantes pendientes.</p>'
+          : `<div class="flex col" style="gap:.6rem">
+              ${payments.map(p => `
+                <div style="padding:.85rem;background:var(--bg);border-radius:10px">
+                  <div class="flex between" style="align-items:center">
+                    <div>
+                      <p style="font-weight:600;font-size:.9rem">${p.owner?.name || '—'}</p>
+                      <p style="font-size:.78rem;color:var(--muted)">${p.owner?.unit || ''} · ${formatMonth(p.month)} · $${p.amount.toLocaleString('es-AR')}</p>
+                    </div>
+                    <div class="flex gap-1">
+                      ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p.receipt.url}')" title="Descargar" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}
+                      <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}');closeModal()">${SVG.check}</button>
+                      <button class="btn btn-danger btn-sm" onclick="closeModal();openRejectModal('${p._id}')">${SVG.x}</button>
+                    </div>
+                  </div>
+                </div>`).join('')}
+            </div>`}
+        <button class="btn btn-secondary w-full mt-3" onclick="closeModal()">Cerrar</button>`;
+    }
+
+    else if (type === 'compliance') {
+      const res = await api.owners.getAll({ limit: 100 });
+      const owners = res.data.owners;
+      const upToDate = owners.filter(o => !o.isDebtor);
+      const debtors  = owners.filter(o => o.isDebtor);
+      html += `<h2 style="margin-bottom:1rem">Cumplimiento de Pagos</h2>
+        <div class="flex gap-2" style="margin-bottom:1.25rem">
+          <div style="flex:1;background:var(--success-lt);color:var(--success);border-radius:10px;padding:.85rem;text-align:center">
+            <div style="font-size:1.6rem;font-weight:700">${upToDate.length}</div>
+            <div style="font-size:.78rem;margin-top:.2rem">Al día</div>
+          </div>
+          <div style="flex:1;background:var(--danger-lt);color:var(--danger);border-radius:10px;padding:.85rem;text-align:center">
+            <div style="font-size:1.6rem;font-weight:700">${debtors.length}</div>
+            <div style="font-size:.78rem;margin-top:.2rem">Con deuda</div>
+          </div>
+        </div>
+        ${upToDate.length > 0 ? `
+          <p style="font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Al día</p>
+          <div class="flex col" style="gap:.3rem;margin-bottom:1rem">
+            ${upToDate.map(o => `
+              <div class="flex between" style="padding:.5rem .75rem;background:var(--bg);border-radius:8px;font-size:.85rem">
+                <span>${o.name}</span><span style="color:var(--muted);font-size:.78rem">${o.unit || ''}</span>
+              </div>`).join('')}
+          </div>` : ''}
+        ${debtors.length > 0 ? `
+          <p style="font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Con deuda</p>
+          <div class="flex col" style="gap:.3rem;margin-bottom:1rem">
+            ${debtors.map(o => `
+              <div class="flex between" style="padding:.5rem .75rem;background:var(--danger-lt);border-radius:8px;font-size:.85rem">
+                <span>${o.name}</span><span style="color:var(--muted);font-size:.78rem">${o.unit || ''}</span>
+              </div>`).join('')}
+          </div>` : ''}
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cerrar</button>`;
+    }
+
+    else if (type === 'debtors') {
+      const res = await api.owners.getAll({ limit: 100 });
+      const debtors = res.data.owners.filter(o => o.isDebtor);
+      html += `<h2 style="margin-bottom:1.25rem">Propietarios Morosos</h2>
+        ${debtors.length === 0
+          ? '<p class="text-muted text-sm">No hay morosos actualmente.</p>'
+          : `<div class="flex col" style="gap:.5rem">
+              ${debtors.map(o => `
+                <div class="flex between" style="padding:.85rem;background:var(--bg);border-radius:10px;align-items:center">
+                  <div>
+                    <p style="font-weight:600;font-size:.9rem">${o.name}</p>
+                    <p style="font-size:.78rem;color:var(--muted)">${o.unit || ''} · ${o.email}</p>
+                  </div>
+                  <div style="text-align:right">
+                    <span class="badge badge-danger">Deuda</span>
+                    ${o.balance ? `<p style="font-size:.78rem;color:var(--danger);margin-top:.25rem">$${Math.abs(o.balance).toLocaleString('es-AR')}</p>` : ''}
+                  </div>
+                </div>`).join('')}
+            </div>`}
+        <button class="btn btn-secondary w-full mt-3" onclick="closeModal()">Cerrar</button>`;
+    }
+
+    else if (type === 'collected') {
+      const res = await api.payments.getDashboard();
+      const monthly = res.data.monthly || [];
+      const total = monthly.reduce((sum, m) => sum + (m.total || 0), 0);
+      html += `<h2 style="margin-bottom:1rem">Recaudación Histórica</h2>
+        <div style="background:var(--bg);border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.85rem;color:var(--muted)">Total acumulado</span>
+          <span style="font-size:1.4rem;font-weight:700;color:var(--accent)">$${total.toLocaleString('es-AR')}</span>
+        </div>
+        ${monthly.length > 0
+          ? `<div class="flex col" style="gap:.35rem">
+              ${[...monthly].reverse().map(m => `
+                <div class="flex between" style="padding:.6rem .75rem;background:var(--bg);border-radius:8px;font-size:.85rem;align-items:center">
+                  <span style="font-weight:500">${formatMonth(m._id)}</span>
+                  <div class="flex gap-2" style="align-items:center">
+                    <span style="font-size:.78rem;color:var(--muted)">${m.count} pago${m.count !== 1 ? 's' : ''}</span>
+                    <span style="font-weight:600;color:var(--accent)">$${(m.total||0).toLocaleString('es-AR')}</span>
+                  </div>
+                </div>`).join('')}
+            </div>`
+          : '<p class="text-muted text-sm">Sin datos disponibles.</p>'}
+        <button class="btn btn-secondary w-full mt-3" onclick="closeModal()">Cerrar</button>`;
+    }
+
+    document.getElementById('modal').innerHTML = html;
+  } catch (err) {
+    document.getElementById('modal').innerHTML = `
+      <div class="modal-handle"></div>
+      <p style="color:var(--danger)">${err.message}</p>
+      <button class="btn btn-secondary w-full mt-3" onclick="closeModal()">Cerrar</button>`;
+  }
+}
+
 async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
@@ -761,8 +884,15 @@ async function viewOwnerDetail(ownerId) {
       ${payments.length === 0
         ? '<p class="text-muted text-sm">Sin pagos registrados.</p>'
         : `<div class="table-wrap"><table>
-            <thead><tr><th>Período</th><th>Importe</th><th>Estado</th></tr></thead>
-            <tbody>${payments.map(p=>`<tr><td>${formatMonth(p.month)}</td><td>$${p.amount.toLocaleString('es-AR')}</td><td>${statusBadge(p.status)}</td></tr>`).join('')}</tbody>
+            <thead><tr><th>Período</th><th>Importe</th><th>Estado</th><th></th></tr></thead>
+            <tbody>${payments.map(p=>`
+              <tr>
+                <td>${formatMonth(p.month)}</td>
+                <td>$${p.amount.toLocaleString('es-AR')}</td>
+                <td>${statusBadge(p.status)}</td>
+                <td>${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p.receipt.url}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}</td>
+              </tr>`).join('')}
+            </tbody>
           </table></div>`}
       <div class="flex gap-1 mt-3">
         <button class="btn btn-secondary w-full" onclick="closeModal()">Cerrar</button>
@@ -1178,6 +1308,15 @@ function noticeCard(n, full = false) {
     <span class="notice-date">${formatDate(n.createdAt)}</span>
   </div>`;
 }
+function downloadReceipt(url) {
+  if (!url) return;
+  // Cloudinary: añadir fl_attachment para forzar descarga
+  const dlUrl = url.includes('res.cloudinary.com')
+    ? url.replace('/upload/', '/upload/fl_attachment/')
+    : url;
+  window.open(dlUrl, '_blank');
+}
+
 function currentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
