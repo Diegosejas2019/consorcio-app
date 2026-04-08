@@ -540,7 +540,7 @@ async function renderOwnerHistory() {
                       <td>$${p.amount.toLocaleString('es-AR')}</td>
                       <td><span style="font-size:.75rem">${p.paymentMethod === 'mercadopago' ? '💳 MP' : '📄 Manual'}</span></td>
                       <td>${statusBadge(p.status)}</td>
-                      <td>${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p.receipt.url}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}</td>
+                      <td>${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}</td>
                     </tr>
                     ${p.rejectionNote ? `<tr><td colspan="5" style="padding:.25rem 1rem .75rem;color:var(--danger);font-size:.78rem">↳ ${p.rejectionNote}</td></tr>` : ''}
                   `).join('')}</tbody>
@@ -738,7 +738,7 @@ async function openStatDetail(type) {
                       <p style="font-size:.78rem;color:var(--muted)">${p.owner?.unit || ''} · ${formatMonth(p.month)} · $${p.amount.toLocaleString('es-AR')}</p>
                     </div>
                     <div class="flex gap-1">
-                      ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p.receipt.url}')" title="Descargar" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}
+                      ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}
                       <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}');closeModal()">${SVG.check}</button>
                       <button class="btn btn-danger btn-sm" onclick="closeModal();openRejectModal('${p._id}')">${SVG.x}</button>
                     </div>
@@ -902,7 +902,7 @@ async function viewOwnerDetail(ownerId) {
                 <td>${formatMonth(p.month)}</td>
                 <td>$${p.amount.toLocaleString('es-AR')}</td>
                 <td>${statusBadge(p.status)}</td>
-                <td>${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p.receipt.url}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}</td>
+                <td>${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}</td>
               </tr>`).join('')}
             </tbody>
           </table></div>`}
@@ -1320,13 +1320,25 @@ function noticeCard(n, full = false) {
     <span class="notice-date">${formatDate(n.createdAt)}</span>
   </div>`;
 }
-function downloadReceipt(url) {
-  if (!url) return;
-  // Cloudinary: añadir fl_attachment para forzar descarga
-  const dlUrl = url.includes('res.cloudinary.com')
-    ? url.replace('/upload/', '/upload/fl_attachment/')
-    : url;
-  window.open(dlUrl, '_blank');
+async function downloadReceipt(paymentId) {
+  if (!paymentId) return;
+  try {
+    const resp = await fetch(api.payments.getReceiptUrl(paymentId), {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!resp.ok) { toast('Error al descargar el comprobante.', 'error'); return; }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'comprobante.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch {
+    toast('No se pudo descargar el comprobante.', 'error');
+  }
 }
 
 function currentMonth() {

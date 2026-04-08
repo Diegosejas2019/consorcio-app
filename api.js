@@ -129,6 +129,8 @@ const api = {
       request(`/payments/${id}`, { method: 'DELETE' }),
 
     getDashboard: () => request('/payments/dashboard'),
+
+    getReceiptUrl: (id) => `${API_BASE}/payments/${id}/receipt`,
   },
 
   // ── Avisos ───────────────────────────────────────────────────
@@ -167,6 +169,7 @@ const api = {
 
 // Exponer globalmente
 window.api        = api;
+window.API_BASE   = API_BASE;
 window.getToken   = getToken;
 window.setToken   = setToken;
 window.clearToken = clearToken;
