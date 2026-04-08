@@ -253,6 +253,7 @@ const SVG = {
   x:        `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>`,
   logout:   `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>`,
   download: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+  pdf:      `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path d="M13 3v5a1 1 0 001 1h5M9 13h1.5a1 1 0 010 2H9v-4h1.5a1 1 0 010 2" stroke-linecap="round"/></svg>`,
 };
 
 // ── Skeleton loader ───────────────────────────────────────────
@@ -330,8 +331,13 @@ async function renderOwnerHome() {
               <span>${cfg.expenseMonth || ''}</span>
             </div>
             ${pending > 0 ? `<div style="background:var(--warning-lt);color:var(--warning);padding:.6rem .9rem;border-radius:8px;font-size:.82rem;font-weight:500;">⚠ Tenés ${pending} comprobante${pending > 1 ? 's' : ''} pendiente${pending > 1 ? 's' : ''} de revisión.</div>` : ''}
-            <button class="btn btn-primary w-full mt-1" onclick="showPage('page-owner-pay');renderUploadPage()">
-              ${SVG.upload} Subir Comprobante de Pago
+            <button class="btn-upload-cta" onclick="showPage('page-owner-pay');renderUploadPage()">
+              <span class="btn-upload-cta-icon">${SVG.upload}</span>
+              <span class="btn-upload-cta-text">
+                <span class="btn-upload-cta-label">Subir Comprobante</span>
+                <span class="btn-upload-cta-sub">PDF · pago del mes</span>
+              </span>
+              <span class="btn-upload-cta-arrow">›</span>
             </button>
           </div>
         </div>
@@ -394,13 +400,14 @@ async function renderUploadPage() {
               <input class="input" type="number" id="pay-amount" placeholder="${cfg.expenseAmount}" min="1">
             </div>
             <div class="form-group">
-              <label>Comprobante (imagen o PDF)</label>
+              <label>Comprobante de pago (PDF)</label>
               <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-                <div style="font-size:2.5rem">📎</div>
-                <p><strong>Hacé clic para adjuntar</strong> o arrastrá aquí</p>
-                <p style="font-size:.75rem;margin-top:.25rem">JPG, PNG, PDF — máx. 10 MB</p>
+                <div class="upload-icon-wrap">${SVG.pdf}</div>
+                <p class="upload-title">Arrastrá tu PDF aquí</p>
+                <p class="upload-desc">o hacé clic para seleccionar</p>
+                <span class="upload-badge">Solo PDF · máx. 10 MB</span>
               </div>
-              <input type="file" id="file-input" accept="image/*,.pdf" class="hidden" onchange="handleFileSelect(event)">
+              <input type="file" id="file-input" accept=".pdf,application/pdf" class="hidden" onchange="handleFileSelect(event)">
               <div id="file-preview" class="hidden"></div>
             </div>
             <div class="form-group">
@@ -453,15 +460,20 @@ function handleFileSelect(e) { selectedFile = e.target.files[0]; showFilePreview
 function handleFileDrop(file)  { selectedFile = file; showFilePreview(file); }
 function showFilePreview(file) {
   if (!file) return;
+  if (file.type !== 'application/pdf') {
+    toast('Solo se aceptan archivos PDF.', 'error');
+    clearFile();
+    return;
+  }
   document.getElementById('upload-zone').classList.add('hidden');
   const preview = document.getElementById('file-preview');
   preview.classList.remove('hidden');
   preview.innerHTML = `
     <div class="upload-preview">
-      <span style="font-size:1.5rem">${file.type.includes('pdf') ? '📄' : '🖼️'}</span>
+      <div class="upload-preview-icon">${SVG.pdf}</div>
       <div style="flex:1;min-width:0">
         <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${file.name}</p>
-        <small>${(file.size/1024).toFixed(1)} KB</small>
+        <small class="text-muted">${(file.size/1024).toFixed(1)} KB · PDF</small>
       </div>
       <button class="btn-icon" onclick="clearFile()" title="Quitar">✕</button>
     </div>`;
@@ -481,7 +493,7 @@ async function submitReceipt() {
 
   if (!month)              { toast('Seleccioná el período', 'error'); return; }
   if (!amount || amount < 1){ toast('Ingresá un importe válido', 'error'); return; }
-  if (!selectedFile)       { toast('Adjuntá un comprobante', 'error'); return; }
+  if (!selectedFile)       { toast('Adjuntá el comprobante en PDF', 'error'); return; }
 
   const formData = new FormData();
   formData.append('month', month);
