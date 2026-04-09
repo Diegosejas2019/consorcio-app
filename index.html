@@ -49,7 +49,10 @@
       </div>
       <div class="form-group">
         <label>Contraseña</label>
-        <input class="input" type="password" id="owner-pass" placeholder="••••••••" value="Prop2025!">
+        <div class="input-password-wrap">
+          <input class="input" type="password" id="owner-pass" placeholder="••••••••" value="Prop2025!">
+          <button type="button" class="btn-show-pass" onclick="togglePassword('owner-pass', this)" tabindex="-1">👁</button>
+        </div>
       </div>
       <p class="text-muted text-sm" style="text-align:center">Demo: maria@mail.com / Prop2025!</p>
     </div>
@@ -62,7 +65,10 @@
       </div>
       <div class="form-group">
         <label>Contraseña</label>
-        <input class="input" type="password" id="admin-pass" placeholder="••••••••" value="Admin2025!">
+        <div class="input-password-wrap">
+          <input class="input" type="password" id="admin-pass" placeholder="••••••••" value="Admin2025!">
+          <button type="button" class="btn-show-pass" onclick="togglePassword('admin-pass', this)" tabindex="-1">👁</button>
+        </div>
       </div>
       <p class="text-muted text-sm" style="text-align:center">Demo: admin@consorcio.com / Admin2025!</p>
     </div>
@@ -109,11 +115,17 @@
     <p class="text-sm text-muted" style="margin-bottom:1.25rem">Ingresá tu nueva contraseña para recuperar el acceso.</p>
     <div class="form-group">
       <label>Nueva contraseña</label>
-      <input class="input" type="password" id="reset-pass" placeholder="Mínimo 6 caracteres">
+      <div class="input-password-wrap">
+        <input class="input" type="password" id="reset-pass" placeholder="Mínimo 6 caracteres">
+        <button type="button" class="btn-show-pass" onclick="togglePassword('reset-pass', this)" tabindex="-1">👁</button>
+      </div>
     </div>
     <div class="form-group">
       <label>Confirmar contraseña</label>
-      <input class="input" type="password" id="reset-pass-confirm" placeholder="Repetí la contraseña">
+      <div class="input-password-wrap">
+        <input class="input" type="password" id="reset-pass-confirm" placeholder="Repetí la contraseña">
+        <button type="button" class="btn-show-pass" onclick="togglePassword('reset-pass-confirm', this)" tabindex="-1">👁</button>
+      </div>
     </div>
     <button class="btn btn-primary w-full" onclick="submitResetPassword()" style="margin-top:1rem;padding:.85rem">
       Guardar nueva contraseña

@@ -96,6 +96,9 @@ small { font-size: .8rem; color: var(--muted); }
 textarea { resize: vertical; min-height: 90px; }
 .form-group { display: flex; flex-direction: column; gap: .4rem; }
 .form-group label { font-size: .85rem; font-weight: 500; color: var(--text); }
+.input-password-wrap { position: relative; display: flex; align-items: center; }
+.input-password-wrap .input { padding-right: 2.6rem; }
+.btn-show-pass { position: absolute; right: .6rem; background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--text-muted); padding: .2rem; line-height: 1; }
 
 /* ── Cards ── */
 .card {

@@ -137,6 +137,15 @@ function showPage(id) {
   });
 }
 
+// ── Toggle visibilidad de contraseña ─────────────────────────
+function togglePassword(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}
+
 // ═══════════════════════════════════════════
 // LOGIN / FORGOT PASSWORD / RESET PASSWORD
 // ═══════════════════════════════════════════
