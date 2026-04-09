@@ -150,6 +150,18 @@ const api = {
       request(`/notices/${id}`, { method: 'DELETE' }),
   },
 
+  // ── Reclamos ─────────────────────────────────────────────────
+  claims: {
+    getAll: (params = {}) => request(`/claims?${new URLSearchParams(params)}`),
+    create: (data) => request('/claims', { method: 'POST', body: JSON.stringify(data) }),
+    updateStatus: (id, status, adminNote) =>
+      request(`/claims/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, adminNote }),
+      }),
+    delete: (id) => request(`/claims/${id}`, { method: 'DELETE' }),
+  },
+
   // ── Configuración ─────────────────────────────────────────────
   config: {
     get: () => request('/config'),

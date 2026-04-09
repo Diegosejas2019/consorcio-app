@@ -222,13 +222,15 @@ function setupNav() {
       <button class="nav-item"        data-page="page-admin-dashboard"  onclick="showPage('page-admin-dashboard');renderAdminDashboard()">${SVG_DASH}<span>Dashboard</span></button>
       <button class="nav-item"        data-page="page-admin-owners"     onclick="showPage('page-admin-owners');renderOwnersList()">${SVG.users}<span>Propietarios</span></button>
       <button class="nav-item"        data-page="page-admin-notices"    onclick="showPage('page-admin-notices');renderAdminNotices()">${SVG.bell}<span>Avisos</span></button>
+      <button class="nav-item"        data-page="page-admin-claims"     onclick="showPage('page-admin-claims');renderAdminClaims()">${SVG.claim}<span>Reclamos</span></button>
       <button class="nav-item"        data-page="page-admin-settings"   onclick="showPage('page-admin-settings');renderAdminSettings()">${SVG.settings}<span>Config</span></button>`;
   } else {
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-owner-home"    onclick="showPage('page-owner-home');renderOwnerHome()">${SVG.home}<span>Inicio</span></button>
       <button class="nav-item"        data-page="page-owner-pay"     onclick="showPage('page-owner-pay');renderUploadPage()">${SVG.upload}<span>Pagar</span></button>
       <button class="nav-item"        data-page="page-owner-history" onclick="showPage('page-owner-history');renderOwnerHistory()">${SVG.list}<span>Historial</span></button>
-      <button class="nav-item"        data-page="page-owner-notices" onclick="showPage('page-owner-notices');renderOwnerNotices()">${SVG.bell}<span>Avisos</span></button>`;
+      <button class="nav-item"        data-page="page-owner-notices" onclick="showPage('page-owner-notices');renderOwnerNotices()">${SVG.bell}<span>Avisos</span></button>
+      <button class="nav-item"        data-page="page-owner-claims"  onclick="showPage('page-owner-claims');renderOwnerClaims()">${SVG.claim}<span>Reclamos</span></button>`;
   }
 }
 
@@ -258,6 +260,7 @@ const SVG = {
   x:        `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 18L18 6M6 6l12 12"/></svg>`,
   logout:   `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>`,
   download: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+  claim:    `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`,
   pdf:      `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path d="M13 3v5a1 1 0 001 1h5M9 13h1.5a1 1 0 010 2H9v-4h1.5a1 1 0 010 2" stroke-linecap="round"/></svg>`,
 };
 
@@ -590,15 +593,17 @@ async function renderAdminHome() {
   const el = document.getElementById('page-admin-home');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
   try {
-    const [statsRes, pendingRes, cfgRes] = await Promise.all([
+    const [statsRes, pendingRes, cfgRes, claimsRes] = await Promise.all([
       api.owners.getStats(),
       api.payments.getAll({ status: 'pending', limit: 20 }),
       api.config.get(),
+      api.claims.getAll({ status: 'open', limit: 10 }),
     ]);
 
-    const stats   = statsRes.data;
-    const pending = pendingRes.data.payments;
-    const cfg     = cfgRes.data.config;
+    const stats      = statsRes.data;
+    const pending    = pendingRes.data.payments;
+    const cfg        = cfgRes.data.config;
+    const openClaims = claimsRes.data.claims;
 
     el.innerHTML = `
       <div class="flex col gap-3">
@@ -650,6 +655,28 @@ async function renderAdminHome() {
                     <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}')">${SVG.check}</button>
                     <button class="btn btn-danger  btn-sm" onclick="openRejectModal('${p._id}')">${SVG.x}</button>
                   </div>
+                </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header flex between">
+            <h3>Reclamos Abiertos</h3>
+            <div class="flex gap-1" style="align-items:center">
+              ${openClaims.length > 0 ? `<span class="badge badge-warning">${openClaims.length}</span>` : ''}
+              <button class="btn btn-ghost btn-sm" onclick="showPage('page-admin-claims');renderAdminClaims()">Ver todos</button>
+            </div>
+          </div>
+          <div class="card-body flex col gap-2">
+            ${openClaims.length === 0
+              ? '<p class="text-muted text-sm">No hay reclamos abiertos.</p>'
+              : openClaims.map(c => `
+                <div style="padding:.5rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+                  <div style="flex:1;min-width:0">
+                    <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.title}</p>
+                    <small style="color:var(--muted)">${c.owner?.name || '—'} · ${c.owner?.unit || ''} · ${CLAIM_CATEGORIES[c.category] || c.category}</small>
+                  </div>
+                  <button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g,'\\\'').replace(/"/g,'&quot;')}')">Resolver</button>
                 </div>`).join('')}
           </div>
         </div>
@@ -1232,6 +1259,214 @@ async function deleteNotice(id) {
     renderAdminNotices();
   } catch (err) {
     toast(err.message, 'error');
+  }
+}
+
+// ── Reclamos — Vista Admin ────────────────────────────────────
+const CLAIM_CATEGORIES = {
+  infrastructure: 'Infraestructura',
+  security:       'Seguridad',
+  noise:          'Ruidos',
+  cleaning:       'Limpieza',
+  billing:        'Facturación',
+  other:          'Otro',
+};
+
+function claimStatusBadge(status) {
+  if (status === 'open')        return `<span class="badge badge-warning">Abierto</span>`;
+  if (status === 'in_progress') return `<span class="badge badge-neutral" style="background:var(--accent-lt,#ede9fe);color:var(--accent)">En proceso</span>`;
+  if (status === 'resolved')    return `<span class="badge badge-success">Resuelto</span>`;
+  return `<span class="badge">${status}</span>`;
+}
+
+async function renderAdminClaims() {
+  const el = document.getElementById('page-admin-claims');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  try {
+    const res    = await api.claims.getAll({ limit: 100 });
+    const claims = res.data.claims;
+
+    const open       = claims.filter(c => c.status === 'open');
+    const inProgress = claims.filter(c => c.status === 'in_progress');
+    const resolved   = claims.filter(c => c.status === 'resolved');
+
+    const renderClaimCard = (c) => `
+      <div style="background:var(--bg);border-radius:10px;padding:.85rem;display:flex;flex-direction:column;gap:.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
+          <div style="flex:1;min-width:0">
+            <p style="font-weight:600;font-size:.9rem;margin-bottom:.15rem">${c.title}</p>
+            <p style="font-size:.75rem;color:var(--muted)">${c.owner?.name || '—'} · ${c.owner?.unit || ''} · ${CLAIM_CATEGORIES[c.category] || c.category}</p>
+            <p style="font-size:.75rem;color:var(--muted)">${formatDate(c.createdAt)}</p>
+          </div>
+          ${claimStatusBadge(c.status)}
+        </div>
+        <p style="font-size:.83rem;color:var(--text);line-height:1.4">${c.body}</p>
+        ${c.adminNote ? `<p style="font-size:.78rem;color:var(--muted);font-style:italic">Nota: ${c.adminNote}</p>` : ''}
+        <div class="flex gap-1" style="flex-wrap:wrap">
+          ${c.status !== 'in_progress' && c.status !== 'resolved' ? `<button class="btn btn-secondary btn-sm" onclick="updateClaimStatus('${c._id}','in_progress')">En proceso</button>` : ''}
+          ${c.status !== 'resolved' ? `<button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g,'\\\'').replace(/"/g,'&quot;')}')">Resolver</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="deleteClaim('${c._id}',true)" style="margin-left:auto;color:var(--muted)">${SVG.x}</button>
+        </div>
+      </div>`;
+
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <h1>Reclamos</h1>
+        ${open.length === 0 && inProgress.length === 0 && resolved.length === 0
+          ? '<div class="card"><div class="card-body"><p class="text-muted text-sm">No hay reclamos registrados.</p></div></div>'
+          : `
+          ${open.length > 0 ? `
+            <div class="card">
+              <div class="card-header flex between">
+                <h3>Abiertos</h3><span class="badge badge-warning">${open.length}</span>
+              </div>
+              <div class="card-body flex col gap-2">${open.map(renderClaimCard).join('')}</div>
+            </div>` : ''}
+          ${inProgress.length > 0 ? `
+            <div class="card">
+              <div class="card-header flex between">
+                <h3>En proceso</h3><span class="badge badge-neutral">${inProgress.length}</span>
+              </div>
+              <div class="card-body flex col gap-2">${inProgress.map(renderClaimCard).join('')}</div>
+            </div>` : ''}
+          ${resolved.length > 0 ? `
+            <div class="card">
+              <div class="card-header flex between">
+                <h3>Resueltos</h3><span class="badge badge-success">${resolved.length}</span>
+              </div>
+              <div class="card-body flex col gap-2">${resolved.map(renderClaimCard).join('')}</div>
+            </div>` : ''}`}
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderAdminClaims()');
+  }
+}
+
+async function updateClaimStatus(id, status, adminNote) {
+  try {
+    await api.claims.updateStatus(id, status, adminNote);
+    toast(status === 'resolved' ? 'Reclamo resuelto.' : 'Estado actualizado.', 'success');
+    renderAdminClaims();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function openResolveClaimModal(id, title) {
+  openModal();
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.75rem">Resolver reclamo</h2>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">${title}</p>
+    <div class="form-group">
+      <label>Nota para el propietario (opcional)</label>
+      <textarea class="input" id="resolve-note" placeholder="Ej: Se realizó la reparación el día..." rows="3"></textarea>
+    </div>
+    <div class="flex col gap-1 mt-3">
+      <button class="btn btn-success w-full" onclick="confirmResolveClaim('${id}')">Marcar como resuelto</button>
+      <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+    </div>`;
+}
+
+async function confirmResolveClaim(id) {
+  const note = document.getElementById('resolve-note')?.value?.trim();
+  closeModal();
+  await updateClaimStatus(id, 'resolved', note);
+}
+
+async function deleteClaim(id, isAdmin = false) {
+  try {
+    await api.claims.delete(id);
+    toast('Reclamo eliminado.', 'success');
+    if (isAdmin) renderAdminClaims();
+    else renderOwnerClaims();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ── Reclamos — Vista Owner ────────────────────────────────────
+async function renderOwnerClaims() {
+  const el = document.getElementById('page-owner-claims');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  try {
+    const res    = await api.claims.getAll({ limit: 50 });
+    const claims = res.data.claims;
+
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <div class="flex between" style="align-items:center">
+          <h1>Mis Reclamos</h1>
+          <button class="btn btn-primary btn-sm" onclick="openNewClaimModal()">+ Nuevo</button>
+        </div>
+        <div class="card">
+          <div class="card-body flex col gap-2">
+            ${claims.length === 0
+              ? '<p class="text-muted text-sm">No tenés reclamos registrados.</p>'
+              : claims.map(c => `
+                <div style="padding:.75rem 0;border-bottom:1px solid var(--border)">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.35rem">
+                    <p style="font-weight:600;font-size:.9rem">${c.title}</p>
+                    ${claimStatusBadge(c.status)}
+                  </div>
+                  <p style="font-size:.75rem;color:var(--muted);margin-bottom:.3rem">${CLAIM_CATEGORIES[c.category] || c.category} · ${formatDate(c.createdAt)}</p>
+                  <p style="font-size:.83rem;color:var(--text);line-height:1.4">${c.body}</p>
+                  ${c.adminNote ? `<p style="font-size:.78rem;color:var(--accent);margin-top:.35rem;font-style:italic">Respuesta: ${c.adminNote}</p>` : ''}
+                  ${c.status === 'open' ? `<button class="btn btn-ghost btn-sm" style="margin-top:.4rem;color:var(--danger);font-size:.75rem" onclick="deleteClaim('${c._id}')">Eliminar</button>` : ''}
+                </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderOwnerClaims()');
+  }
+}
+
+function openNewClaimModal() {
+  openModal();
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1rem">Nuevo Reclamo</h2>
+    <div class="flex col gap-2">
+      <div class="form-group">
+        <label>Categoría</label>
+        <select class="input" id="claim-category">
+          ${Object.entries(CLAIM_CATEGORIES).map(([v,l]) => `<option value="${v}">${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Título</label>
+        <input class="input" id="claim-title" placeholder="Ej: Pérdida de agua en pasillo" maxlength="150">
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea class="input" id="claim-body" placeholder="Describí el problema con el mayor detalle posible..." rows="4" maxlength="2000"></textarea>
+      </div>
+      <button class="btn btn-primary w-full" id="btn-submit-claim" onclick="submitClaim()">Enviar reclamo</button>
+      <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+    </div>`;
+}
+
+async function submitClaim() {
+  const category = document.getElementById('claim-category')?.value;
+  const title    = document.getElementById('claim-title')?.value?.trim();
+  const body     = document.getElementById('claim-body')?.value?.trim();
+
+  if (!title) { toast('El título es obligatorio.', 'error'); return; }
+  if (!body)  { toast('La descripción es obligatoria.', 'error'); return; }
+
+  const btn = document.getElementById('btn-submit-claim');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  try {
+    await api.claims.create({ category, title, body });
+    closeModal();
+    toast('Reclamo enviado correctamente.', 'success');
+    renderOwnerClaims();
+  } catch (err) {
+    toast(err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Enviar reclamo';
   }
 }
 
