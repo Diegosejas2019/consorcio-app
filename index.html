@@ -36,7 +36,7 @@
       </div>
     </div>
 
-    <div class="role-tabs">
+    <div class="role-tabs" id="role-tabs-container">
       <button class="role-tab active" data-role="owner">Propietario</button>
       <button class="role-tab" data-role="admin">Administrador</button>
     </div>
@@ -69,6 +69,54 @@
 
     <button class="btn btn-primary w-full" id="btn-login" style="margin-top:1.5rem;padding:.85rem">
       Ingresar
+    </button>
+    <p id="forgot-link" style="text-align:center;margin-top:.9rem">
+      <a onclick="showForgotView()" style="cursor:pointer;color:var(--primary);font-size:.85rem">¿Olvidaste tu contraseña?</a>
+    </p>
+
+    <!-- Vista recuperar contraseña (inline, oculta por defecto) -->
+    <div id="forgot-view" class="hidden">
+      <p class="text-sm text-muted" style="text-align:center;margin-bottom:1.25rem">
+        Ingresá tu email y te enviaremos un enlace para recuperar tu contraseña.
+      </p>
+      <div class="form-group">
+        <label>Email</label>
+        <input class="input" type="email" id="forgot-email" placeholder="tu@email.com">
+      </div>
+      <button class="btn btn-primary w-full" onclick="submitForgotPassword()" style="margin-top:1rem;padding:.85rem">
+        Enviar enlace de recuperación
+      </button>
+      <p style="text-align:center;margin-top:.9rem">
+        <a onclick="showLoginView()" style="cursor:pointer;color:var(--primary);font-size:.85rem">← Volver al inicio de sesión</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     RESET PASSWORD SCREEN
+═══════════════════════════════════════ -->
+<div id="reset-screen" style="display:none;justify-content:center;align-items:center;min-height:100vh;background:var(--bg)">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">🏘️</div>
+      <div>
+        <h1>Mi Consorcio</h1>
+        <span>Barrio Privado · Administración</span>
+      </div>
+    </div>
+    <h2 style="margin:0 0 .25rem;font-size:1.1rem;font-weight:600">Nueva contraseña</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1.25rem">Ingresá tu nueva contraseña para recuperar el acceso.</p>
+    <div class="form-group">
+      <label>Nueva contraseña</label>
+      <input class="input" type="password" id="reset-pass" placeholder="Mínimo 6 caracteres">
+    </div>
+    <div class="form-group">
+      <label>Confirmar contraseña</label>
+      <input class="input" type="password" id="reset-pass-confirm" placeholder="Repetí la contraseña">
+    </div>
+    <button class="btn btn-primary w-full" onclick="submitResetPassword()" style="margin-top:1rem;padding:.85rem">
+      Guardar nueva contraseña
     </button>
   </div>
 </div>

@@ -138,9 +138,70 @@ function showPage(id) {
 }
 
 // ═══════════════════════════════════════════
-// LOGIN
+// LOGIN / FORGOT PASSWORD / RESET PASSWORD
 // ═══════════════════════════════════════════
-let loginRole = 'owner';
+let loginRole   = 'owner';
+let _resetToken = null;
+
+function showForgotView() {
+  document.getElementById('role-tabs-container').classList.add('hidden');
+  document.getElementById('owner-fields').classList.add('hidden');
+  document.getElementById('admin-fields').classList.add('hidden');
+  document.getElementById('btn-login').classList.add('hidden');
+  document.getElementById('forgot-link').classList.add('hidden');
+  document.getElementById('forgot-view').classList.remove('hidden');
+  document.getElementById('forgot-email').focus();
+}
+
+function showLoginView() {
+  document.getElementById('role-tabs-container').classList.remove('hidden');
+  document.getElementById(loginRole === 'owner' ? 'owner-fields' : 'admin-fields').classList.remove('hidden');
+  document.getElementById('btn-login').classList.remove('hidden');
+  document.getElementById('forgot-link').classList.remove('hidden');
+  document.getElementById('forgot-view').classList.add('hidden');
+}
+
+async function submitForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) { toast('Ingresá tu email', 'error'); return; }
+
+  try {
+    showLoading(true);
+    await api.auth.forgotPassword(email);
+    document.getElementById('forgot-email').value = '';
+    showLoginView();
+    toast('Si ese email está registrado recibirás un enlace en los próximos minutos.', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function submitResetPassword() {
+  const newPassword = document.getElementById('reset-pass').value.trim();
+  const confirmPass = document.getElementById('reset-pass-confirm').value.trim();
+
+  if (newPassword.length < 6) { toast('La contraseña debe tener al menos 6 caracteres', 'error'); return; }
+  if (newPassword !== confirmPass) { toast('Las contraseñas no coinciden', 'error'); return; }
+
+  try {
+    showLoading(true);
+    const res = await api.auth.resetPassword(_resetToken, newPassword);
+    setToken(res.token);
+    state = { role: res.data.user.role, user: res.data.user };
+    // Limpiar token de la URL sin recargar la página
+    window.history.replaceState({}, '', window.location.pathname);
+    document.getElementById('reset-screen').style.display = 'none';
+    cache.clear();
+    toast('Contraseña actualizada correctamente', 'success');
+    enterApp();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
 
 document.querySelectorAll('.role-tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -174,8 +235,19 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   }
 });
 
-// ── Restaurar sesión si ya hay token ─────────────────────────
+// ── Restaurar sesión / detectar reset token ───────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+  // Si hay ?token= en la URL → flujo de reset password
+  const params = new URLSearchParams(window.location.search);
+  const resetToken = params.get('token');
+  if (resetToken) {
+    _resetToken = resetToken;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('reset-screen').style.display = 'flex';
+    return;
+  }
+
+  // Intentar restaurar sesión con token guardado
   const token = getToken();
   if (!token) return;
   try {

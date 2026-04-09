@@ -84,6 +84,18 @@ const api = {
         method: 'PATCH',
         body: JSON.stringify({ fcmToken }),
       }),
+
+    forgotPassword: (email) =>
+      request('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+
+    resetPassword: (token, newPassword) =>
+      request(`/auth/reset-password/${token}`, {
+        method: 'POST',
+        body: JSON.stringify({ newPassword }),
+      }),
   },
 
   // ── Propietarios ────────────────────────────────────────────
