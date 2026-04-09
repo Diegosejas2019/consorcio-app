@@ -639,7 +639,7 @@ async function renderAdminHome() {
                   <div>
                     <p class="bold text-sm">${p.owner?.name || '—'}</p>
                     <small>${p.owner?.unit || ''} · ${formatMonth(p.month)} · $${p.amount.toLocaleString('es-AR')}</small>
-                    ${p.receipt?.url ? `<br><a href="${p.receipt.url}" target="_blank" style="font-size:.72rem;color:var(--accent)">Ver comprobante ↗</a>` : ''}
+                    ${p.receipt?.url ? `<br><button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" style="font-size:.72rem;color:var(--accent);padding:0;background:none;border:none;cursor:pointer;text-decoration:underline">Ver comprobante ↗</button>` : ''}
                   </div>
                   <div class="flex gap-1">
                     <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}')">${SVG.check}</button>
