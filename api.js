@@ -128,7 +128,7 @@ const api = {
     delete: (id) =>
       request(`/payments/${id}`, { method: 'DELETE' }),
 
-    getDashboard: () => request('/payments/dashboard'),
+    getDashboard: (year) => request(`/payments/dashboard${year ? `?year=${year}` : ''}`),
 
     getReceiptUrl: (id) => `${API_BASE}/payments/${id}/receipt`,
   },
