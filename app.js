@@ -230,10 +230,12 @@ document.getElementById('btn-login').addEventListener('click', async () => {
 
   if (!email || !password) { toast('Completá email y contraseña', 'error'); return; }
 
+  const remember = document.getElementById('remember-me')?.checked ?? true;
+
   try {
     showLoading(true);
     const res = await api.auth.login(email, password);
-    setToken(res.token);
+    setToken(res.token, remember);
     state = { role: res.data.user.role, user: res.data.user };
     cache.clear();
     enterApp();
@@ -276,6 +278,7 @@ function enterApp() {
   setupTopBar();
   if (state.role === 'admin') {
     renderAdminView();
+    setupPushNotifications();
   } else {
     renderOwnerView();
     setupPushNotifications();
@@ -1596,7 +1599,46 @@ async function renderAdminSettings() {
         </div>
       </div>`;
   } catch (err) {
-    el.innerHTML = errorState(err.message, 'renderAdminSettings()');
+    if (err.message && err.message.toLowerCase().includes('organización no configurada')) {
+      el.innerHTML = `
+        <div class="flex col gap-3">
+          <h1>Configuración</h1>
+          <div class="card">
+            <div class="card-header"><h3>Configurar organización</h3></div>
+            <div class="card-body flex col gap-2">
+              <p class="text-sm text-muted">Todavía no configuraste tu organización. Completá los datos para comenzar.</p>
+              <div class="form-group"><label>Nombre del consorcio / barrio *</label><input class="input" id="setup-org-name" placeholder="Barrio Privado Los Pinos"></div>
+              <div class="form-group"><label>Dirección</label><input class="input" id="setup-org-address" placeholder="Av. Siempre Viva 742"></div>
+              <div class="form-group"><label>Email de contacto</label><input class="input" type="email" id="setup-org-email" placeholder="admin@consorcio.com"></div>
+              <button class="btn btn-primary" onclick="createOrganization()">Crear organización</button>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      el.innerHTML = errorState(err.message, 'renderAdminSettings()');
+    }
+  }
+}
+
+async function createOrganization() {
+  const name    = document.getElementById('setup-org-name')?.value.trim();
+  const address = document.getElementById('setup-org-address')?.value.trim();
+  const email   = document.getElementById('setup-org-email')?.value.trim();
+
+  if (!name) { toast('El nombre es requerido', 'error'); return; }
+
+  try {
+    showLoading(true);
+    await api.organizations.create({ name, address, adminEmail: email });
+    // Refrescar estado del usuario para que req.org se popule en siguientes requests
+    const me = await api.auth.getMe();
+    state.user = me.data.user;
+    toast('Organización creada correctamente', 'success');
+    renderAdminSettings();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    showLoading(false);
   }
 }
 

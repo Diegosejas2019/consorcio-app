@@ -10,9 +10,21 @@ const API_BASE = window.CONSORCIO_API_URL || 'https://consorcio-api-production.u
 // ── Gestión del JWT ───────────────────────────────────────────
 const TOKEN_KEY = 'consorcio_token';
 
-const getToken  = ()      => localStorage.getItem(TOKEN_KEY);
-const setToken  = (token) => localStorage.setItem(TOKEN_KEY, token);
-const clearToken = ()     => localStorage.removeItem(TOKEN_KEY);
+// getToken: busca en localStorage primero (recordarme), luego en sessionStorage (sesión)
+const getToken   = ()              => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+const setToken   = (token, remember = true) => {
+  if (remember) {
+    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.removeItem(TOKEN_KEY);
+  } else {
+    sessionStorage.setItem(TOKEN_KEY, token);
+    localStorage.removeItem(TOKEN_KEY);
+  }
+};
+const clearToken = ()              => {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+};
 
 // ── Función base de fetch ─────────────────────────────────────
 async function request(endpoint, options = {}) {
@@ -179,6 +191,12 @@ const api = {
     get: () => request('/config'),
     update: (data) =>
       request('/config', { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+
+  // ── Organizaciones ─────────────────────────────────────────────
+  organizations: {
+    create: (data) =>
+      request('/organizations', { method: 'POST', body: JSON.stringify(data) }),
   },
 
   // ── MercadoPago ───────────────────────────────────────────────
