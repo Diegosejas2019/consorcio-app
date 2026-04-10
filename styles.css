@@ -333,6 +333,27 @@ tr:hover td { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 
 /* ── Skeleton / Shimmer Loader ── */
+.skeleton {
+  background: linear-gradient(90deg, var(--border) 25%, #e8e8f0 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+.skeleton-line { height: 14px; margin-bottom: .6rem; }
+.skeleton-line.short { width: 55%; }
+.skeleton-line.medium { width: 75%; }
+.skeleton-card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 /* ── Spin animation (loading overlay icon) ── */
 @keyframes spin {
