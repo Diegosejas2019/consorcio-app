@@ -399,7 +399,7 @@ async function renderOwnerHome() {
         <div>
           <p class="text-muted text-sm">Bienvenido/a,</p>
           <h1>${owner.name}</h1>
-          <small>${owner.unit || ''}</small>
+          <small>${[owner.unit, owner.phone].filter(Boolean).join(' · ')}</small>
         </div>
 
         <div class="card">
@@ -1117,7 +1117,7 @@ async function renderOwnersList() {
                 <div class="owner-avatar">${o.name.split(' ').slice(0,2).map(w=>w[0]).join('')}</div>
                 <div class="owner-info">
                   <p class="name">${o.name}</p>
-                  <p class="unit">${o.unit || '—'}</p>
+                  <p class="unit">${o.unit || '—'}${o.phone ? ` · ${o.phone}` : ''}</p>
                 </div>
                 <div class="flex col" style="align-items:flex-end;gap:.25rem">
                   <span class="badge ${o.isDebtor ? 'badge-danger' : 'badge-success'}">${o.isDebtor ? 'Deuda' : 'Al día'}</span>
@@ -1143,7 +1143,10 @@ async function viewOwnerDetail(ownerId) {
     document.getElementById('modal').innerHTML = `
       <div class="modal-handle"></div>
       <div class="flex between" style="margin-bottom:1.25rem">
-        <div><h2>${owner.name}</h2><small>${owner.unit || ''} · ${owner.email}</small></div>
+        <div>
+          <h2>${owner.name}</h2>
+          <small>${[owner.unit, owner.phone, owner.email].filter(Boolean).join(' · ')}</small>
+        </div>
         <span class="badge ${owner.isDebtor ? 'badge-danger' : 'badge-success'}">${owner.isDebtor ? 'Deudor' : 'Al día'}</span>
       </div>
       <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:1rem" class="flex between">
@@ -1167,9 +1170,10 @@ async function viewOwnerDetail(ownerId) {
             </tbody>
           </table></div>`}
       <div class="flex gap-1 mt-3">
-        <button class="btn btn-secondary w-full" onclick="closeModal()">Cerrar</button>
-        <button class="btn btn-primary w-full" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
-          Marcar ${owner.isDebtor ? 'al día' : 'moroso'}
+        <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
+        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g,"\\'")}', '${owner.unit||''}', '${owner.phone||''}')">Editar</button>
+        <button class="btn btn-primary" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
+          ${owner.isDebtor ? 'Al día' : 'Moroso'}
         </button>
       </div>`;
   } catch (err) {
@@ -1182,6 +1186,39 @@ async function toggleDebt(ownerId, currentDebt) {
     await api.owners.update(ownerId, { isDebtor: !currentDebt, balance: !currentDebt ? -15000 : 0 });
     closeModal();
     toast('Propietario actualizado', 'success');
+    renderOwnersList();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ── Editar propietario ────────────────────────────────────────
+function openEditOwnerModal(id, name, unit, phone) {
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1rem">Editar Propietario</h2>
+    <div class="flex col gap-2">
+      <div class="form-group"><label>Nombre completo</label><input class="input" id="eo-name" value="${name}"></div>
+      <div class="form-group"><label>Unidad (lote/casa)</label><input class="input" id="eo-unit" value="${unit}" placeholder="Lote 12"></div>
+      <div class="form-group"><label>Teléfono</label><input class="input" type="tel" id="eo-phone" value="${phone}" placeholder="1122334455"></div>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${id}')">Cancelar</button>
+        <button class="btn btn-primary w-full" onclick="saveEditOwner('${id}')">Guardar</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+async function saveEditOwner(id) {
+  const name  = document.getElementById('eo-name')?.value.trim();
+  const unit  = document.getElementById('eo-unit')?.value.trim();
+  const phone = document.getElementById('eo-phone')?.value.trim();
+  if (!name) { toast('El nombre es obligatorio', 'error'); return; }
+  try {
+    await api.owners.update(id, { name, unit, phone });
+    toast('Propietario actualizado', 'success');
+    viewOwnerDetail(id);
     renderOwnersList();
   } catch (err) {
     toast(err.message, 'error');
