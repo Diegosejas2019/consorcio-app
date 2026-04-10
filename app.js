@@ -349,11 +349,7 @@ const SVG = {
 };
 
 // ── Skeleton loader ───────────────────────────────────────────
-function skeleton(lines = 3) {
-  return Array.from({ length: lines }, () =>
-    `<div style="height:18px;background:linear-gradient(90deg,#e8eaed 25%,#f3f4f6 50%,#e8eaed 75%);background-size:200%;border-radius:6px;margin-bottom:10px;animation:shimmer 1.4s infinite"></div>`
-  ).join('');
-}
+function skeleton() { return ''; }
 
 // ═══════════════════════════════════════════
 // OWNER VIEWS
@@ -366,7 +362,7 @@ function renderOwnerView() {
 
 async function renderOwnerHome() {
   const el = document.getElementById('page-owner-home');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
+  el.innerHTML = '';
 
   try {
     const [cfgRes, payRes] = await Promise.all([
@@ -466,7 +462,7 @@ async function renderOwnerHome() {
 
 async function renderUploadPage() {
   const el = document.getElementById('page-owner-pay');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  el.innerHTML = '';
 
   try {
     const cfgRes = await api.config.get();
@@ -613,7 +609,7 @@ async function submitReceipt() {
 
 async function renderOwnerHistory() {
   const el = document.getElementById('page-owner-history');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  el.innerHTML = '';
   try {
     const res      = await api.payments.getAll({ limit: 50 });
     const payments = res.data.payments;
@@ -647,7 +643,7 @@ async function renderOwnerHistory() {
 
 async function renderOwnerNotices() {
   const el = document.getElementById('page-owner-notices');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  el.innerHTML = '';
   try {
     const res = await api.notices.getAll({ limit: 30 });
     el.innerHTML = `
@@ -681,7 +677,7 @@ async function renderAdminView() {
 
 async function renderAdminHome() {
   const el = document.getElementById('page-admin-home');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
+  el.innerHTML = '';
   try {
     const [statsRes, pendingRes, cfgRes, claimsRes] = await Promise.all([
       api.owners.getStats(),
@@ -779,7 +775,7 @@ async function renderAdminHome() {
 async function renderAdminDashboard(year) {
   if (year !== undefined) _dashYear = year;
   const el = document.getElementById('page-admin-dashboard');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
+  el.innerHTML = '';
   try {
     const [dashRes, statsRes] = await Promise.all([
       api.payments.getDashboard(_dashYear),
@@ -880,7 +876,7 @@ async function renderAdminDashboard(year) {
 
 async function openStatDetail(type, arg) {
   openModal();
-  document.getElementById('modal').innerHTML = `<div class="modal-handle"></div>${skeleton(4)}`;
+  document.getElementById('modal').innerHTML = '<div class="modal-handle"></div>';
   try {
     let html = '<div class="modal-handle"></div>';
 
@@ -1100,7 +1096,7 @@ async function exportDashboardExcel() {
 
 async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  el.innerHTML = '';
   try {
     const res    = await api.owners.getAll({ limit: 100 });
     const owners = res.data.owners;
@@ -1135,7 +1131,7 @@ async function renderOwnersList() {
 
 async function viewOwnerDetail(ownerId) {
   openModal();
-  document.getElementById('modal').innerHTML = `<div class="modal-handle"></div>${skeleton(4)}`;
+  document.getElementById('modal').innerHTML = '<div class="modal-handle"></div>';
   try {
     const res      = await api.owners.getOne(ownerId);
     const owner    = res.data.owner;
@@ -1343,7 +1339,7 @@ async function confirmReject() {
 // ── Avisos Admin ──────────────────────────────────────────────
 async function renderAdminNotices() {
   const el = document.getElementById('page-admin-notices');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  el.innerHTML = '';
   try {
     const res = await api.notices.getAll({ limit: 30 });
     el.innerHTML = `
@@ -1443,7 +1439,7 @@ function claimStatusBadge(status) {
 
 async function renderAdminClaims() {
   const el = document.getElementById('page-admin-claims');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  el.innerHTML = '';
   try {
     const res    = await api.claims.getAll({ limit: 100 });
     const claims = res.data.claims;
@@ -1550,7 +1546,7 @@ async function deleteClaim(id, isAdmin = false) {
 // ── Reclamos — Vista Owner ────────────────────────────────────
 async function renderOwnerClaims() {
   const el = document.getElementById('page-owner-claims');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  el.innerHTML = '';
   try {
     const res    = await api.claims.getAll({ limit: 50 });
     const claims = res.data.claims;
@@ -1635,7 +1631,7 @@ async function submitClaim() {
 // ── Config Admin ──────────────────────────────────────────────
 async function renderAdminSettings() {
   const el = document.getElementById('page-admin-settings');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  el.innerHTML = '';
   try {
     const res = await api.config.get();
     const cfg = res.data.config;
