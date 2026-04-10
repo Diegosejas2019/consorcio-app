@@ -129,6 +129,9 @@ const api = {
 
     delete: (id) =>
       request(`/owners/${id}`, { method: 'DELETE' }),
+
+    notify: (id, title, body) =>
+      request(`/owners/${id}/notify`, { method: 'POST', body: JSON.stringify({ title, body }) }),
   },
 
   // ── Pagos ────────────────────────────────────────────────────

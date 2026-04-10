@@ -1169,9 +1169,10 @@ async function viewOwnerDetail(ownerId) {
               </tr>`).join('')}
             </tbody>
           </table></div>`}
-      <div class="flex gap-1 mt-3">
+      <div class="flex gap-1 mt-3" style="flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
         <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g,"\\'")}', '${owner.unit||''}', '${owner.phone||''}')">Editar</button>
+        <button class="btn btn-ghost" onclick="openNotifyOwnerModal('${owner._id}', '${owner.name.replace(/'/g,"\\'")}')">Notificar</button>
         <button class="btn btn-primary" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
           ${owner.isDebtor ? 'Al día' : 'Moroso'}
         </button>
@@ -1189,6 +1190,40 @@ async function toggleDebt(ownerId, currentDebt) {
     renderOwnersList();
   } catch (err) {
     toast(err.message, 'error');
+  }
+}
+
+// ── Notificar propietario ─────────────────────────────────────
+function openNotifyOwnerModal(id, name) {
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.25rem">Enviar notificación</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1rem">Para: ${name}</p>
+    <div class="flex col gap-2">
+      <div class="form-group"><label>Título</label><input class="input" id="notif-title" placeholder="Ej: Aviso importante"></div>
+      <div class="form-group"><label>Mensaje</label><textarea class="input" id="notif-body" style="min-height:90px" placeholder="Escribí el mensaje..."></textarea></div>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${id}')">Cancelar</button>
+        <button class="btn btn-primary w-full" onclick="sendOwnerNotification('${id}')">Enviar</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+async function sendOwnerNotification(id) {
+  const title = document.getElementById('notif-title')?.value.trim();
+  const body  = document.getElementById('notif-body')?.value.trim();
+  if (!title || !body) { toast('Completá título y mensaje', 'error'); return; }
+  try {
+    showLoading(true);
+    await api.owners.notify(id, title, body);
+    closeModal();
+    toast('Notificación enviada', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    showLoading(false);
   }
 }
 
