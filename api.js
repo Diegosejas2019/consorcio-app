@@ -197,6 +197,8 @@ const api = {
 
   // ── Organizaciones ─────────────────────────────────────────────
   organizations: {
+    getTemplates: () => request('/organizations/templates'),
+
     create: (data) =>
       request('/organizations', { method: 'POST', body: JSON.stringify(data) }),
   },

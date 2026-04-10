@@ -1606,6 +1606,15 @@ async function renderAdminSettings() {
       </div>`;
   } catch (err) {
     if (err.status === 404 || (err.message && err.message.toLowerCase().includes('configurada'))) {
+      // Cargar templates para el selector
+      let templateOptions = '<option value="consorcio">Consorcio / Barrio Privado</option>';
+      try {
+        const tRes = await api.organizations.getTemplates();
+        templateOptions = tRes.data.templates.map(t =>
+          `<option value="${t.businessType}">${t.displayName}</option>`
+        ).join('');
+      } catch (_) { /* usar default */ }
+
       el.innerHTML = `
         <div class="flex col gap-3">
           <h1>Configuración</h1>
@@ -1613,7 +1622,11 @@ async function renderAdminSettings() {
             <div class="card-header"><h3>Configurar organización</h3></div>
             <div class="card-body flex col gap-2">
               <p class="text-sm text-muted">Todavía no configuraste tu organización. Completá los datos para comenzar.</p>
-              <div class="form-group"><label>Nombre del consorcio / barrio *</label><input class="input" id="setup-org-name" placeholder="Barrio Privado Los Pinos"></div>
+              <div class="form-group">
+                <label>Tipo de organización *</label>
+                <select class="input" id="setup-org-template">${templateOptions}</select>
+              </div>
+              <div class="form-group"><label>Nombre *</label><input class="input" id="setup-org-name" placeholder="Barrio Privado Los Pinos"></div>
               <div class="form-group"><label>Dirección</label><input class="input" id="setup-org-address" placeholder="Av. Siempre Viva 742"></div>
               <div class="form-group"><label>Email de contacto</label><input class="input" type="email" id="setup-org-email" placeholder="admin@consorcio.com"></div>
               <button class="btn btn-primary" onclick="createOrganization()">Crear organización</button>
@@ -1627,15 +1640,16 @@ async function renderAdminSettings() {
 }
 
 async function createOrganization() {
-  const name    = document.getElementById('setup-org-name')?.value.trim();
-  const address = document.getElementById('setup-org-address')?.value.trim();
-  const email   = document.getElementById('setup-org-email')?.value.trim();
+  const template = document.getElementById('setup-org-template')?.value || 'consorcio';
+  const name     = document.getElementById('setup-org-name')?.value.trim();
+  const address  = document.getElementById('setup-org-address')?.value.trim();
+  const email    = document.getElementById('setup-org-email')?.value.trim();
 
   if (!name) { toast('El nombre es requerido', 'error'); return; }
 
   try {
     showLoading(true);
-    await api.organizations.create({ name, address, adminEmail: email });
+    await api.organizations.create({ template, name, address, adminEmail: email });
     // Refrescar estado del usuario para que req.org se popule en siguientes requests
     const me = await api.auth.getMe();
     state.user = me.data.user;
