@@ -667,8 +667,14 @@ async function renderOwnerNotices() {
 // ═══════════════════════════════════════════
 // ADMIN VIEWS
 // ═══════════════════════════════════════════
-function renderAdminView() {
+async function renderAdminView() {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // Si el admin no tiene org configurada, ir directo a Settings para crearla
+  if (!state.user?.organization) {
+    showPage('page-admin-settings');
+    renderAdminSettings();
+    return;
+  }
   showPage('page-admin-home');
   renderAdminHome();
 }
@@ -1599,7 +1605,7 @@ async function renderAdminSettings() {
         </div>
       </div>`;
   } catch (err) {
-    if (err.message && err.message.toLowerCase().includes('organización no configurada')) {
+    if (err.status === 404 || (err.message && err.message.toLowerCase().includes('configurada'))) {
       el.innerHTML = `
         <div class="flex col gap-3">
           <h1>Configuración</h1>

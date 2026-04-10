@@ -63,7 +63,9 @@ async function request(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(data.message || `Error ${response.status}`);
+    const err = new Error(data.message || `Error ${response.status}`);
+    err.status = response.status;
+    throw err;
   }
 
   return data;
