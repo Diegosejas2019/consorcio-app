@@ -471,7 +471,9 @@ async function renderUploadPage() {
   try {
     const cfgRes = await api.config.get();
     const cfg    = cfgRes.data.config;
-    const months = getRecentMonths(6);
+    const months = cfg.paymentPeriods?.length
+      ? cfg.paymentPeriods.map(v => ({ value: v, label: formatPeriodLabel(v) }))
+      : getRecentMonths(6);
 
     el.innerHTML = `
       <div class="flex col gap-3">
@@ -1670,6 +1672,19 @@ async function renderAdminSettings() {
           </div>
         </div>
         <div class="card">
+          <div class="card-header"><h3>Períodos de pago disponibles</h3></div>
+          <div class="card-body flex col gap-2">
+            <p class="text-sm text-muted">Definí qué meses pueden seleccionar los propietarios al subir un comprobante. Si no hay ninguno, se muestran los últimos 6 meses automáticamente.</p>
+            <div id="periods-list" class="flex gap-2" style="flex-wrap:wrap;min-height:2rem">
+              ${(cfg.paymentPeriods || []).map(p => periodChip(p)).join('') || '<span class="text-sm text-muted">Sin períodos configurados</span>'}
+            </div>
+            <div class="flex gap-2" style="align-items:center">
+              <input class="input" type="month" id="cfg-new-period" style="flex:1">
+              <button class="btn btn-secondary" onclick="addPaymentPeriod()">Agregar</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-header"><h3>Cuenta</h3></div>
           <div class="card-body">
             <button class="btn btn-danger w-full" onclick="logout()">${SVG.logout} Cerrar sesión</button>
@@ -1754,6 +1769,42 @@ async function saveConsortiumSettings() {
     });
     toast('Datos del consorcio guardados', 'success');
     setupTopBar();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function periodChip(value) {
+  return `<span data-period="${value}" style="display:inline-flex;align-items:center;gap:.35rem;background:var(--primary-lt);color:var(--primary);padding:.25rem .65rem;border-radius:99px;font-size:.82rem;font-weight:500">
+    ${formatPeriodLabel(value)}
+    <button onclick="removePaymentPeriod('${value}')" style="background:none;border:none;cursor:pointer;color:inherit;line-height:1;padding:0;font-size:.9rem">✕</button>
+  </span>`;
+}
+
+async function addPaymentPeriod() {
+  const input = document.getElementById('cfg-new-period');
+  const value = input?.value;
+  if (!value) { toast('Seleccioná un mes', 'error'); return; }
+
+  const current = Array.from(document.querySelectorAll('#periods-list [data-period]')).map(el => el.dataset.period);
+  if (current.includes(value)) { toast('Ese período ya está en la lista', 'error'); return; }
+
+  const updated = [...current, value].sort();
+  try {
+    await api.config.update({ paymentPeriods: updated });
+    document.getElementById('periods-list').innerHTML = updated.map(p => periodChip(p)).join('');
+    input.value = '';
+    toast('Período agregado', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function removePaymentPeriod(value) {
+  const current = Array.from(document.querySelectorAll('#periods-list [data-period]')).map(el => el.dataset.period);
+  const updated = current.filter(p => p !== value);
+  try {
+    await api.config.update({ paymentPeriods: updated });
+    document.getElementById('periods-list').innerHTML = updated.length
+      ? updated.map(p => periodChip(p)).join('')
+      : '<span class="text-sm text-muted">Sin períodos configurados</span>';
+    toast('Período eliminado', 'success');
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -1946,6 +1997,11 @@ function getRecentMonths(n) {
     months.push({ value: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, label: `${labels[d.getMonth()]} ${d.getFullYear()}` });
   }
   return months;
+}
+function formatPeriodLabel(yyyymm) {
+  const labels = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const [y, m] = yyyymm.split('-');
+  return `${labels[parseInt(m, 10) - 1]} ${y}`;
 }
 function errorState(msg, fn = '') {
   return `<div style="text-align:center;padding:2rem;color:var(--danger)">
