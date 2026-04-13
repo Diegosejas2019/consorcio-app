@@ -364,6 +364,32 @@ tr:hover td { background: var(--bg); }
 /* ── Loading overlay visibility ── */
 #loading-overlay.hidden { display: none !important; }
 
+/* ── Button loading spinner ── */
+.btn-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 1.1em;
+  height: 1.1em;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.btn-secondary.btn-loading::after,
+.btn-ghost.btn-loading::after {
+  border-color: rgba(79,70,229,.2);
+  border-top-color: var(--primary);
+}
+
 /* ── Error state ── */
 .error-state {
   display: flex;

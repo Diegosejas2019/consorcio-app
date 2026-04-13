@@ -113,6 +113,12 @@ function showLoading(show = true) {
   document.getElementById('loading-overlay').classList.toggle('hidden', !show);
 }
 
+function setBtnLoading(btn, loading) {
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.classList.toggle('btn-loading', loading);
+}
+
 // ── Wrapper para llamadas a API con loading + errores ─────────
 async function apiCall(fn, opts = {}) {
   const { loading = true, silent = false } = opts;
@@ -596,7 +602,7 @@ async function submitReceipt() {
   formData.append('receipt', selectedFile);
 
   const btn = document.getElementById('btn-submit-receipt');
-  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+  setBtnLoading(btn, true);
 
   try {
     await api.payments.create(formData);
@@ -609,7 +615,7 @@ async function submitReceipt() {
   } catch (err) {
     toast(err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = `${SVG.upload} Enviar Comprobante`; }
+    setBtnLoading(btn, false);
   }
 }
 
@@ -1620,8 +1626,7 @@ async function submitClaim() {
   if (!body)  { toast('La descripción es obligatoria.', 'error'); return; }
 
   const btn = document.getElementById('btn-submit-claim');
-  btn.disabled = true;
-  btn.textContent = 'Enviando…';
+  setBtnLoading(btn, true);
   try {
     await api.claims.create({ category, title, body });
     closeModal();
@@ -1629,8 +1634,7 @@ async function submitClaim() {
     renderOwnerClaims();
   } catch (err) {
     toast(err.message, 'error');
-    btn.disabled = false;
-    btn.textContent = 'Enviar reclamo';
+    setBtnLoading(btn, false);
   }
 }
 
@@ -1651,7 +1655,7 @@ async function renderAdminSettings() {
             <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${cfg.expenseMonthCode || ''}" placeholder="YYYY-MM"></div>
             <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
             <div class="form-group"><label>Día de vencimiento</label><input class="input" type="number" id="cfg-due" value="${cfg.dueDayOfMonth || 10}" min="1" max="28"></div>
-            <button class="btn btn-primary" onclick="saveSettings()">Guardar cambios</button>
+            <button class="btn btn-primary" id="btn-save-settings" onclick="saveSettings()">Guardar cambios</button>
           </div>
         </div>
         <div class="card">
@@ -1659,7 +1663,7 @@ async function renderAdminSettings() {
           <div class="card-body flex col gap-2">
             <div class="form-group"><label>Nombre del consorcio</label><input class="input" id="cfg-name" value="${cfg.consortiumName || ''}" placeholder="Barrio Privado Los Pinos"></div>
             <div class="form-group"><label>Email de contacto</label><input class="input" id="cfg-email" value="${cfg.adminEmail || ''}"></div>
-            <button class="btn btn-primary" onclick="saveConsortiumSettings()">Guardar</button>
+            <button class="btn btn-primary" id="btn-save-consortium" onclick="saveConsortiumSettings()">Guardar</button>
           </div>
         </div>
         <div class="card">
@@ -1680,7 +1684,7 @@ async function renderAdminSettings() {
             </div>
             <div class="flex gap-2" style="align-items:center">
               <input class="input" type="month" id="cfg-new-period" style="flex:1">
-              <button class="btn btn-secondary" onclick="addPaymentPeriod()">Agregar</button>
+              <button class="btn btn-secondary" id="btn-add-period" onclick="addPaymentPeriod()">Agregar</button>
             </div>
           </div>
         </div>
@@ -1750,6 +1754,8 @@ async function createOrganization() {
 }
 
 async function saveSettings() {
+  const btn = document.getElementById('btn-save-settings');
+  setBtnLoading(btn, true);
   try {
     await api.config.update({
       expenseMonth:     document.getElementById('cfg-month')?.value.trim(),
@@ -1758,10 +1764,16 @@ async function saveSettings() {
       dueDayOfMonth:    Number(document.getElementById('cfg-due')?.value),
     });
     toast('Configuración guardada', 'success');
-  } catch (err) { toast(err.message, 'error'); }
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 async function saveConsortiumSettings() {
+  const btn = document.getElementById('btn-save-consortium');
+  setBtnLoading(btn, true);
   try {
     await api.config.update({
       consortiumName: document.getElementById('cfg-name')?.value.trim(),
@@ -1769,7 +1781,11 @@ async function saveConsortiumSettings() {
     });
     toast('Datos del consorcio guardados', 'success');
     setupTopBar();
-  } catch (err) { toast(err.message, 'error'); }
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 function periodChip(value) {
@@ -1788,12 +1804,18 @@ async function addPaymentPeriod() {
   if (current.includes(value)) { toast('Ese período ya está en la lista', 'error'); return; }
 
   const updated = [...current, value].sort();
+  const btn = document.getElementById('btn-add-period');
+  setBtnLoading(btn, true);
   try {
     await api.config.update({ paymentPeriods: updated });
     document.getElementById('periods-list').innerHTML = updated.map(p => periodChip(p)).join('');
     input.value = '';
     toast('Período agregado', 'success');
-  } catch (err) { toast(err.message, 'error'); }
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 async function removePaymentPeriod(value) {
