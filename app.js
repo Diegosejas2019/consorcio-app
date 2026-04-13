@@ -433,7 +433,7 @@ async function renderOwnerHome() {
               <span class="btn-upload-cta-icon">${SVG.upload}</span>
               <span class="btn-upload-cta-text">
                 <span class="btn-upload-cta-label">Subir Comprobante</span>
-                <span class="btn-upload-cta-sub">PDF · pago del mes</span>
+                <span class="btn-upload-cta-sub">PDF o imagen · pago del mes</span>
               </span>
               <span class="btn-upload-cta-arrow">›</span>
             </button>
@@ -500,14 +500,14 @@ async function renderUploadPage() {
               <input class="input" type="number" id="pay-amount" placeholder="${cfg.expenseAmount}" min="1">
             </div>
             <div class="form-group">
-              <label>Comprobante de pago (PDF)</label>
+              <label>Comprobante de pago (PDF o imagen)</label>
               <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
                 <div class="upload-icon-wrap">${SVG.pdf}</div>
-                <p class="upload-title">Arrastrá tu PDF aquí</p>
+                <p class="upload-title">Arrastrá tu archivo aquí</p>
                 <p class="upload-desc">o hacé clic para seleccionar</p>
-                <span class="upload-badge">Solo PDF · máx. 10 MB</span>
+                <span class="upload-badge">PDF o imagen · máx. 10 MB</span>
               </div>
-              <input type="file" id="file-input" accept=".pdf,application/pdf" class="hidden" onchange="handleFileSelect(event)">
+              <input type="file" id="file-input" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic" class="hidden" onchange="handleFileSelect(event)">
               <div id="file-preview" class="hidden"></div>
             </div>
             <div class="form-group">
@@ -558,19 +558,25 @@ async function renderUploadPage() {
 let selectedFile = null;
 function handleFileSelect(e) { selectedFile = e.target.files[0]; showFilePreview(selectedFile); }
 function handleFileDrop(file)  { selectedFile = file; showFilePreview(file); }
+const ALLOWED_TYPES = new Set(['application/pdf','image/jpeg','image/png','image/webp','image/heic']);
+
 function showFilePreview(file) {
   if (!file) return;
-  if (file.type !== 'application/pdf') {
-    toast('Solo se aceptan archivos PDF.', 'error');
+  if (!ALLOWED_TYPES.has(file.type)) {
+    toast('Solo se aceptan PDF o imágenes (JPG, PNG, WebP, HEIC).', 'error');
     clearFile();
     return;
   }
   document.getElementById('upload-zone').classList.add('hidden');
-  const preview = document.getElementById('file-preview');
+  const preview    = document.getElementById('file-preview');
+  const isImage    = file.type.startsWith('image/');
+  const iconOrThumb = isImage
+    ? `<img src="${URL.createObjectURL(file)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">`
+    : `<div class="upload-preview-icon">${SVG.pdf}</div>`;
   preview.classList.remove('hidden');
   preview.innerHTML = `
     <div class="upload-preview">
-      <div class="upload-preview-icon">${SVG.pdf}</div>
+      ${iconOrThumb}
       <div style="flex:1;min-width:0">
         <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${file.name}</p>
         <small class="text-muted">${(file.size/1024).toFixed(1)} KB · PDF</small>
@@ -593,7 +599,7 @@ async function submitReceipt() {
 
   if (!month)              { toast('Seleccioná el período', 'error'); return; }
   if (!amount || amount < 1){ toast('Ingresá un importe válido', 'error'); return; }
-  if (!selectedFile)       { toast('Adjuntá el comprobante en PDF', 'error'); return; }
+  if (!selectedFile)       { toast('Adjuntá el comprobante (PDF o imagen)', 'error'); return; }
 
   const formData = new FormData();
   formData.append('month', month);
@@ -2006,15 +2012,21 @@ async function downloadReceipt(paymentId) {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!resp.ok) { toast('Error al descargar el comprobante.', 'error'); return; }
-    const blob = await resp.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = 'comprobante.pdf';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const blob        = await resp.blob();
+    const url         = URL.createObjectURL(blob);
+    const isImage     = blob.type.startsWith('image/');
+    if (isImage) {
+      // Abrir imagen en nueva pestaña para visualización
+      window.open(url, '_blank');
+    } else {
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'comprobante.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   } catch {
     toast('No se pudo descargar el comprobante.', 'error');
   }
