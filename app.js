@@ -1989,20 +1989,7 @@ function currentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 }
-function getRecentMonths(n) {
-  const labels = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const months = [], now = new Date();
-  for (let i = 0; i < n; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ value: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, label: `${labels[d.getMonth()]} ${d.getFullYear()}` });
-  }
-  return months;
-}
-function formatPeriodLabel(yyyymm) {
-  const labels = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const [y, m] = yyyymm.split('-');
-  return `${labels[parseInt(m, 10) - 1]} ${y}`;
-}
+// getRecentMonths y formatPeriodLabel viven en utils.js
 function errorState(msg, fn = '') {
   return `<div style="text-align:center;padding:2rem;color:var(--danger)">
     <p style="font-size:2rem">⚠</p>
