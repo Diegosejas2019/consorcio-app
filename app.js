@@ -1896,10 +1896,23 @@ async function setupPushNotifications() {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_WEB_CONFIG);
     _messaging = firebase.messaging();
 
-    // Mensajes en foreground → mostrar toast
+    // Mensajes en foreground → mostrar toast + notificación del sistema
     _messaging.onMessage((payload) => {
       const { title = '', body = '' } = payload.data || {};
       if (title || body) toast(`${title}${title && body ? ': ' : ''}${body}`, 'default');
+      // El browser suprime la notificación del sistema en foreground; la mostramos manualmente
+      if (title && Notification.permission === 'granted') {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification(title, {
+            body,
+            icon:  '/icons/icon-192.png',
+            badge: '/icons/icon-192.png',
+            tag:   payload.data?.type || 'consorcio',
+            data:  payload.data || {},
+            requireInteraction: payload.data?.type === 'urgent',
+          });
+        });
+      }
     });
 
     // Pedir permiso y obtener token FCM
