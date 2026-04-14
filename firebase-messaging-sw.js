@@ -23,7 +23,7 @@ messaging.onBackgroundMessage((payload) => {
   const body  = payload.data?.body  || '';
   const data  = payload.data || {};
 
-  self.registration.showNotification(title, {
+  return self.registration.showNotification(title, {
     body,
     icon:  '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
