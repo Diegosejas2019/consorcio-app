@@ -557,8 +557,11 @@ async function renderUploadPage() {
             </div>
             <div class="mp-btn-wrap">
               <button onclick="initMercadoPago()">
-                <img src="https://http2.mlstatic.com/frontend-assets/mp-web-navigation/svg/mercadopago-logo.svg"
-                     alt="MercadoPago" style="height:20px;vertical-align:middle;margin-right:.5rem;filter:brightness(10)">
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:.5rem" aria-hidden="true">
+                  <circle cx="24" cy="24" r="24" fill="white" fill-opacity="0.2"/>
+                  <path d="M8 24c0-8.837 7.163-16 16-16s16 7.163 16 16-7.163 16-16 16S8 32.837 8 24z" fill="white" fill-opacity="0.15"/>
+                  <text x="24" y="29" text-anchor="middle" font-size="14" font-weight="bold" fill="white" font-family="Arial,sans-serif">MP</text>
+                </svg>
                 Pagar con MercadoPago
               </button>
             </div>
