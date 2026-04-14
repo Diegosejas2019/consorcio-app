@@ -1185,6 +1185,7 @@ function _applyOwnersFilter() {
 
 function _renderOwnersView() {
   const el       = document.getElementById('page-admin-owners');
+  const focused  = document.activeElement?.id;
   const filtered = _applyOwnersFilter();
   const total    = filtered.length;
   const pages    = Math.max(1, Math.ceil(total / ownersListState.perPage));
@@ -1202,10 +1203,10 @@ function _renderOwnersView() {
 
       <!-- Filtros -->
       <div class="owners-filter-bar">
-        <input class="input" type="search" placeholder="🔍 Buscar por nombre…"
+        <input id="owners-filter-name" class="input" type="search" placeholder="🔍 Buscar por nombre…"
           value="${ownersListState.filterName}"
           oninput="ownersListState.filterName=this.value;_debouncedOwnerFilter()">
-        <input class="input" type="search" placeholder="🏠 Lote / Unidad…"
+        <input id="owners-filter-unit" class="input" type="search" placeholder="🏠 Lote / Unidad…"
           value="${ownersListState.filterUnit}"
           oninput="ownersListState.filterUnit=this.value;_debouncedOwnerFilter()">
         ${hasFilter ? `<button class="btn-clear-filter" onclick="ownersListState.filterName='';ownersListState.filterUnit='';ownersListState.page=1;_renderOwnersView()">✕ Limpiar</button>` : ''}
@@ -1251,6 +1252,11 @@ function _renderOwnersView() {
       <!-- Paginación -->
       ${pages > 1 ? `<div class="pagination">${_buildPagination(ownersListState.page, pages)}</div>` : ''}
     </div>`;
+
+  if (focused === 'owners-filter-name' || focused === 'owners-filter-unit') {
+    const input = document.getElementById(focused);
+    if (input) { input.focus(); const len = input.value.length; input.setSelectionRange(len, len); }
+  }
 }
 
 function _highlightMatch(text, query) {
