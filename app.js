@@ -1150,26 +1150,87 @@ async function exportDashboardExcel() {
   }
 }
 
+// ── Estado de la vista propietarios ──────────────────────────
+const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
+
 async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
   try {
-    const res    = await api.owners.getAll({ limit: 100 });
-    const owners = res.data.owners;
-    el.innerHTML = `
-      <div class="flex col gap-3">
-        <div class="flex between">
-          <h1>Propietarios</h1>
-          <button class="btn btn-primary btn-sm" onclick="openNewOwnerModal()">+ Agregar</button>
-        </div>
-        <div class="card">
-          <div class="card-body flex col" style="gap:0">
-            ${owners.map(o => `
+    const res = await api.owners.getAll({ limit: 500 });
+    ownersListState.all = res.data.owners;
+    ownersListState.page = 1;
+    _renderOwnersView();
+  } catch (err) {
+    el.innerHTML = errorState(err.message, 'renderOwnersList()');
+  }
+}
+
+function _applyOwnersFilter() {
+  const q    = ownersListState.filterName.toLowerCase().trim();
+  const unit = ownersListState.filterUnit.toLowerCase().trim();
+  return ownersListState.all.filter(o => {
+    const matchName = !q    || o.name.toLowerCase().includes(q);
+    const matchUnit = !unit || (o.unit || '').toLowerCase().includes(unit);
+    return matchName && matchUnit;
+  });
+}
+
+function _renderOwnersView() {
+  const el       = document.getElementById('page-admin-owners');
+  const filtered = _applyOwnersFilter();
+  const total    = filtered.length;
+  const pages    = Math.max(1, Math.ceil(total / ownersListState.perPage));
+  if (ownersListState.page > pages) ownersListState.page = pages;
+  const start    = (ownersListState.page - 1) * ownersListState.perPage;
+  const slice    = filtered.slice(start, start + ownersListState.perPage);
+  const hasFilter = ownersListState.filterName || ownersListState.filterUnit;
+
+  el.innerHTML = `
+    <div class="flex col gap-3">
+      <div class="flex between">
+        <h1>Propietarios</h1>
+        <button class="btn btn-primary btn-sm" onclick="openNewOwnerModal()">+ Agregar</button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="owners-filter-bar">
+        <input class="input" type="search" placeholder="🔍 Buscar por nombre…"
+          value="${ownersListState.filterName}"
+          oninput="ownersListState.filterName=this.value;ownersListState.page=1;_renderOwnersView()">
+        <input class="input" type="search" placeholder="🏠 Lote / Unidad…"
+          value="${ownersListState.filterUnit}"
+          oninput="ownersListState.filterUnit=this.value;ownersListState.page=1;_renderOwnersView()">
+        ${hasFilter ? `<button class="btn-clear-filter" onclick="ownersListState.filterName='';ownersListState.filterUnit='';ownersListState.page=1;_renderOwnersView()">✕ Limpiar</button>` : ''}
+      </div>
+
+      <!-- Meta resultados -->
+      <div class="owners-meta">
+        <span>${total === ownersListState.all.length
+          ? `${total} propietario${total !== 1 ? 's' : ''}`
+          : `${total} resultado${total !== 1 ? 's' : ''} de ${ownersListState.all.length}`}
+        </span>
+        <span>Página ${ownersListState.page} de ${pages}</span>
+      </div>
+
+      <!-- Lista -->
+      <div class="card">
+        <div class="card-body flex col" style="gap:0">
+          ${slice.length === 0
+            ? `<div style="text-align:center;padding:2rem 1rem">
+                <div style="font-size:2rem;margin-bottom:.5rem">🔍</div>
+                <p class="text-muted text-sm">No se encontraron propietarios con ese criterio.</p>
+                <button class="btn btn-ghost btn-sm" style="margin-top:.75rem"
+                  onclick="ownersListState.filterName='';ownersListState.filterUnit='';_renderOwnersView()">
+                  Limpiar filtros
+                </button>
+               </div>`
+            : slice.map(o => `
               <div class="owner-row">
                 <div class="owner-avatar">${o.name.split(' ').slice(0,2).map(w=>w[0]).join('')}</div>
                 <div class="owner-info">
-                  <p class="name">${o.name}</p>
-                  <p class="unit">${o.unit || '—'}${o.phone ? ` · ${o.phone}` : ''}</p>
+                  <p class="name">${_highlightMatch(o.name, ownersListState.filterName)}</p>
+                  <p class="unit">${_highlightMatch(o.unit || '—', ownersListState.filterUnit)}${o.phone ? ` · ${o.phone}` : ''}</p>
                 </div>
                 <div class="flex col" style="align-items:flex-end;gap:.25rem">
                   <span class="badge ${o.isDebtor ? 'badge-danger' : 'badge-success'}">${o.isDebtor ? 'Deuda' : 'Al día'}</span>
@@ -1177,12 +1238,49 @@ async function renderOwnersList() {
                 </div>
                 <button class="btn btn-ghost btn-sm" onclick="viewOwnerDetail('${o._id}')">Ver</button>
               </div>`).join('')}
-          </div>
         </div>
-      </div>`;
-  } catch (err) {
-    el.innerHTML = errorState(err.message, 'renderOwnersList()');
+      </div>
+
+      <!-- Paginación -->
+      ${pages > 1 ? `<div class="pagination">${_buildPagination(ownersListState.page, pages)}</div>` : ''}
+    </div>`;
+}
+
+function _highlightMatch(text, query) {
+  if (!query || !text) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(`(${escaped})`, 'gi'),
+    '<mark style="background:var(--accent-lt);color:var(--accent);border-radius:3px;padding:0 2px">$1</mark>');
+}
+
+function _buildPagination(current, total) {
+  const btns = [];
+  // Prev
+  btns.push(`<button class="pg-btn" onclick="ownersGoPage(${current-1})" ${current===1?'disabled':''}>&lsaquo;</button>`);
+  // Pages
+  const range = _pageRange(current, total);
+  let last = 0;
+  for (const p of range) {
+    if (p - last > 1) btns.push(`<span class="pg-ellipsis">…</span>`);
+    btns.push(`<button class="pg-btn ${p===current?'active':''}" onclick="ownersGoPage(${p})">${p}</button>`);
+    last = p;
   }
+  // Next
+  btns.push(`<button class="pg-btn" onclick="ownersGoPage(${current+1})" ${current===total?'disabled':''}>&rsaquo;</button>`);
+  return btns.join('');
+}
+
+function _pageRange(current, total) {
+  const delta = 1;
+  const range = new Set([1, total]);
+  for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) range.add(i);
+  return [...range].sort((a, b) => a - b);
+}
+
+function ownersGoPage(p) {
+  ownersListState.page = p;
+  _renderOwnersView();
+  document.getElementById('page-admin-owners').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function viewOwnerDetail(ownerId) {
