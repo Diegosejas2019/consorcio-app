@@ -280,6 +280,24 @@ tr:hover td { background: var(--bg); }
 @keyframes slideOut { to   { transform: translateX(110%); opacity: 0; } }
 @keyframes slideUp  { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
+/* ── Offline Banner ── */
+.offline-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10000;
+  background: var(--warning); color: #fff;
+  text-align: center; padding: 7px 16px;
+  font-size: .82rem; font-weight: 500;
+  animation: slideDown .3s ease;
+}
+@keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+
+body.is-offline #app-shell { padding-top: 36px; }
+
+[data-requires-network]:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ── Install Banner ── */
 .install-banner {
   position: fixed; bottom: 62px; left: 0; right: 0; z-index: 90;

@@ -25,6 +25,19 @@ window.addEventListener('auth:expired', () => {
   logout();
 });
 
+// ── Soporte offline ───────────────────────────────────────────
+function updateOnlineStatus() {
+  const offline = !navigator.onLine;
+  document.getElementById('offline-banner')?.classList.toggle('hidden', !offline);
+  document.body.classList.toggle('is-offline', offline);
+  document.querySelectorAll('[data-requires-network]').forEach(el => {
+    el.disabled = offline;
+    el.title = offline ? 'No disponible sin conexión' : '';
+  });
+}
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
 // ── PWA Install Banner ────────────────────────────────────────
 let _installPrompt = null;
 const INSTALL_DISMISSED_KEY = 'install_dismissed_until';
@@ -127,7 +140,13 @@ async function apiCall(fn, opts = {}) {
     const result = await fn();
     return result;
   } catch (err) {
-    if (!silent) toast(err.message, 'error');
+    if (!silent) {
+      // Si ya hay banner offline visible, evitar toast redundante
+      const msg = !navigator.onLine
+        ? 'Sin conexión — se muestran datos del último acceso'
+        : err.message;
+      toast(msg, 'warning');
+    }
     throw err;
   } finally {
     if (loading) showLoading(false);
@@ -141,6 +160,8 @@ function showPage(id) {
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.page === id);
   });
+  // Re-aplicar estado offline a botones recién renderizados (tras el render)
+  setTimeout(updateOnlineStatus, 0);
 }
 
 // ── Toggle visibilidad de contraseña ─────────────────────────
@@ -254,6 +275,8 @@ document.getElementById('btn-login').addEventListener('click', async () => {
 
 // ── Restaurar sesión / detectar reset token ───────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+  updateOnlineStatus();
+
   // Si hay ?token= en la URL → flujo de reset password
   const params = new URLSearchParams(window.location.search);
   const resetToken = params.get('token');
@@ -514,7 +537,7 @@ async function renderUploadPage() {
               <label>Nota adicional (opcional)</label>
               <textarea class="input" id="pay-note" placeholder="Ej: Transferencia N° 12345..."></textarea>
             </div>
-            <button class="btn btn-primary w-full" id="btn-submit-receipt" onclick="submitReceipt()">
+            <button class="btn btn-primary w-full" id="btn-submit-receipt" data-requires-network onclick="submitReceipt()">
               ${SVG.upload} Enviar Comprobante
             </button>
           </div>
@@ -756,8 +779,8 @@ async function renderAdminHome() {
                     ${p.receipt?.url ? `<br><button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" style="font-size:.72rem;color:var(--accent);padding:0;background:none;border:none;cursor:pointer;text-decoration:underline">Ver comprobante ↗</button>` : ''}
                   </div>
                   <div class="flex gap-1">
-                    <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}')">${SVG.check}</button>
-                    <button class="btn btn-danger  btn-sm" onclick="openRejectModal('${p._id}')">${SVG.x}</button>
+                    <button class="btn btn-success btn-sm" data-requires-network onclick="approvePayment('${p._id}')">${SVG.check}</button>
+                    <button class="btn btn-danger  btn-sm" data-requires-network onclick="openRejectModal('${p._id}')">${SVG.x}</button>
                   </div>
                 </div>`).join('')}
           </div>
@@ -914,8 +937,8 @@ async function openStatDetail(type, arg) {
                     </div>
                     <div class="flex gap-1">
                       ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}
-                      <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}');closeModal()">${SVG.check}</button>
-                      <button class="btn btn-danger btn-sm" onclick="closeModal();openRejectModal('${p._id}')">${SVG.x}</button>
+                      <button class="btn btn-success btn-sm" data-requires-network onclick="approvePayment('${p._id}');closeModal()">${SVG.check}</button>
+                      <button class="btn btn-danger btn-sm" data-requires-network onclick="closeModal();openRejectModal('${p._id}')">${SVG.x}</button>
                     </div>
                   </div>
                 </div>`).join('')}
@@ -1253,7 +1276,7 @@ function openEditOwnerModal(id, name, unit, phone) {
       <div class="form-group"><label>Teléfono</label><input class="input" type="tel" id="eo-phone" value="${phone}" placeholder="1122334455"></div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${id}')">Cancelar</button>
-        <button class="btn btn-primary w-full" onclick="saveEditOwner('${id}')">Guardar</button>
+        <button class="btn btn-primary w-full" data-requires-network onclick="saveEditOwner('${id}')">Guardar</button>
       </div>
     </div>`;
   openModal();
@@ -1288,7 +1311,7 @@ function openNewOwnerModal() {
       <div class="form-group"><label>Teléfono</label><input class="input" id="no-phone" placeholder="1122334455"></div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary w-full" onclick="saveNewOwner()">Crear</button>
+        <button class="btn btn-primary w-full" data-requires-network onclick="saveNewOwner()">Crear</button>
       </div>
     </div>`;
   openModal();
@@ -1336,7 +1359,7 @@ function openRejectModal(payId) {
     </div>
     <div class="flex gap-1 mt-3">
       <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-danger w-full" onclick="confirmReject()">Rechazar</button>
+      <button class="btn btn-danger w-full" data-requires-network onclick="confirmReject()">Rechazar</button>
     </div>`;
   openModal();
 }
@@ -1405,7 +1428,7 @@ function openNewNoticeModal() {
       </label>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary w-full" onclick="saveNotice()">Publicar</button>
+        <button class="btn btn-primary w-full" data-requires-network onclick="saveNotice()">Publicar</button>
       </div>
     </div>`;
   openModal();
@@ -1618,7 +1641,7 @@ function openNewClaimModal() {
         <label>Descripción</label>
         <textarea class="input" id="claim-body" placeholder="Describí el problema con el mayor detalle posible..." rows="4" maxlength="2000"></textarea>
       </div>
-      <button class="btn btn-primary w-full" id="btn-submit-claim" onclick="submitClaim()">Enviar reclamo</button>
+      <button class="btn btn-primary w-full" id="btn-submit-claim" data-requires-network onclick="submitClaim()">Enviar reclamo</button>
       <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
     </div>`;
 }
@@ -1661,7 +1684,7 @@ async function renderAdminSettings() {
             <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${cfg.expenseMonthCode || ''}" placeholder="YYYY-MM"></div>
             <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
             <div class="form-group"><label>Día de vencimiento</label><input class="input" type="number" id="cfg-due" value="${cfg.dueDayOfMonth || 10}" min="1" max="28"></div>
-            <button class="btn btn-primary" id="btn-save-settings" onclick="saveSettings()">Guardar cambios</button>
+            <button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>
           </div>
         </div>
         <div class="card">
@@ -1669,7 +1692,7 @@ async function renderAdminSettings() {
           <div class="card-body flex col gap-2">
             <div class="form-group"><label>Nombre del consorcio</label><input class="input" id="cfg-name" value="${cfg.consortiumName || ''}" placeholder="Barrio Privado Los Pinos"></div>
             <div class="form-group"><label>Email de contacto</label><input class="input" id="cfg-email" value="${cfg.adminEmail || ''}"></div>
-            <button class="btn btn-primary" id="btn-save-consortium" onclick="saveConsortiumSettings()">Guardar</button>
+            <button class="btn btn-primary" id="btn-save-consortium" data-requires-network onclick="saveConsortiumSettings()">Guardar</button>
           </div>
         </div>
         <div class="card">
@@ -1678,7 +1701,7 @@ async function renderAdminSettings() {
             <p class="text-sm text-muted">Credenciales desde developers.mercadopago.com</p>
             <div class="form-group"><label>Public Key</label><input class="input" id="cfg-mp-key" placeholder="APP_USR-..." value="${cfg.mpPublicKey || ''}"></div>
             <div class="form-group"><label>Access Token</label><input class="input" type="password" id="cfg-mp-token" placeholder="APP_USR-..."></div>
-            <button class="btn btn-primary" onclick="saveMPSettings()">Guardar credenciales</button>
+            <button class="btn btn-primary" data-requires-network onclick="saveMPSettings()">Guardar credenciales</button>
           </div>
         </div>
         <div class="card">
