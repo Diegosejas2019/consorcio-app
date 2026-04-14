@@ -379,8 +379,8 @@ const SVG = {
 
 // ── Skeleton loader ───────────────────────────────────────────
 function skeleton(lines = 3) {
-  return Array.from({ length: lines }, () =>
-    `<div style="height:18px;background:linear-gradient(90deg,#e8eaed 25%,#f3f4f6 50%,#e8eaed 75%);background-size:200%;border-radius:6px;margin-bottom:10px;animation:shimmer 1.4s infinite"></div>`
+  return Array.from({ length: lines }, (_, i) =>
+    `<div class="skeleton" style="height:18px;margin-bottom:10px;${i % 3 === 2 ? 'width:65%' : ''}"></div>`
   ).join('');
 }
 

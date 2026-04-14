@@ -444,6 +444,7 @@ body.is-offline #app-shell { padding-top: 36px; }
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+.loading-spinner { animation: spin 1s linear infinite; }
 
 /* ── Loading overlay visibility ── */
 #loading-overlay.hidden { display: none !important; }
