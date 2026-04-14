@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════
-   ConsorcioPro — Cliente HTTP
+   GestionAr — Cliente HTTP
    Conecta el frontend con la API REST
    ═══════════════════════════════════════════════ */
 

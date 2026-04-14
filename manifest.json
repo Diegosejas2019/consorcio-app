@@ -1,7 +1,7 @@
 {
-  "name": "Mi Consorcio",
-  "short_name": "Mi Consorcio",
-  "description": "Administración de consorcio para barrio privado",
+  "name": "GestionAr",
+  "short_name": "GestionAr",
+  "description": "Gestión de organizaciones y cobros",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

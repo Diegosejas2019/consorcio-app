@@ -19,7 +19,7 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.data?.title || 'Mi Consorcio';
+  const title = payload.data?.title || 'GestionAr';
   const body  = payload.data?.body  || '';
   const data  = payload.data || {};
 
