@@ -377,6 +377,12 @@ const SVG = {
   pdf:      `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path d="M13 3v5a1 1 0 001 1h5M9 13h1.5a1 1 0 010 2H9v-4h1.5a1 1 0 010 2" stroke-linecap="round"/></svg>`,
 };
 
+// ── Debounce ──────────────────────────────────────────────────
+function debounce(fn, ms = 350) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+
 // ── Skeleton loader ───────────────────────────────────────────
 function skeleton(lines = 3) {
   return Array.from({ length: lines }, (_, i) =>
@@ -1152,6 +1158,7 @@ async function exportDashboardExcel() {
 
 // ── Estado de la vista propietarios ──────────────────────────
 const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
+const _debouncedOwnerFilter = debounce(() => { ownersListState.page = 1; _renderOwnersView(); }, 350);
 
 async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
@@ -1197,10 +1204,10 @@ function _renderOwnersView() {
       <div class="owners-filter-bar">
         <input class="input" type="search" placeholder="🔍 Buscar por nombre…"
           value="${ownersListState.filterName}"
-          oninput="ownersListState.filterName=this.value;ownersListState.page=1;_renderOwnersView()">
+          oninput="ownersListState.filterName=this.value;_debouncedOwnerFilter()">
         <input class="input" type="search" placeholder="🏠 Lote / Unidad…"
           value="${ownersListState.filterUnit}"
-          oninput="ownersListState.filterUnit=this.value;ownersListState.page=1;_renderOwnersView()">
+          oninput="ownersListState.filterUnit=this.value;_debouncedOwnerFilter()">
         ${hasFilter ? `<button class="btn-clear-filter" onclick="ownersListState.filterName='';ownersListState.filterUnit='';ownersListState.page=1;_renderOwnersView()">✕ Limpiar</button>` : ''}
       </div>
 
