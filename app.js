@@ -763,6 +763,18 @@ async function renderAdminHome() {
           </div>
         </div>
 
+        <div class="card" style="background:var(--accent-lt);border:1px solid #c7d2fe">
+          <div class="card-body flex between" style="padding:.85rem 1rem;align-items:center;gap:1rem">
+            <div>
+              <p class="bold text-sm">Recordatorios de vencimiento</p>
+              <small style="color:var(--muted)">Envía push a propietarios sin pago aprobado este mes</small>
+            </div>
+            <button class="btn btn-primary btn-sm" data-requires-network onclick="triggerReminders()" style="flex-shrink:0">
+              Enviar ahora
+            </button>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-header flex between">
             <h3>Comprobantes Pendientes</h3>
@@ -1335,6 +1347,15 @@ async function saveNewOwner() {
 }
 
 // ── Aprobar / Rechazar ────────────────────────────────────────
+async function triggerReminders() {
+  try {
+    const res = await apiCall(() => api.payments.sendReminders());
+    toast(`Recordatorios enviados: ${res.data.sent} push, ${res.data.noToken} sin token`, 'success');
+  } catch {
+    // el error ya lo muestra apiCall
+  }
+}
+
 async function approvePayment(payId) {
   try {
     await api.payments.approve(payId);

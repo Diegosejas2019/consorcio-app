@@ -160,6 +160,8 @@ const api = {
     getDashboard: (year) => request(`/payments/dashboard${year ? `?year=${year}` : ''}`),
 
     getReceiptUrl: (id) => `${API_BASE}/payments/${id}/receipt`,
+
+    sendReminders: () => request('/payments/send-reminders', { method: 'POST' }),
   },
 
   // ── Avisos ───────────────────────────────────────────────────
