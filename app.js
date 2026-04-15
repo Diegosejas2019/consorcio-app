@@ -401,7 +401,7 @@ function renderOwnerView() {
 
 async function renderOwnerHome() {
   const el = document.getElementById('page-owner-home');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
+  el.innerHTML = `<div class="oh-wrap">${skeleton(5)}</div>`;
 
   try {
     const [cfgRes, payRes] = await Promise.all([
@@ -418,10 +418,6 @@ async function renderOwnerHome() {
     const balance  = owner.balance || 0;
     const isDebtor = owner.isDebtor;
 
-    const balanceColor = balance < 0 ? 'var(--danger)' : 'var(--success)';
-    const balanceBadge = isDebtor ? 'badge-danger' : 'badge-success';
-    const balanceLabel = isDebtor ? 'Deuda pendiente' : 'Al día';
-
     // Avisos recientes
     let noticesHtml = '';
     try {
@@ -430,69 +426,82 @@ async function renderOwnerHome() {
     } catch { noticesHtml = ''; }
 
     el.innerHTML = `
-      <div class="flex col gap-3">
-        <div>
-          <p class="text-muted text-sm">Bienvenido/a,</p>
-          <h1>${owner.name}</h1>
-          <small>${[owner.unit, owner.phone].filter(Boolean).join(' · ')}</small>
+      <div class="oh-wrap">
+
+        <!-- Greeting -->
+        <div class="oh-greeting oh-entry" style="--delay:0ms">
+          <div>
+            <p class="oh-greeting-sub">Bienvenido/a</p>
+            <h1 class="oh-greeting-name">${owner.name}</h1>
+          </div>
+          ${owner.unit ? `<span class="oh-unit-chip">${owner.unit}</span>` : ''}
         </div>
 
-        <div class="card">
-          <div class="card-header flex between">
-            <h3>Estado de Cuenta</h3>
-            <span class="badge ${balanceBadge}">${balanceLabel}</span>
+        <!-- Balance Card -->
+        <div class="oh-balance-card oh-entry" style="--delay:60ms">
+          <div class="oh-balance-card__header">
+            <span class="oh-balance-card__label">Saldo actual</span>
+            <span class="oh-balance-card__status ${isDebtor ? 'oh-status-debt' : 'oh-status-ok'}">
+              ${isDebtor ? '⚠ Deuda' : '✓ Al día'}
+            </span>
           </div>
-          <div class="card-body flex col gap-2">
-            <div class="flex between">
-              <span class="text-muted text-sm">Saldo</span>
-              <span class="bold" style="font-size:1.5rem;color:${balanceColor}">
-                ${balance < 0 ? '-' : ''}$${Math.abs(balance).toLocaleString('es-AR')}
-              </span>
+          <div class="oh-balance-card__amount ${balance < 0 ? 'oh-amount-debt' : 'oh-amount-ok'}">
+            ${balance < 0 ? '-' : ''}$${Math.abs(balance).toLocaleString('es-AR')}
+          </div>
+          <div class="oh-balance-card__footer">
+            <div class="oh-balance-card__meta">
+              <span>Expensa</span>
+              <strong>$${(cfg.expenseAmount || 0).toLocaleString('es-AR')}</strong>
             </div>
-            <div class="flex between">
-              <span class="text-muted text-sm">Expensa del mes</span>
-              <span class="bold">$${(cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
+            <div class="oh-balance-card__sep"></div>
+            <div class="oh-balance-card__meta">
+              <span>Período</span>
+              <strong>${cfg.expenseMonth || '—'}</strong>
             </div>
-            <div class="flex between">
-              <span class="text-muted text-sm">Período actual</span>
-              <span>${cfg.expenseMonth || ''}</span>
-            </div>
-            ${pending > 0 ? `<div style="background:var(--warning-lt);color:var(--warning);padding:.6rem .9rem;border-radius:8px;font-size:.82rem;font-weight:500;">⚠ Tenés ${pending} comprobante${pending > 1 ? 's' : ''} pendiente${pending > 1 ? 's' : ''} de revisión.</div>` : ''}
-            <button class="btn-upload-cta" onclick="showPage('page-owner-pay');renderUploadPage()">
-              <span class="btn-upload-cta-icon">${SVG.upload}</span>
-              <span class="btn-upload-cta-text">
-                <span class="btn-upload-cta-label">Subir Comprobante</span>
-                <span class="btn-upload-cta-sub">PDF o imagen · pago del mes</span>
-              </span>
-              <span class="btn-upload-cta-arrow">›</span>
-            </button>
           </div>
         </div>
 
+        <!-- Pending warning -->
+        ${pending > 0 ? `
+        <div class="oh-alert oh-entry" style="--delay:100ms">
+          <span class="oh-alert-icon">⏳</span>
+          <span>Tenés <strong>${pending}</strong> comprobante${pending > 1 ? 's' : ''} pendiente${pending > 1 ? 's' : ''} de revisión.</span>
+        </div>` : ''}
+
+        <!-- Upload CTA -->
+        <button class="oh-cta oh-entry" style="--delay:${pending > 0 ? 140 : 100}ms" onclick="showPage('page-owner-pay');renderUploadPage()">
+          <span class="oh-cta-icon">${SVG.upload}</span>
+          <span class="oh-cta-text">
+            <span class="oh-cta-label">Subir Comprobante</span>
+            <span class="oh-cta-sub">PDF o imagen · pago del mes</span>
+          </span>
+          <span class="oh-cta-arrow">›</span>
+        </button>
+
+        <!-- Last approved payment -->
         ${lastPay ? `
-        <div class="card">
-          <div class="card-header"><h3>Último Pago Aprobado</h3></div>
-          <div class="card-body flex between">
-            <div>
-              <p class="bold">$${lastPay.amount.toLocaleString('es-AR')}</p>
-              <small>${formatMonth(lastPay.month)}</small>
-            </div>
-            <div class="flex col" style="align-items:flex-end;gap:.3rem">
-              <span class="badge badge-success">${SVG.check} Aprobado</span>
-              <small>${formatDate(lastPay.createdAt)}</small>
-            </div>
+        <div class="oh-last-pay oh-entry" style="--delay:160ms">
+          <div>
+            <p class="oh-last-pay__label">Último pago aprobado</p>
+            <p class="oh-last-pay__amount">$${lastPay.amount.toLocaleString('es-AR')}</p>
+          </div>
+          <div class="oh-last-pay__right">
+            <span class="badge badge-success">${SVG.check} Aprobado</span>
+            <small>${formatMonth(lastPay.month)} · ${formatDate(lastPay.createdAt)}</small>
           </div>
         </div>` : ''}
 
-        <div>
-          <div class="flex between mt-1" style="margin-bottom:.75rem">
-            <h2>Avisos recientes</h2>
+        <!-- Notices -->
+        <div class="oh-entry" style="--delay:${lastPay ? 200 : 160}ms">
+          <div class="flex between" style="margin-bottom:.75rem;align-items:center">
+            <h2 class="oh-section-title">Avisos recientes</h2>
             <button class="btn btn-ghost btn-sm" onclick="showPage('page-owner-notices');renderOwnerNotices()">Ver todos</button>
           </div>
-          <div class="flex col gap-1">
+          <div class="flex col gap-1 oh-notices">
             ${noticesHtml || '<p class="text-muted text-sm">Sin avisos por el momento.</p>'}
           </div>
         </div>
+
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerHome()');
