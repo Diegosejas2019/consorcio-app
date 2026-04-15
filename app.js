@@ -510,7 +510,7 @@ async function renderOwnerHome() {
 
 async function renderUploadPage() {
   const el = document.getElementById('page-owner-pay');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
 
   try {
     const cfgRes = await api.config.get();
@@ -520,25 +520,34 @@ async function renderUploadPage() {
       : getRecentMonths(6);
 
     el.innerHTML = `
-      <div class="flex col gap-3">
-        <div>
-          <h1>Subir Comprobante</h1>
-          <p class="text-muted text-sm mt-1">Adjuntá tu comprobante y completá los datos.</p>
+      <div class="oh-wrap">
+
+        <!-- Header -->
+        <div class="oh-greeting oh-entry" style="--delay:0ms">
+          <div>
+            <p class="oh-greeting-sub">Pagos</p>
+            <h1 class="oh-greeting-name">Subir Comprobante</h1>
+          </div>
+          <span class="op-header-icon">${SVG.upload}</span>
         </div>
-        <div class="card">
+
+        <!-- Form -->
+        <div class="card oh-entry" style="--delay:60ms">
           <div class="card-body flex col gap-2">
-            <div class="form-group">
-              <label>Período a pagar</label>
-              <select class="select" id="pay-month">
-                ${months.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
-              </select>
+            <div class="op-form-grid">
+              <div class="form-group">
+                <label>Período</label>
+                <select class="select" id="pay-month">
+                  ${months.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Importe ($)</label>
+                <input class="input" type="number" id="pay-amount" placeholder="${cfg.expenseAmount}" min="1">
+              </div>
             </div>
             <div class="form-group">
-              <label>Importe abonado ($)</label>
-              <input class="input" type="number" id="pay-amount" placeholder="${cfg.expenseAmount}" min="1">
-            </div>
-            <div class="form-group">
-              <label>Comprobante de pago (PDF o imagen)</label>
+              <label>Comprobante (PDF o imagen)</label>
               <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
                 <div class="upload-icon-wrap">${SVG.pdf}</div>
                 <p class="upload-title">Arrastrá tu archivo aquí</p>
@@ -550,7 +559,7 @@ async function renderUploadPage() {
             </div>
             <div class="form-group">
               <label>Nota adicional (opcional)</label>
-              <textarea class="input" id="pay-note" placeholder="Ej: Transferencia N° 12345..."></textarea>
+              <textarea class="input" id="pay-note" placeholder="Ej: Transferencia N° 12345…" rows="2"></textarea>
             </div>
             <button class="btn btn-primary w-full" id="btn-submit-receipt" data-requires-network onclick="submitReceipt()">
               ${SVG.upload} Enviar Comprobante
@@ -558,31 +567,31 @@ async function renderUploadPage() {
           </div>
         </div>
 
-        <!-- MercadoPago -->
-        <div class="card">
-          <div class="card-header flex between">
-            <h3>💳 Pagar online</h3>
-            <span class="badge badge-neutral">MercadoPago</span>
-          </div>
-          <div class="card-body flex col gap-2">
-            <p class="text-sm text-muted">Pagá con tarjeta, débito o saldo de MP. Sin adjuntar comprobante.</p>
-            <div class="flex between text-sm">
-              <span>Expensa ${cfg.expenseMonth}</span>
-              <span class="bold">$${(cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
-            </div>
-            <div class="mp-btn-wrap">
-              <button onclick="initMercadoPago()">
-                <svg width="20" height="20" viewBox="0 0 48 48" fill="none" style="vertical-align:middle;margin-right:.5rem" aria-hidden="true">
-                  <circle cx="24" cy="24" r="24" fill="white" fill-opacity="0.2"/>
-                  <path d="M8 24c0-8.837 7.163-16 16-16s16 7.163 16 16-7.163 16-16 16S8 32.837 8 24z" fill="white" fill-opacity="0.15"/>
-                  <text x="24" y="29" text-anchor="middle" font-size="14" font-weight="bold" fill="white" font-family="Arial,sans-serif">MP</text>
-                </svg>
-                Pagar con MercadoPago
-              </button>
-            </div>
-            <p style="font-size:.72rem;color:var(--muted);text-align:center">Serás redirigido al checkout seguro de MercadoPago</p>
-          </div>
+        <!-- OR divider -->
+        <div class="op-divider oh-entry" style="--delay:100ms">
+          <span>o pagá online</span>
         </div>
+
+        <!-- MercadoPago card -->
+        <div class="op-mp-card oh-entry" style="--delay:140ms">
+          <div class="op-mp-card__header">
+            <span class="op-mp-card__title">Pagar con MercadoPago</span>
+            <svg width="36" height="22" viewBox="0 0 54 32" fill="none" aria-hidden="true">
+              <rect width="54" height="32" rx="7" fill="rgba(255,255,255,.18)"/>
+              <text x="27" y="22" text-anchor="middle" font-size="13" font-weight="800" fill="white" font-family="Arial,sans-serif">MP</text>
+            </svg>
+          </div>
+          <div class="op-mp-card__amount-row">
+            <span class="op-mp-card__amount">$${(cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
+            <span class="op-mp-card__period">· ${cfg.expenseMonth || ''}</span>
+          </div>
+          <button class="op-mp-btn" onclick="initMercadoPago()" data-requires-network>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            Ir al checkout seguro
+          </button>
+          <p class="op-mp-note">Serás redirigido a MercadoPago · Pagá con tarjeta, débito o saldo MP</p>
+        </div>
+
       </div>`;
 
     // Drag & drop
@@ -668,32 +677,44 @@ async function submitReceipt() {
 
 async function renderOwnerHistory() {
   const el = document.getElementById('page-owner-history');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
+  el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
   try {
     const res      = await api.payments.getAll({ limit: 50 });
     const payments = res.data.payments;
+
+    const itemsHtml = payments.length === 0
+      ? `<div class="ohi-empty oh-entry" style="--delay:60ms">
+           <p class="ohi-empty__icon">📋</p>
+           <p class="ohi-empty__msg">No hay pagos registrados aún.</p>
+         </div>`
+      : `<div class="ohi-list">
+           ${payments.map((p, i) => `
+             <div class="ohi-item oh-entry" style="--delay:${Math.min(i * 35 + 40, 220)}ms">
+               <div class="ohi-status-dot ohi-dot-${p.status}"></div>
+               <div class="ohi-item__info">
+                 <p class="ohi-item__period">${formatMonth(p.month)}</p>
+                 <p class="ohi-item__channel">${p.paymentMethod === 'mercadopago' ? '💳 MercadoPago' : '📄 Manual'}</p>
+                 ${p.rejectionNote ? `<p class="ohi-item__rejection">↳ ${p.rejectionNote}</p>` : ''}
+               </div>
+               <div class="ohi-item__right">
+                 <p class="ohi-item__amount">$${p.amount.toLocaleString('es-AR')}</p>
+                 ${statusBadge(p.status)}
+                 ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}
+               </div>
+             </div>
+           `).join('')}
+         </div>`;
+
     el.innerHTML = `
-      <div class="flex col gap-3">
-        <h1>Historial de Pagos</h1>
-        ${payments.length === 0
-          ? `<div class="card card-body" style="text-align:center;color:var(--muted)">No hay pagos registrados aún.</div>`
-          : `<div class="card">
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Período</th><th>Importe</th><th>Canal</th><th>Estado</th><th></th></tr></thead>
-                  <tbody>${payments.map(p => `
-                    <tr>
-                      <td class="bold">${formatMonth(p.month)}</td>
-                      <td>$${p.amount.toLocaleString('es-AR')}</td>
-                      <td><span style="font-size:.75rem">${p.paymentMethod === 'mercadopago' ? '💳 MP' : '📄 Manual'}</span></td>
-                      <td>${statusBadge(p.status)}</td>
-                      <td>${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}</td>
-                    </tr>
-                    ${p.rejectionNote ? `<tr><td colspan="5" style="padding:.25rem 1rem .75rem;color:var(--danger);font-size:.78rem">↳ ${p.rejectionNote}</td></tr>` : ''}
-                  `).join('')}</tbody>
-                </table>
-              </div>
-            </div>`}
+      <div class="oh-wrap">
+        <div class="oh-greeting oh-entry" style="--delay:0ms">
+          <div>
+            <p class="oh-greeting-sub">Cuenta</p>
+            <h1 class="oh-greeting-name">Mis Pagos</h1>
+          </div>
+          ${payments.length > 0 ? `<span class="oh-unit-chip">${payments.length} registro${payments.length !== 1 ? 's' : ''}</span>` : ''}
+        </div>
+        ${itemsHtml}
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerHistory()');
@@ -702,17 +723,31 @@ async function renderOwnerHistory() {
 
 async function renderOwnerNotices() {
   const el = document.getElementById('page-owner-notices');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  el.innerHTML = `<div class="oh-wrap">${skeleton(3)}</div>`;
   try {
-    const res = await api.notices.getAll({ limit: 30 });
+    const res     = await api.notices.getAll({ limit: 30 });
+    const notices = res.data.notices;
+
     el.innerHTML = `
-      <div class="flex col gap-3">
-        <h1>Avisos y Comunicados</h1>
-        <div class="flex col gap-2">
-          ${res.data.notices.length
-            ? res.data.notices.map(n => noticeCard(n, true)).join('')
-            : '<p class="text-muted text-sm">Sin avisos por el momento.</p>'}
+      <div class="oh-wrap">
+        <div class="oh-greeting oh-entry" style="--delay:0ms">
+          <div>
+            <p class="oh-greeting-sub">Comunicados</p>
+            <h1 class="oh-greeting-name">Avisos</h1>
+          </div>
+          ${notices.length > 0 ? `<span class="oh-unit-chip">${notices.length}</span>` : ''}
         </div>
+        ${notices.length
+          ? notices.map((n, i) => `
+              <div class="on-card on-tag-${n.tag} oh-entry" style="--delay:${Math.min(i * 40 + 40, 220)}ms">
+                <div class="on-card__header">
+                  <span class="on-card__tag tag-${n.tag}">${tagLabel(n.tag)}</span>
+                  <span class="on-card__date-small">${formatDate(n.createdAt)}</span>
+                </div>
+                <h2 class="on-card__title">${n.title}</h2>
+                <p class="on-card__body">${n.body}</p>
+              </div>`).join('')
+          : '<p class="text-muted text-sm oh-entry" style="--delay:60ms">Sin avisos por el momento.</p>'}
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerNotices()');
@@ -1737,28 +1772,34 @@ async function renderOwnerClaims() {
     const claims = res.data.claims;
 
     el.innerHTML = `
-      <div class="flex col gap-3">
-        <div class="flex between" style="align-items:center">
-          <h1>Mis Reclamos</h1>
+      <div class="oh-wrap">
+        <div class="oh-greeting oh-entry" style="--delay:0ms">
+          <div>
+            <p class="oh-greeting-sub">Soporte</p>
+            <h1 class="oh-greeting-name">Mis Reclamos</h1>
+          </div>
           <button class="btn btn-primary btn-sm" onclick="openNewClaimModal()">+ Nuevo</button>
         </div>
-        <div class="card">
-          <div class="card-body flex col gap-2">
-            ${claims.length === 0
-              ? '<p class="text-muted text-sm">No tenés reclamos registrados.</p>'
-              : claims.map(c => `
-                <div style="padding:.75rem 0;border-bottom:1px solid var(--border)">
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.35rem">
-                    <p style="font-weight:600;font-size:.9rem">${c.title}</p>
-                    ${claimStatusBadge(c.status)}
-                  </div>
-                  <p style="font-size:.75rem;color:var(--muted);margin-bottom:.3rem">${CLAIM_CATEGORIES[c.category] || c.category} · ${formatDate(c.createdAt)}</p>
-                  <p style="font-size:.83rem;color:var(--text);line-height:1.4">${c.body}</p>
-                  ${c.adminNote ? `<p style="font-size:.78rem;color:var(--accent);margin-top:.35rem;font-style:italic">Respuesta: ${c.adminNote}</p>` : ''}
-                  ${c.status === 'open' ? `<button class="btn btn-ghost btn-sm" style="margin-top:.4rem;color:var(--danger);font-size:.75rem" onclick="deleteClaim('${c._id}')">Eliminar</button>` : ''}
-                </div>`).join('')}
-          </div>
-        </div>
+        ${claims.length === 0
+          ? `<div class="oc-empty oh-entry" style="--delay:60ms">
+               <p class="oc-empty__icon">📝</p>
+               <p class="oc-empty__msg">No tenés reclamos registrados.</p>
+               <button class="btn btn-primary btn-sm" onclick="openNewClaimModal()">Crear primer reclamo</button>
+             </div>`
+          : claims.map((c, i) => `
+              <div class="oc-card oh-entry" style="--delay:${Math.min(i * 40 + 40, 220)}ms">
+                <div class="oc-card__header">
+                  <span class="oc-card__cat">${CLAIM_CATEGORIES[c.category] || c.category}</span>
+                  ${claimStatusBadge(c.status)}
+                </div>
+                <h3 class="oc-card__title">${c.title}</h3>
+                <p class="oc-card__body">${c.body}</p>
+                ${c.adminNote ? `<div class="oc-admin-note">💬 ${c.adminNote}</div>` : ''}
+                <div class="oc-card__footer">
+                  <span class="oc-card__date">${formatDate(c.createdAt)}</span>
+                  ${c.status === 'open' ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger);font-size:.75rem;padding:.3rem .6rem" onclick="deleteClaim('${c._id}')">Eliminar</button>` : ''}
+                </div>
+              </div>`).join('')}
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerClaims()');
