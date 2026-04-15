@@ -160,9 +160,25 @@ function showPage(id) {
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.page === id);
   });
+  // Persistir última pestaña por rol
+  if (state.role) localStorage.setItem(`lastPage_${state.role}`, id);
   // Re-aplicar estado offline a botones recién renderizados (tras el render)
   setTimeout(updateOnlineStatus, 0);
 }
+
+const PAGE_RENDERERS = {
+  'page-admin-home':      () => renderAdminHome(),
+  'page-admin-dashboard': () => renderAdminDashboard(),
+  'page-admin-owners':    () => renderOwnersList(),
+  'page-admin-notices':   () => renderAdminNotices(),
+  'page-admin-claims':    () => renderAdminClaims(),
+  'page-admin-settings':  () => renderAdminSettings(),
+  'page-owner-home':      () => renderOwnerHome(),
+  'page-owner-pay':       () => renderUploadPage(),
+  'page-owner-history':   () => renderOwnerHistory(),
+  'page-owner-notices':   () => renderOwnerNotices(),
+  'page-owner-claims':    () => renderOwnerClaims(),
+};
 
 // ── Toggle visibilidad de contraseña ─────────────────────────
 function togglePassword(inputId, btn) {
@@ -395,8 +411,10 @@ function skeleton(lines = 3) {
 // ═══════════════════════════════════════════
 function renderOwnerView() {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  showPage('page-owner-home');
-  renderOwnerHome();
+  const saved = localStorage.getItem('lastPage_owner');
+  const page  = saved && document.getElementById(saved) ? saved : 'page-owner-home';
+  showPage(page);
+  PAGE_RENDERERS[page]?.();
 }
 
 async function renderOwnerHome() {
@@ -765,8 +783,10 @@ async function renderAdminView() {
     renderAdminSettings();
     return;
   }
-  showPage('page-admin-home');
-  renderAdminHome();
+  const saved = localStorage.getItem('lastPage_admin');
+  const page  = saved && document.getElementById(saved) ? saved : 'page-admin-home';
+  showPage(page);
+  PAGE_RENDERERS[page]?.();
 }
 
 async function renderAdminHome() {
