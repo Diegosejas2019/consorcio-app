@@ -816,7 +816,7 @@ async function renderAdminHome() {
           </div>
         </div>
 
-        <div class="card" style="background:var(--accent-lt);border:1px solid #c7d2fe">
+        <div class="card" style="background:var(--accent-lt);border:1px solid rgba(0,214,143,0.25)">
           <div class="card-body flex between" style="padding:.85rem 1rem;align-items:center;gap:1rem">
             <div>
               <p class="bold text-sm">Recordatorios de vencimiento</p>
