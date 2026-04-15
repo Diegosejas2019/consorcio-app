@@ -2086,7 +2086,8 @@ async function setupPushNotifications() {
 
     if (permission !== 'granted') return;
 
-    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    // sw.js ya incluye Firebase Messaging — usamos ese registro (scope /)
+    const swReg = await navigator.serviceWorker.ready;
     const tokenOpts = { serviceWorkerRegistration: swReg };
     if (FIREBASE_VAPID_KEY) tokenOpts.vapidKey = FIREBASE_VAPID_KEY;
     const token = await _messaging.getToken(tokenOpts);

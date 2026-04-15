@@ -1,4 +1,49 @@
-const CACHE_NAME = 'consorcio-v5';
+// ── Firebase Messaging (push notifications en background) ────
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+  apiKey:            'AIzaSyALo-U8cuAO3smKa-pD0u47TFpnFZYhRj0',
+  authDomain:        'consorcio-app-15e78.firebaseapp.com',
+  projectId:         'consorcio-app-15e78',
+  storageBucket:     'consorcio-app-15e78.firebasestorage.app',
+  messagingSenderId: '822644970609',
+  appId:             '1:822644970609:web:29df8183cfbf20cf0937d0',
+});
+
+const messaging = firebase.messaging();
+
+// Mensajes data-only (sin campo notification en el payload FCM):
+// Firebase SDK no muestra nada automáticamente → lo hacemos acá.
+messaging.onBackgroundMessage((payload) => {
+  const title = payload.data?.title || payload.notification?.title || 'GestionAr';
+  const body  = payload.data?.body  || payload.notification?.body  || '';
+  const data  = payload.data || {};
+
+  return self.registration.showNotification(title, {
+    body,
+    icon:  '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag:   data.type || 'consorcio',
+    data,
+    requireInteraction: data.type === 'urgent',
+  });
+});
+
+// Tap en la notificación → abrir/enfocar la app
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const existing = clientList.find(c => c.url.includes(self.location.origin) && 'focus' in c);
+      if (existing) return existing.focus();
+      return clients.openWindow('/');
+    })
+  );
+});
+
+// ─────────────────────────────────────────────────────────────
+const CACHE_NAME = 'consorcio-v6';
 const API_CACHE  = 'consorcio-api-v1';
 const API_ORIGIN = 'https://consorcio-api-production.up.railway.app/api/';
 const TTL_MS     = 24 * 60 * 60 * 1000; // 24 horas
