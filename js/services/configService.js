@@ -5,6 +5,19 @@ import { skeleton } from '../ui/skeleton.js';
 import { errorState } from '../ui/helpers.js';
 import { SVG } from '../ui/icons.js';
 import { setupTopBar } from './authService.js';
+import { openModal, closeModal } from '../ui/modal.js';
+
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function getCurrentPeriod() {
+  const now = new Date();
+  const code  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const label = `${MONTHS_ES[now.getMonth()]} ${now.getFullYear()}`;
+  return { code, label };
+}
+
+// Períodos cacheados para el modal
+let _allPeriods = [];
 
 export function periodChip(value) {
   return `<span data-period="${value}" style="display:inline-flex;align-items:center;gap:.35rem;background:var(--primary-lt);color:var(--primary);padding:.25rem .65rem;border-radius:99px;font-size:.82rem;font-weight:500">
@@ -19,14 +32,27 @@ export async function renderAdminSettings() {
   try {
     const res = await api.config.get();
     const cfg = res.data.config;
+    _allPeriods = cfg.paymentPeriods || [];
+
+    // Si no hay período configurado, usar el mes en curso
+    const current = getCurrentPeriod();
+    const periodLabel = cfg.expenseMonth     || current.label;
+    const periodCode  = cfg.expenseMonthCode || current.code;
+
     el.innerHTML = `
       <div class="flex col gap-3">
         <h1>Configuración</h1>
         <div class="card">
           <div class="card-header"><h3>Expensas del Período</h3></div>
           <div class="card-body flex col gap-2">
-            <div class="form-group"><label>Período (nombre)</label><input class="input" id="cfg-month" value="${cfg.expenseMonth || ''}" placeholder="Ej: Abril 2025"></div>
-            <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${cfg.expenseMonthCode || ''}" placeholder="YYYY-MM"></div>
+            <div class="form-group">
+              <label>Período (nombre)</label>
+              <div class="flex gap-2" style="align-items:center">
+                <input class="input" id="cfg-month" value="${periodLabel}" placeholder="Ej: Abril 2025" style="flex:1">
+                <button class="btn btn-secondary btn-sm" style="white-space:nowrap" onclick="fillCurrentPeriod()">Mes actual</button>
+              </div>
+            </div>
+            <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${periodCode}" placeholder="YYYY-MM"></div>
             <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
             <div class="form-group"><label>Día de vencimiento</label><input class="input" type="number" id="cfg-due" value="${cfg.dueDayOfMonth || 10}" min="1" max="28"></div>
             <button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>
@@ -50,11 +76,14 @@ export async function renderAdminSettings() {
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><h3>Períodos de pago disponibles</h3></div>
+          <div class="card-header flex between" style="align-items:center">
+            <h3>Períodos de pago disponibles</h3>
+            <button class="btn btn-ghost btn-sm" onclick="openPeriodsModal()">Ver todos</button>
+          </div>
           <div class="card-body flex col gap-2">
             <p class="text-sm text-muted">Definí qué meses pueden seleccionar los propietarios al subir un comprobante. Si no hay ninguno, se muestran los últimos 6 meses automáticamente.</p>
             <div id="periods-list" class="flex gap-2" style="flex-wrap:wrap;min-height:2rem">
-              ${(cfg.paymentPeriods || []).map(p => periodChip(p)).join('') || '<span class="text-sm text-muted">Sin períodos configurados</span>'}
+              ${_allPeriods.map(p => periodChip(p)).join('') || '<span class="text-sm text-muted">Sin períodos configurados</span>'}
             </div>
             <div class="flex gap-2" style="align-items:center">
               <input class="input" type="month" id="cfg-new-period" style="flex:1">
@@ -102,6 +131,82 @@ export async function renderAdminSettings() {
     }
   }
 }
+
+export function fillCurrentPeriod() {
+  const { code, label } = getCurrentPeriod();
+  const monthEl = document.getElementById('cfg-month');
+  const codeEl  = document.getElementById('cfg-month-code');
+  if (monthEl) monthEl.value = label;
+  if (codeEl)  codeEl.value  = code;
+}
+
+// ── Modal: ver todos los períodos con filtro por año ──────────────
+
+function _periodsForYear(year) {
+  return year ? _allPeriods.filter(p => p.startsWith(year)) : _allPeriods;
+}
+
+function _renderModalList(year) {
+  const list = _periodsForYear(year);
+  if (!list.length) return '<p class="text-sm text-muted" style="padding:.5rem 0">No hay períodos para este año.</p>';
+  return list.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--border)">
+      <span class="text-sm">${formatPeriodLabel(p)}</span>
+      <button class="btn btn-danger btn-sm" onclick="removePaymentPeriodFromModal('${p}')">Eliminar</button>
+    </div>`).join('');
+}
+
+export function openPeriodsModal() {
+  const years = [...new Set(_allPeriods.map(p => p.split('-')[0]))].sort().reverse();
+  const defaultYear = years[0] || '';
+
+  openModal(`
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1rem">Períodos configurados</h2>
+    <div class="flex gap-2" style="margin-bottom:1rem;align-items:center">
+      <label style="font-size:.85rem;color:var(--muted);white-space:nowrap">Filtrar por año</label>
+      <select class="select" id="modal-year-filter" onchange="filterPeriodsByYear(this.value)" style="flex:1">
+        <option value="">Todos</option>
+        ${years.map(y => `<option value="${y}" ${y === defaultYear ? 'selected' : ''}>${y}</option>`).join('')}
+      </select>
+    </div>
+    <div id="modal-periods-list">
+      ${_renderModalList(defaultYear)}
+    </div>
+    <button class="btn btn-secondary w-full" style="margin-top:1.25rem" onclick="closeModal()">Cerrar</button>
+  `);
+}
+
+export function filterPeriodsByYear(year) {
+  const el = document.getElementById('modal-periods-list');
+  if (el) el.innerHTML = _renderModalList(year);
+}
+
+export async function removePaymentPeriodFromModal(value) {
+  const updated = _allPeriods.filter(p => p !== value);
+  try {
+    await api.config.update({ paymentPeriods: updated });
+    _allPeriods = updated;
+    // Actualizar lista en settings
+    const settingsList = document.getElementById('periods-list');
+    if (settingsList) {
+      settingsList.innerHTML = _allPeriods.length
+        ? _allPeriods.map(p => periodChip(p)).join('')
+        : '<span class="text-sm text-muted">Sin períodos configurados</span>';
+    }
+    // Re-renderizar modal con el año actualmente seleccionado
+    const year = document.getElementById('modal-year-filter')?.value || '';
+    const years = [...new Set(_allPeriods.map(p => p.split('-')[0]))].sort().reverse();
+    const yearSelect = document.getElementById('modal-year-filter');
+    if (yearSelect) {
+      yearSelect.innerHTML = `<option value="">Todos</option>${years.map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}`;
+    }
+    filterPeriodsByYear(year);
+    toast('Período eliminado', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ─────────────────────────────────────────────────────────────────
 
 export async function createOrganization() {
   const template = document.getElementById('setup-org-template')?.value || 'consorcio';
@@ -162,14 +267,14 @@ export async function addPaymentPeriod() {
   const input = document.getElementById('cfg-new-period');
   const value = input?.value;
   if (!value) { toast('Seleccioná un mes', 'error'); return; }
-  const current = Array.from(document.querySelectorAll('#periods-list [data-period]')).map(el => el.dataset.period);
-  if (current.includes(value)) { toast('Ese período ya está en la lista', 'error'); return; }
-  const updated = [...current, value].sort();
+  if (_allPeriods.includes(value)) { toast('Ese período ya está en la lista', 'error'); return; }
+  const updated = [..._allPeriods, value].sort();
   const btn = document.getElementById('btn-add-period');
   setBtnLoading(btn, true);
   try {
     await api.config.update({ paymentPeriods: updated });
-    document.getElementById('periods-list').innerHTML = updated.map(p => periodChip(p)).join('');
+    _allPeriods = updated;
+    document.getElementById('periods-list').innerHTML = _allPeriods.map(p => periodChip(p)).join('');
     input.value = '';
     toast('Período agregado', 'success');
   } catch (err) {
@@ -180,12 +285,12 @@ export async function addPaymentPeriod() {
 }
 
 export async function removePaymentPeriod(value) {
-  const current = Array.from(document.querySelectorAll('#periods-list [data-period]')).map(el => el.dataset.period);
-  const updated = current.filter(p => p !== value);
+  const updated = _allPeriods.filter(p => p !== value);
   try {
     await api.config.update({ paymentPeriods: updated });
-    document.getElementById('periods-list').innerHTML = updated.length
-      ? updated.map(p => periodChip(p)).join('')
+    _allPeriods = updated;
+    document.getElementById('periods-list').innerHTML = _allPeriods.length
+      ? _allPeriods.map(p => periodChip(p)).join('')
       : '<span class="text-sm text-muted">Sin períodos configurados</span>';
     toast('Período eliminado', 'success');
   } catch (err) { toast(err.message, 'error'); }
@@ -204,10 +309,14 @@ export async function saveMPSettings() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-window.renderAdminSettings  = renderAdminSettings;
-window.createOrganization   = createOrganization;
-window.saveSettings         = saveSettings;
-window.saveConsortiumSettings = saveConsortiumSettings;
-window.addPaymentPeriod     = addPaymentPeriod;
-window.removePaymentPeriod  = removePaymentPeriod;
-window.saveMPSettings       = saveMPSettings;
+window.renderAdminSettings         = renderAdminSettings;
+window.createOrganization          = createOrganization;
+window.fillCurrentPeriod           = fillCurrentPeriod;
+window.saveSettings                = saveSettings;
+window.saveConsortiumSettings      = saveConsortiumSettings;
+window.addPaymentPeriod            = addPaymentPeriod;
+window.removePaymentPeriod         = removePaymentPeriod;
+window.openPeriodsModal            = openPeriodsModal;
+window.filterPeriodsByYear         = filterPeriodsByYear;
+window.removePaymentPeriodFromModal = removePaymentPeriodFromModal;
+window.saveMPSettings              = saveMPSettings;
