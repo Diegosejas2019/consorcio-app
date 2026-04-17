@@ -151,6 +151,7 @@ export function enterApp() {
   document.getElementById('app-shell').style.display    = 'flex';
   setupNav();
   setupTopBar();
+  if (window.Sentry) Sentry.setUser({ id: state.user._id, email: state.user.email, role: state.role });
   if (state.role === 'admin') {
     window.renderAdminView();
     setupPushNotifications();
@@ -196,6 +197,7 @@ export function setupNav() {
 
 // ── Logout ────────────────────────────────────────────────────
 export function logout() {
+  if (window.Sentry) Sentry.setUser(null);
   clearToken();
   cache.clear();
   setState({ role: null, user: null });
