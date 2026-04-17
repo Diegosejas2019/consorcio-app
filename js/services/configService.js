@@ -1,0 +1,213 @@
+import { state } from '../core/state.js';
+import { toast } from '../ui/toast.js';
+import { showLoading, setBtnLoading } from '../ui/loading.js';
+import { skeleton } from '../ui/skeleton.js';
+import { errorState } from '../ui/helpers.js';
+import { SVG } from '../ui/icons.js';
+import { setupTopBar } from './authService.js';
+
+export function periodChip(value) {
+  return `<span data-period="${value}" style="display:inline-flex;align-items:center;gap:.35rem;background:var(--primary-lt);color:var(--primary);padding:.25rem .65rem;border-radius:99px;font-size:.82rem;font-weight:500">
+    ${formatPeriodLabel(value)}
+    <button onclick="removePaymentPeriod('${value}')" style="background:none;border:none;cursor:pointer;color:inherit;line-height:1;padding:0;font-size:.9rem">✕</button>
+  </span>`;
+}
+
+export async function renderAdminSettings() {
+  const el = document.getElementById('page-admin-settings');
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  try {
+    const res = await api.config.get();
+    const cfg = res.data.config;
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <h1>Configuración</h1>
+        <div class="card">
+          <div class="card-header"><h3>Expensas del Período</h3></div>
+          <div class="card-body flex col gap-2">
+            <div class="form-group"><label>Período (nombre)</label><input class="input" id="cfg-month" value="${cfg.expenseMonth || ''}" placeholder="Ej: Abril 2025"></div>
+            <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${cfg.expenseMonthCode || ''}" placeholder="YYYY-MM"></div>
+            <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
+            <div class="form-group"><label>Día de vencimiento</label><input class="input" type="number" id="cfg-due" value="${cfg.dueDayOfMonth || 10}" min="1" max="28"></div>
+            <button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Datos del Consorcio</h3></div>
+          <div class="card-body flex col gap-2">
+            <div class="form-group"><label>Nombre del consorcio</label><input class="input" id="cfg-name" value="${cfg.consortiumName || ''}" placeholder="Barrio Privado Los Pinos"></div>
+            <div class="form-group"><label>Email de contacto</label><input class="input" id="cfg-email" value="${cfg.adminEmail || ''}"></div>
+            <button class="btn btn-primary" id="btn-save-consortium" data-requires-network onclick="saveConsortiumSettings()">Guardar</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Integración MercadoPago</h3></div>
+          <div class="card-body flex col gap-2">
+            <p class="text-sm text-muted">Credenciales desde developers.mercadopago.com</p>
+            <div class="form-group"><label>Public Key</label><input class="input" id="cfg-mp-key" placeholder="APP_USR-..." value="${cfg.mpPublicKey || ''}"></div>
+            <div class="form-group"><label>Access Token</label><input class="input" type="password" id="cfg-mp-token" placeholder="APP_USR-..."></div>
+            <button class="btn btn-primary" data-requires-network onclick="saveMPSettings()">Guardar credenciales</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Períodos de pago disponibles</h3></div>
+          <div class="card-body flex col gap-2">
+            <p class="text-sm text-muted">Definí qué meses pueden seleccionar los propietarios al subir un comprobante. Si no hay ninguno, se muestran los últimos 6 meses automáticamente.</p>
+            <div id="periods-list" class="flex gap-2" style="flex-wrap:wrap;min-height:2rem">
+              ${(cfg.paymentPeriods || []).map(p => periodChip(p)).join('') || '<span class="text-sm text-muted">Sin períodos configurados</span>'}
+            </div>
+            <div class="flex gap-2" style="align-items:center">
+              <input class="input" type="month" id="cfg-new-period" style="flex:1">
+              <button class="btn btn-secondary" id="btn-add-period" onclick="addPaymentPeriod()">Agregar</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Cuenta</h3></div>
+          <div class="card-body">
+            <button class="btn btn-danger w-full" onclick="logout()">${SVG.logout} Cerrar sesión</button>
+          </div>
+        </div>
+      </div>`;
+  } catch (err) {
+    if (err.status === 404 || (err.message && err.message.toLowerCase().includes('configurada'))) {
+      let templateOptions = '<option value="consorcio">Consorcio / Barrio Privado</option>';
+      try {
+        const tRes = await api.organizations.getTemplates();
+        templateOptions = tRes.data.templates.map(t =>
+          `<option value="${t.businessType}">${t.displayName}</option>`
+        ).join('');
+      } catch (_) { /* usar default */ }
+
+      el.innerHTML = `
+        <div class="flex col gap-3">
+          <h1>Configuración</h1>
+          <div class="card">
+            <div class="card-header"><h3>Configurar organización</h3></div>
+            <div class="card-body flex col gap-2">
+              <p class="text-sm text-muted">Todavía no configuraste tu organización. Completá los datos para comenzar.</p>
+              <div class="form-group">
+                <label>Tipo de organización *</label>
+                <select class="input" id="setup-org-template">${templateOptions}</select>
+              </div>
+              <div class="form-group"><label>Nombre *</label><input class="input" id="setup-org-name" placeholder="Barrio Privado Los Pinos"></div>
+              <div class="form-group"><label>Dirección</label><input class="input" id="setup-org-address" placeholder="Av. Siempre Viva 742"></div>
+              <div class="form-group"><label>Email de contacto</label><input class="input" type="email" id="setup-org-email" placeholder="admin@consorcio.com"></div>
+              <button class="btn btn-primary" onclick="createOrganization()">Crear organización</button>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      el.innerHTML = errorState(err.message, 'renderAdminSettings()');
+    }
+  }
+}
+
+export async function createOrganization() {
+  const template = document.getElementById('setup-org-template')?.value || 'consorcio';
+  const name     = document.getElementById('setup-org-name')?.value.trim();
+  const address  = document.getElementById('setup-org-address')?.value.trim();
+  const email    = document.getElementById('setup-org-email')?.value.trim();
+  if (!name) { toast('El nombre es requerido', 'error'); return; }
+  try {
+    showLoading(true);
+    await api.organizations.create({ template, name, address, adminEmail: email });
+    const me = await api.auth.getMe();
+    state.user = me.data.user;
+    toast('Organización creada correctamente', 'success');
+    renderAdminSettings();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+export async function saveSettings() {
+  const btn = document.getElementById('btn-save-settings');
+  setBtnLoading(btn, true);
+  try {
+    await api.config.update({
+      expenseMonth:     document.getElementById('cfg-month')?.value.trim(),
+      expenseMonthCode: document.getElementById('cfg-month-code')?.value.trim(),
+      expenseAmount:    Number(document.getElementById('cfg-amount')?.value),
+      dueDayOfMonth:    Number(document.getElementById('cfg-due')?.value),
+    });
+    toast('Configuración guardada', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+export async function saveConsortiumSettings() {
+  const btn = document.getElementById('btn-save-consortium');
+  setBtnLoading(btn, true);
+  try {
+    await api.config.update({
+      consortiumName: document.getElementById('cfg-name')?.value.trim(),
+      adminEmail:     document.getElementById('cfg-email')?.value.trim(),
+    });
+    toast('Datos del consorcio guardados', 'success');
+    setupTopBar();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+export async function addPaymentPeriod() {
+  const input = document.getElementById('cfg-new-period');
+  const value = input?.value;
+  if (!value) { toast('Seleccioná un mes', 'error'); return; }
+  const current = Array.from(document.querySelectorAll('#periods-list [data-period]')).map(el => el.dataset.period);
+  if (current.includes(value)) { toast('Ese período ya está en la lista', 'error'); return; }
+  const updated = [...current, value].sort();
+  const btn = document.getElementById('btn-add-period');
+  setBtnLoading(btn, true);
+  try {
+    await api.config.update({ paymentPeriods: updated });
+    document.getElementById('periods-list').innerHTML = updated.map(p => periodChip(p)).join('');
+    input.value = '';
+    toast('Período agregado', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+export async function removePaymentPeriod(value) {
+  const current = Array.from(document.querySelectorAll('#periods-list [data-period]')).map(el => el.dataset.period);
+  const updated = current.filter(p => p !== value);
+  try {
+    await api.config.update({ paymentPeriods: updated });
+    document.getElementById('periods-list').innerHTML = updated.length
+      ? updated.map(p => periodChip(p)).join('')
+      : '<span class="text-sm text-muted">Sin períodos configurados</span>';
+    toast('Período eliminado', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+export async function saveMPSettings() {
+  const update = {};
+  const key   = document.getElementById('cfg-mp-key')?.value.trim();
+  const token = document.getElementById('cfg-mp-token')?.value.trim();
+  if (key)   update.mpPublicKey   = key;
+  if (token) update.mpAccessToken = token;
+  if (!Object.keys(update).length) { toast('Ingresá al menos una credencial', 'error'); return; }
+  try {
+    await api.config.update(update);
+    toast('Credenciales MP guardadas', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+window.renderAdminSettings  = renderAdminSettings;
+window.createOrganization   = createOrganization;
+window.saveSettings         = saveSettings;
+window.saveConsortiumSettings = saveConsortiumSettings;
+window.addPaymentPeriod     = addPaymentPeriod;
+window.removePaymentPeriod  = removePaymentPeriod;
+window.saveMPSettings       = saveMPSettings;
