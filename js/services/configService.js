@@ -64,7 +64,7 @@ export async function renderAdminSettings() {
         </div>
 
         <div class="card">
-          <div class="card-header"><h3>Expensas del Período</h3></div>
+          <div class="card-header"><h3>Concepto Extraordinario</h3></div>
           <div class="card-body flex col gap-2">
             <div class="form-group">
               <label>Período (nombre)</label>
@@ -75,6 +75,14 @@ export async function renderAdminSettings() {
             </div>
             <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${periodCode}" placeholder="YYYY-MM"></div>
             <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
+
+            <button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Recargo por mora</h3></div>
+          <div class="card-body flex col gap-2">
             <div class="form-group"><label>Día de vencimiento</label><input class="input" type="number" id="cfg-due" value="${cfg.dueDayOfMonth || 10}" min="1" max="28"></div>
 
             <div class="form-group">
@@ -100,7 +108,7 @@ export async function renderAdminSettings() {
               <input class="input" type="number" id="cfg-late-fixed" value="${lateFeeFixed}" min="0" placeholder="Ej: 500">
             </div>
 
-            <button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>
+            <button class="btn btn-primary" id="btn-save-late-fee" data-requires-network onclick="saveLateFeeSettings()">Guardar cambios</button>
           </div>
         </div>
 
@@ -273,17 +281,31 @@ export async function saveSettings() {
   const btn = document.getElementById('btn-save-settings');
   setBtnLoading(btn, true);
   try {
-    const lateFeeType = document.querySelector('[name="lateFeeType"]:checked')?.value || 'percent';
     await api.config.update({
       expenseMonth:     document.getElementById('cfg-month')?.value.trim(),
       expenseMonthCode: document.getElementById('cfg-month-code')?.value.trim(),
       expenseAmount:    Number(document.getElementById('cfg-amount')?.value),
-      dueDayOfMonth:    Number(document.getElementById('cfg-due')?.value),
-      lateFeeType,
-      lateFeePercent:   Number(document.getElementById('cfg-late-percent')?.value || 0),
-      lateFeeFixed:     Number(document.getElementById('cfg-late-fixed')?.value  || 0),
     });
     toast('Configuración guardada', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+export async function saveLateFeeSettings() {
+  const btn = document.getElementById('btn-save-late-fee');
+  setBtnLoading(btn, true);
+  try {
+    const lateFeeType = document.querySelector('[name="lateFeeType"]:checked')?.value || 'percent';
+    await api.config.update({
+      dueDayOfMonth:  Number(document.getElementById('cfg-due')?.value),
+      lateFeeType,
+      lateFeePercent: Number(document.getElementById('cfg-late-percent')?.value || 0),
+      lateFeeFixed:   Number(document.getElementById('cfg-late-fixed')?.value  || 0),
+    });
+    toast('Recargo por mora guardado', 'success');
   } catch (err) {
     toast(err.message, 'error');
   } finally {
@@ -359,6 +381,7 @@ window.createOrganization           = createOrganization;
 window.toggleLateFeeType            = toggleLateFeeType;
 window.fillCurrentPeriod            = fillCurrentPeriod;
 window.saveSettings                 = saveSettings;
+window.saveLateFeeSettings          = saveLateFeeSettings;
 window.saveConsortiumSettings       = saveConsortiumSettings;
 window.addPaymentPeriod             = addPaymentPeriod;
 window.removePaymentPeriod          = removePaymentPeriod;
