@@ -1425,6 +1425,7 @@ async function viewOwnerDetail(ownerId) {
         <button class="btn btn-primary" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
           ${owner.isDebtor ? 'Al día' : 'Moroso'}
         </button>
+        <button class="btn btn-danger" onclick="confirmDeleteOwner('${owner._id}', '${owner.name.replace(/'/g,"\\'")}')">Eliminar</button>
       </div>`;
   } catch (err) {
     document.getElementById('modal').innerHTML = `<div class="modal-handle"></div><p style="color:var(--danger)">${err.message}</p>`;
@@ -1436,6 +1437,30 @@ async function toggleDebt(ownerId, currentDebt) {
     await api.owners.update(ownerId, { isDebtor: !currentDebt, balance: !currentDebt ? -15000 : 0 });
     closeModal();
     toast('Propietario actualizado', 'success');
+    renderOwnersList();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function confirmDeleteOwner(ownerId, ownerName) {
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.5rem">Eliminar propietario</h2>
+    <p class="text-sm" style="margin-bottom:1.25rem">¿Estás seguro de que querés eliminar a <strong>${ownerName}</strong>? Esta acción desactivará su cuenta y no podrá iniciar sesión.</p>
+    <div class="flex gap-1">
+      <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${ownerId}')">Cancelar</button>
+      <button class="btn btn-danger w-full" onclick="deleteOwner('${ownerId}')">Eliminar</button>
+    </div>`;
+  openModal();
+}
+
+async function deleteOwner(ownerId) {
+  try {
+    await api.owners.delete(ownerId);
+    closeModal();
+    toast('Propietario eliminado', 'success');
     renderOwnersList();
   } catch (err) {
     toast(err.message, 'error');
