@@ -34,47 +34,18 @@ export async function renderAdminSettings() {
     const cfg = res.data.config;
     _allPeriods = cfg.paymentPeriods || [];
 
-    // Si no hay período configurado, usar el mes en curso
     const current = getCurrentPeriod();
     const periodLabel = cfg.expenseMonth     || current.label;
     const periodCode  = cfg.expenseMonthCode || current.code;
 
+    const lateFeeType    = cfg.lateFeeType    || 'percent';
+    const lateFeePercent = cfg.lateFeePercent ?? 5;
+    const lateFeeFixed   = cfg.lateFeeFixed   ?? 0;
+
     el.innerHTML = `
       <div class="flex col gap-3">
         <h1>Configuración</h1>
-        <div class="card">
-          <div class="card-header"><h3>Expensas del Período</h3></div>
-          <div class="card-body flex col gap-2">
-            <div class="form-group">
-              <label>Período (nombre)</label>
-              <div class="flex gap-2" style="align-items:center">
-                <input class="input" id="cfg-month" value="${periodLabel}" placeholder="Ej: Abril 2025" style="flex:1">
-                <button class="btn btn-secondary btn-sm" style="white-space:nowrap" onclick="fillCurrentPeriod()">Mes actual</button>
-              </div>
-            </div>
-            <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${periodCode}" placeholder="YYYY-MM"></div>
-            <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
-            <div class="form-group"><label>Día de vencimiento</label><input class="input" type="number" id="cfg-due" value="${cfg.dueDayOfMonth || 10}" min="1" max="28"></div>
-            <button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><h3>Datos del Consorcio</h3></div>
-          <div class="card-body flex col gap-2">
-            <div class="form-group"><label>Nombre del consorcio</label><input class="input" id="cfg-name" value="${cfg.consortiumName || ''}" placeholder="Barrio Privado Los Pinos"></div>
-            <div class="form-group"><label>Email de contacto</label><input class="input" id="cfg-email" value="${cfg.adminEmail || ''}"></div>
-            <button class="btn btn-primary" id="btn-save-consortium" data-requires-network onclick="saveConsortiumSettings()">Guardar</button>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><h3>Integración MercadoPago</h3></div>
-          <div class="card-body flex col gap-2">
-            <p class="text-sm text-muted">Credenciales desde developers.mercadopago.com</p>
-            <div class="form-group"><label>Public Key</label><input class="input" id="cfg-mp-key" placeholder="APP_USR-..." value="${cfg.mpPublicKey || ''}"></div>
-            <div class="form-group"><label>Access Token</label><input class="input" type="password" id="cfg-mp-token" placeholder="APP_USR-..."></div>
-            <button class="btn btn-primary" data-requires-network onclick="saveMPSettings()">Guardar credenciales</button>
-          </div>
-        </div>
+
         <div class="card">
           <div class="card-header flex between" style="align-items:center">
             <h3>Períodos de pago disponibles</h3>
@@ -91,6 +62,67 @@ export async function renderAdminSettings() {
             </div>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Expensas del Período</h3></div>
+          <div class="card-body flex col gap-2">
+            <div class="form-group">
+              <label>Período (nombre)</label>
+              <div class="flex gap-2" style="align-items:center">
+                <input class="input" id="cfg-month" value="${periodLabel}" placeholder="Ej: Abril 2025" style="flex:1">
+                <button class="btn btn-secondary btn-sm" style="white-space:nowrap" onclick="fillCurrentPeriod()">Mes actual</button>
+              </div>
+            </div>
+            <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${periodCode}" placeholder="YYYY-MM"></div>
+            <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
+            <div class="form-group"><label>Día de vencimiento</label><input class="input" type="number" id="cfg-due" value="${cfg.dueDayOfMonth || 10}" min="1" max="28"></div>
+
+            <div class="form-group">
+              <label>Tipo de recargo por mora</label>
+              <div class="flex gap-2" style="align-items:center">
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;flex:1;padding:.6rem .75rem;border:1px solid var(--border);border-radius:8px;background:${lateFeeType==='percent'?'var(--primary-lt)':'var(--bg-card)'}">
+                  <input type="radio" name="lateFeeType" value="percent" ${lateFeeType==='percent'?'checked':''} onchange="toggleLateFeeType('percent')" style="accent-color:var(--primary)">
+                  <span class="text-sm">Porcentaje (%)</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;flex:1;padding:.6rem .75rem;border:1px solid var(--border);border-radius:8px;background:${lateFeeType==='fixed'?'var(--primary-lt)':'var(--bg-card)'}">
+                  <input type="radio" name="lateFeeType" value="fixed" ${lateFeeType==='fixed'?'checked':''} onchange="toggleLateFeeType('fixed')" style="accent-color:var(--primary)">
+                  <span class="text-sm">Importe fijo ($)</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="late-fee-percent-row" class="form-group" style="${lateFeeType==='fixed'?'display:none':''}">
+              <label>Recargo (%)</label>
+              <input class="input" type="number" id="cfg-late-percent" value="${lateFeePercent}" min="0" max="100" placeholder="Ej: 5">
+            </div>
+            <div id="late-fee-fixed-row" class="form-group" style="${lateFeeType==='percent'?'display:none':''}">
+              <label>Recargo ($)</label>
+              <input class="input" type="number" id="cfg-late-fixed" value="${lateFeeFixed}" min="0" placeholder="Ej: 500">
+            </div>
+
+            <button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Datos del Consorcio</h3></div>
+          <div class="card-body flex col gap-2">
+            <div class="form-group"><label>Nombre del consorcio</label><input class="input" id="cfg-name" value="${cfg.consortiumName || ''}" placeholder="Barrio Privado Los Pinos"></div>
+            <div class="form-group"><label>Email de contacto</label><input class="input" id="cfg-email" value="${cfg.adminEmail || ''}"></div>
+            <button class="btn btn-primary" id="btn-save-consortium" data-requires-network onclick="saveConsortiumSettings()">Guardar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Integración MercadoPago</h3></div>
+          <div class="card-body flex col gap-2">
+            <p class="text-sm text-muted">Credenciales desde developers.mercadopago.com</p>
+            <div class="form-group"><label>Public Key</label><input class="input" id="cfg-mp-key" placeholder="APP_USR-..." value="${cfg.mpPublicKey || ''}"></div>
+            <div class="form-group"><label>Access Token</label><input class="input" type="password" id="cfg-mp-token" placeholder="APP_USR-..."></div>
+            <button class="btn btn-primary" data-requires-network onclick="saveMPSettings()">Guardar credenciales</button>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-header"><h3>Cuenta</h3></div>
           <div class="card-body">
@@ -130,6 +162,17 @@ export async function renderAdminSettings() {
       el.innerHTML = errorState(err.message, 'renderAdminSettings()');
     }
   }
+}
+
+export function toggleLateFeeType(type) {
+  const percentRow = document.getElementById('late-fee-percent-row');
+  const fixedRow   = document.getElementById('late-fee-fixed-row');
+  if (percentRow) percentRow.style.display = type === 'fixed'   ? 'none' : '';
+  if (fixedRow)   fixedRow.style.display   = type === 'percent' ? 'none' : '';
+  // Actualizar estilos de las etiquetas radio
+  document.querySelectorAll('[name="lateFeeType"]').forEach(r => {
+    r.closest('label').style.background = r.value === type ? 'var(--primary-lt)' : 'var(--bg-card)';
+  });
 }
 
 export function fillCurrentPeriod() {
@@ -187,14 +230,12 @@ export async function removePaymentPeriodFromModal(value) {
   try {
     await api.config.update({ paymentPeriods: updated });
     _allPeriods = updated;
-    // Actualizar lista en settings
     const settingsList = document.getElementById('periods-list');
     if (settingsList) {
       settingsList.innerHTML = _allPeriods.length
         ? _allPeriods.map(p => periodChip(p)).join('')
         : '<span class="text-sm text-muted">Sin períodos configurados</span>';
     }
-    // Re-renderizar modal con el año actualmente seleccionado
     const year = document.getElementById('modal-year-filter')?.value || '';
     const years = [...new Set(_allPeriods.map(p => p.split('-')[0]))].sort().reverse();
     const yearSelect = document.getElementById('modal-year-filter');
@@ -232,11 +273,15 @@ export async function saveSettings() {
   const btn = document.getElementById('btn-save-settings');
   setBtnLoading(btn, true);
   try {
+    const lateFeeType = document.querySelector('[name="lateFeeType"]:checked')?.value || 'percent';
     await api.config.update({
       expenseMonth:     document.getElementById('cfg-month')?.value.trim(),
       expenseMonthCode: document.getElementById('cfg-month-code')?.value.trim(),
       expenseAmount:    Number(document.getElementById('cfg-amount')?.value),
       dueDayOfMonth:    Number(document.getElementById('cfg-due')?.value),
+      lateFeeType,
+      lateFeePercent:   Number(document.getElementById('cfg-late-percent')?.value || 0),
+      lateFeeFixed:     Number(document.getElementById('cfg-late-fixed')?.value  || 0),
     });
     toast('Configuración guardada', 'success');
   } catch (err) {
@@ -309,14 +354,15 @@ export async function saveMPSettings() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-window.renderAdminSettings         = renderAdminSettings;
-window.createOrganization          = createOrganization;
-window.fillCurrentPeriod           = fillCurrentPeriod;
-window.saveSettings                = saveSettings;
-window.saveConsortiumSettings      = saveConsortiumSettings;
-window.addPaymentPeriod            = addPaymentPeriod;
-window.removePaymentPeriod         = removePaymentPeriod;
-window.openPeriodsModal            = openPeriodsModal;
-window.filterPeriodsByYear         = filterPeriodsByYear;
+window.renderAdminSettings          = renderAdminSettings;
+window.createOrganization           = createOrganization;
+window.toggleLateFeeType            = toggleLateFeeType;
+window.fillCurrentPeriod            = fillCurrentPeriod;
+window.saveSettings                 = saveSettings;
+window.saveConsortiumSettings       = saveConsortiumSettings;
+window.addPaymentPeriod             = addPaymentPeriod;
+window.removePaymentPeriod          = removePaymentPeriod;
+window.openPeriodsModal             = openPeriodsModal;
+window.filterPeriodsByYear          = filterPeriodsByYear;
 window.removePaymentPeriodFromModal = removePaymentPeriodFromModal;
-window.saveMPSettings              = saveMPSettings;
+window.saveMPSettings               = saveMPSettings;

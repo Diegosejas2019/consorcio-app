@@ -58,6 +58,11 @@ export async function renderOwnerHome() {
           <div class="oh-balance-card__amount ${balance < 0 ? 'oh-amount-debt' : 'oh-amount-ok'}">
             ${balance < 0 ? '-' : ''}$${Math.abs(balance).toLocaleString('es-AR')}
           </div>
+          ${cfg.isOverdue && cfg.surcharge > 0 ? `
+          <div style="display:flex;align-items:center;gap:.4rem;margin:.4rem 0 .1rem;padding:.45rem .65rem;background:rgba(255,80,80,.12);border-radius:8px;font-size:.82rem;color:#ff5050">
+            <span>⚠</span>
+            <span>Recargo por mora: <strong>+$${cfg.surcharge.toLocaleString('es-AR')}</strong> — Total a pagar: <strong>$${cfg.totalDue.toLocaleString('es-AR')}</strong></span>
+          </div>` : ''}
           <div class="oh-balance-card__footer">
             <div class="oh-balance-card__meta">
               <span>Expensa</span>
