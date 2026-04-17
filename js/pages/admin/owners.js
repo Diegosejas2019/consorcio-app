@@ -7,6 +7,7 @@ import { formatMonth, statusBadge, errorState, downloadReceipt, debounce } from 
 
 // ── Estado de la vista ────────────────────────────────────────
 export const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
+let _newOwnerCfg = null;
 export const _debouncedOwnerFilter = debounce(() => { ownersListState.page = 1; _renderOwnersView(); }, 350);
 
 export async function renderOwnersList() {
@@ -292,7 +293,12 @@ export async function saveEditOwner(id) {
 }
 
 // ── Nuevo propietario ─────────────────────────────────────────
-export function openNewOwnerModal() {
+export async function openNewOwnerModal() {
+  try {
+    const res = await api.config.get();
+    _newOwnerCfg = res.data.config;
+  } catch { _newOwnerCfg = null; }
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <div class="modal-handle"></div>
@@ -303,6 +309,11 @@ export function openNewOwnerModal() {
       <div class="form-group"><label>Contraseña temporal</label><input class="input" id="no-pass" placeholder="Mín. 6 caracteres"></div>
       <div class="form-group"><label>Unidad (lote/casa)</label><input class="input" id="no-unit" placeholder="Lote 12"></div>
       <div class="form-group"><label>Teléfono</label><input class="input" id="no-phone" placeholder="1122334455"></div>
+      <div class="form-group">
+        <label>Meses sin pagar</label>
+        <input class="input" type="number" id="no-months" value="0" min="0" oninput="updateNewOwnerDebtPreview()">
+        <p id="no-debt-preview" style="display:none;margin:.4rem 0 0;font-size:.82rem;color:var(--danger);font-weight:600"></p>
+      </div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
         <button class="btn btn-primary w-full" data-requires-network onclick="saveNewOwner()">Crear</button>
@@ -311,15 +322,40 @@ export function openNewOwnerModal() {
   openModal();
 }
 
+export function updateNewOwnerDebtPreview() {
+  const months  = Number(document.getElementById('no-months')?.value || 0);
+  const preview = document.getElementById('no-debt-preview');
+  if (!preview) return;
+  if (months <= 0 || !_newOwnerCfg) { preview.style.display = 'none'; return; }
+
+  const fee       = _newOwnerCfg.expenseAmount || 0;
+  const surcharge = _newOwnerCfg.isOverdue ? (_newOwnerCfg.surcharge || 0) : 0;
+  const total     = months * fee + surcharge;
+
+  preview.style.display = '';
+  preview.textContent   = `Deuda inicial: $${total.toLocaleString('es-AR')}${surcharge > 0 ? ` (incluye recargo $${surcharge.toLocaleString('es-AR')})` : ''}`;
+}
+
 export async function saveNewOwner() {
-  const name  = document.getElementById('no-name')?.value.trim();
-  const email = document.getElementById('no-email')?.value.trim();
-  const pass  = document.getElementById('no-pass')?.value.trim();
-  const unit  = document.getElementById('no-unit')?.value.trim();
-  const phone = document.getElementById('no-phone')?.value.trim();
+  const name   = document.getElementById('no-name')?.value.trim();
+  const email  = document.getElementById('no-email')?.value.trim();
+  const pass   = document.getElementById('no-pass')?.value.trim();
+  const unit   = document.getElementById('no-unit')?.value.trim();
+  const phone  = document.getElementById('no-phone')?.value.trim();
+  const months = Number(document.getElementById('no-months')?.value || 0);
   if (!name || !email || !pass) { toast('Nombre, email y contraseña son obligatorios', 'error'); return; }
+
+  let balance  = 0;
+  let isDebtor = false;
+  if (months > 0 && _newOwnerCfg) {
+    const fee       = _newOwnerCfg.expenseAmount || 0;
+    const surcharge = _newOwnerCfg.isOverdue ? (_newOwnerCfg.surcharge || 0) : 0;
+    balance  = -(months * fee + surcharge);
+    isDebtor = true;
+  }
+
   try {
-    await api.owners.create({ name, email, password: pass, unit, phone });
+    await api.owners.create({ name, email, password: pass, unit, phone, balance, isDebtor });
     closeModal();
     toast('Propietario creado exitosamente', 'success');
     renderOwnersList();
@@ -341,5 +377,6 @@ window.openNotifyOwnerModal   = openNotifyOwnerModal;
 window.sendOwnerNotification  = sendOwnerNotification;
 window.openEditOwnerModal     = openEditOwnerModal;
 window.saveEditOwner          = saveEditOwner;
-window.openNewOwnerModal      = openNewOwnerModal;
-window.saveNewOwner           = saveNewOwner;
+window.openNewOwnerModal           = openNewOwnerModal;
+window.saveNewOwner                = saveNewOwner;
+window.updateNewOwnerDebtPreview   = updateNewOwnerDebtPreview;

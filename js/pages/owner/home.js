@@ -73,6 +73,11 @@ export async function renderOwnerHome() {
               <span>Período</span>
               <strong>${cfg.expenseMonth || '—'}</strong>
             </div>
+            <div class="oh-balance-card__sep"></div>
+            <div class="oh-balance-card__meta">
+              <span>Vencimiento</span>
+              <strong>${cfg.dueDayOfMonth ? `día ${cfg.dueDayOfMonth}` : '—'}</strong>
+            </div>
           </div>
         </div>
 
