@@ -1,5 +1,6 @@
-export function openModal(html) {
-  if (html) document.getElementById('modal').innerHTML = html;
+export function openModal(idOrHtml, html) {
+  const content = html !== undefined ? html : idOrHtml;
+  if (content) document.getElementById('modal').innerHTML = content;
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
 
