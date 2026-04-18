@@ -57,7 +57,10 @@ export function _renderOwnersView() {
     <div class="flex col gap-3">
       <div class="flex between">
         <h1>Propietarios</h1>
-        <button class="btn btn-primary btn-sm" onclick="openNewOwnerModal()">+ Agregar</button>
+        <div class="flex gap-1">
+          <button class="btn btn-ghost btn-sm" onclick="openBulkOwnerModal()">Carga masiva</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewOwnerModal()">+ Agregar</button>
+        </div>
       </div>
 
       <div class="owners-filter-bar">
@@ -369,6 +372,77 @@ export async function saveNewOwner() {
   }
 }
 
+// ── Carga masiva desde Excel ──────────────────────────────────
+export function openBulkOwnerModal() {
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.25rem">Carga masiva de propietarios</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1rem">
+      Subí un archivo <strong>.xlsx</strong> con los datos de los propietarios.
+      Cada fila que falle no interrumpe el resto.
+    </p>
+    <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:1rem;font-size:.82rem">
+      <p style="font-weight:600;margin-bottom:.35rem">Columnas esperadas:</p>
+      <code style="display:block;white-space:pre-wrap;color:var(--accent)">name · email · password · unit · phone · balance · isDebtor</code>
+      <p style="margin-top:.5rem;color:var(--text-muted)"><em>name, email y password son obligatorios.</em></p>
+    </div>
+    <a href="${api.owners.downloadTemplate()}" class="btn btn-ghost btn-sm" style="margin-bottom:1rem;display:inline-flex;align-items:center;gap:.35rem" download>
+      ${SVG.download} Descargar plantilla
+    </a>
+    <div class="form-group">
+      <label>Archivo Excel (.xlsx)</label>
+      <input class="input" type="file" id="bulk-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    </div>
+    <div id="bulk-results" style="display:none"></div>
+    <div class="flex gap-1 mt-2">
+      <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary w-full" onclick="submitBulkOwners()">Importar</button>
+    </div>`;
+  openModal();
+}
+
+export async function submitBulkOwners() {
+  const input = document.getElementById('bulk-file');
+  if (!input?.files?.length) { toast('Seleccioná un archivo .xlsx', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+
+  try {
+    showLoading(true);
+    const res = await api.owners.bulkCreate(formData);
+    const { created, errors, owners, failed } = res.data;
+    showLoading(false);
+
+    const resultsEl = document.getElementById('bulk-results');
+    resultsEl.style.display = '';
+    resultsEl.innerHTML = `
+      <div style="border-radius:8px;overflow:hidden;margin-bottom:.75rem">
+        <div style="display:flex;gap:.5rem;padding:.6rem .75rem;background:var(--success-lt,#d1fae5);color:var(--success)">
+          <strong>${created}</strong> propietario${created !== 1 ? 's' : ''} creado${created !== 1 ? 's' : ''}
+        </div>
+        ${errors > 0 ? `
+        <div style="padding:.6rem .75rem;background:var(--danger-lt,#fee2e2);color:var(--danger)">
+          <strong>${errors}</strong> fila${errors !== 1 ? 's' : ''} con error:
+          <ul style="margin:.4rem 0 0 1.1rem;font-size:.82rem">
+            ${failed.map(f => `<li>Fila ${f.row}${f.email ? ` (${f.email})` : ''}: ${f.reason}</li>`).join('')}
+          </ul>
+        </div>` : ''}
+      </div>`;
+
+    if (created > 0) {
+      toast(`${created} propietario${created !== 1 ? 's' : ''} importado${created !== 1 ? 's' : ''}`, 'success');
+      renderOwnersList();
+    }
+
+    // Quitar botón importar si ya se procesó
+    document.querySelector('#modal .btn-primary[onclick="submitBulkOwners()"]')?.remove();
+  } catch (err) {
+    showLoading(false);
+    toast(err.message, 'error');
+  }
+}
+
 window.renderOwnersList       = renderOwnersList;
 window._renderOwnersView      = _renderOwnersView;
 window.ownersListState        = ownersListState;
@@ -385,3 +459,5 @@ window.saveEditOwner          = saveEditOwner;
 window.openNewOwnerModal           = openNewOwnerModal;
 window.saveNewOwner                = saveNewOwner;
 window.updateNewOwnerDebtPreview   = updateNewOwnerDebtPreview;
+window.openBulkOwnerModal          = openBulkOwnerModal;
+window.submitBulkOwners            = submitBulkOwners;

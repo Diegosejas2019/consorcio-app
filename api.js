@@ -132,6 +132,11 @@ const api = {
 
     notify: (id, title, body) =>
       request(`/owners/${id}/notify`, { method: 'POST', body: JSON.stringify({ title, body }) }),
+
+    bulkCreate: (formData) =>
+      request('/owners/bulk', { method: 'POST', body: formData }),
+
+    downloadTemplate: () => `${API_BASE}/owners/bulk/template`,
   },
 
   // ── Pagos ────────────────────────────────────────────────────
