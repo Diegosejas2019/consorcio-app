@@ -5,10 +5,14 @@ import { updateOnlineStatus } from '../ui/offline.js';
 export const PAGE_RENDERERS = {};
 
 export function showPage(id) {
+  window.navCloseSubmenu?.();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(id)?.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
-    n.classList.toggle('active', n.dataset.page === id);
+    const pages = n.dataset.pages
+      ? n.dataset.pages.split(',')
+      : (n.dataset.page ? [n.dataset.page] : []);
+    n.classList.toggle('active', pages.includes(id));
   });
   if (state.role) localStorage.setItem(`lastPage_${state.role}`, id);
   setTimeout(updateOnlineStatus, 0);
