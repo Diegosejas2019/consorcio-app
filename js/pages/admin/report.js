@@ -60,6 +60,7 @@ export async function renderAdminReport() {
 
   document.getElementById('report-month-picker').addEventListener('change', e => {
     reportState.month = e.target.value;
+    loadReport();
   });
 
   await loadReport();
