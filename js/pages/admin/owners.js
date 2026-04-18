@@ -4,11 +4,20 @@ import { showLoading } from '../../ui/loading.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
 import { formatMonth, statusBadge, errorState, downloadReceipt, debounce } from '../../ui/helpers.js';
+import { cache } from '../../core/state.js';
 
 // ── Estado de la vista ────────────────────────────────────────
 export const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
-let _newOwnerCfg = null;
 export const _debouncedOwnerFilter = debounce(() => { ownersListState.page = 1; _renderOwnersView(); }, 350);
+
+let _newOwnerCfg = null;
+
+function _calcDebt(months, cfg) {
+  if (!cfg || months <= 0) return { total: 0, surcharge: 0 };
+  const fee       = cfg.expenseAmount || 0;
+  const surcharge = cfg.isOverdue ? (cfg.surcharge || 0) : 0;
+  return { total: months * fee + surcharge, surcharge };
+}
 
 export async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
@@ -294,10 +303,14 @@ export async function saveEditOwner(id) {
 
 // ── Nuevo propietario ─────────────────────────────────────────
 export async function openNewOwnerModal() {
-  try {
-    const res = await api.config.get();
-    _newOwnerCfg = res.data.config;
-  } catch { _newOwnerCfg = null; }
+  _newOwnerCfg = cache.get('config');
+  if (!_newOwnerCfg) {
+    try {
+      const res = await api.config.get();
+      _newOwnerCfg = res.data.config;
+      cache.set('config', _newOwnerCfg);
+    } catch { _newOwnerCfg = null; }
+  }
 
   const modal = document.getElementById('modal');
   modal.innerHTML = `
@@ -328,10 +341,7 @@ export function updateNewOwnerDebtPreview() {
   if (!preview) return;
   if (months <= 0 || !_newOwnerCfg) { preview.style.display = 'none'; return; }
 
-  const fee       = _newOwnerCfg.expenseAmount || 0;
-  const surcharge = _newOwnerCfg.isOverdue ? (_newOwnerCfg.surcharge || 0) : 0;
-  const total     = months * fee + surcharge;
-
+  const { total, surcharge } = _calcDebt(months, _newOwnerCfg);
   preview.style.display = '';
   preview.textContent   = `Deuda inicial: $${total.toLocaleString('es-AR')}${surcharge > 0 ? ` (incluye recargo $${surcharge.toLocaleString('es-AR')})` : ''}`;
 }
@@ -345,14 +355,9 @@ export async function saveNewOwner() {
   const months = Number(document.getElementById('no-months')?.value || 0);
   if (!name || !email || !pass) { toast('Nombre, email y contraseña son obligatorios', 'error'); return; }
 
-  let balance  = 0;
-  let isDebtor = false;
-  if (months > 0 && _newOwnerCfg) {
-    const fee       = _newOwnerCfg.expenseAmount || 0;
-    const surcharge = _newOwnerCfg.isOverdue ? (_newOwnerCfg.surcharge || 0) : 0;
-    balance  = -(months * fee + surcharge);
-    isDebtor = true;
-  }
+  const { total: debtTotal } = _calcDebt(months, _newOwnerCfg);
+  const balance  = -debtTotal;
+  const isDebtor = debtTotal > 0;
 
   try {
     await api.owners.create({ name, email, password: pass, unit, phone, balance, isDebtor });
