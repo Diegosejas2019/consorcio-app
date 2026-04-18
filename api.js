@@ -216,6 +216,23 @@ const api = {
     getPaymentStatus: (mpPaymentId) =>
       request(`/mercadopago/payment/${mpPaymentId}`),
   },
+
+  // ── Proveedores ───────────────────────────────────────────────
+  providers: {
+    getAll:  (params = {}) => request(`/providers?${new URLSearchParams(params)}`),
+    create:  (data) => request('/providers', { method: 'POST', body: JSON.stringify(data) }),
+    update:  (id, data) => request(`/providers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete:  (id) => request(`/providers/${id}`, { method: 'DELETE' }),
+  },
+
+  // ── Gastos ────────────────────────────────────────────────────
+  expenses: {
+    getAll:    (params = {}) => request(`/expenses?${new URLSearchParams(params)}`),
+    create:    (formData) => request('/expenses', { method: 'POST', body: formData }),
+    update:    (id, data) => request(`/expenses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    markAsPaid:(id, data = {}) => request(`/expenses/${id}/paid`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete:    (id) => request(`/expenses/${id}`, { method: 'DELETE' }),
+  },
 };
 
 // Exponer globalmente

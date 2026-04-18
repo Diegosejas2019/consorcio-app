@@ -69,6 +69,17 @@ export async function renderAdminDashboard(year) {
             <span class="stat-value" style="color:var(--warning)">${stats.pendingPayments}</span>
             <span class="stat-sub">comprobantes ›</span>
           </div>
+          ${dash.totalExpenses !== undefined ? `
+          <div class="stat-card">
+            <span class="stat-label">Gastos ${_dashYear}</span>
+            <span class="stat-value" style="color:var(--danger);font-size:1.3rem">$${(dash.totalExpenses / 1000).toFixed(0)}k</span>
+            <span class="stat-sub">$${dash.totalExpenses.toLocaleString('es-AR')}</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Balance ${_dashYear}</span>
+            <span class="stat-value" style="color:${dash.balance >= 0 ? 'var(--success)' : 'var(--danger)'};font-size:1.3rem">${dash.balance >= 0 ? '' : '-'}$${(Math.abs(dash.balance) / 1000).toFixed(0)}k</span>
+            <span class="stat-sub">ingresos − gastos</span>
+          </div>` : ''}
         </div>
         <div class="card">
           <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">

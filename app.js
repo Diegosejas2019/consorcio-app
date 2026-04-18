@@ -29,6 +29,8 @@ import { renderOwnersList }     from './js/pages/admin/owners.js';
 import { renderAdminNotices }   from './js/pages/admin/notices.js';
 import { renderAdminClaims }    from './js/pages/admin/claims.js';
 import { renderAdminSettings }  from './js/services/configService.js';
+import { renderAdminExpenses }  from './js/pages/admin/expenses.js';
+import { renderAdminProviders } from './js/pages/admin/providers.js';
 
 // ── Owner pages ───────────────────────────────────────────────
 import { renderOwnerHome }    from './js/pages/owner/home.js';
@@ -44,6 +46,8 @@ PAGE_RENDERERS['page-admin-owners']    = () => renderOwnersList();
 PAGE_RENDERERS['page-admin-notices']   = () => renderAdminNotices();
 PAGE_RENDERERS['page-admin-claims']    = () => renderAdminClaims();
 PAGE_RENDERERS['page-admin-settings']  = () => renderAdminSettings();
+PAGE_RENDERERS['page-admin-expenses']  = () => renderAdminExpenses();
+PAGE_RENDERERS['page-admin-providers'] = () => renderAdminProviders();
 PAGE_RENDERERS['page-owner-home']      = () => renderOwnerHome();
 PAGE_RENDERERS['page-owner-pay']       = () => renderUploadPage();
 PAGE_RENDERERS['page-owner-history']   = () => renderOwnerHistory();

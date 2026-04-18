@@ -176,12 +176,16 @@ export function setupTopBar() {
 // ── setupNav ──────────────────────────────────────────────────
 export function setupNav() {
   const nav = document.getElementById('bottom-nav');
-  const SVG_DASH = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`;
+  const SVG_DASH     = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`;
+  const SVG_EXPENSE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>`;
+  const SVG_PROVIDER = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>`;
   if (state.role === 'admin') {
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-admin-home"      onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
       <button class="nav-item"        data-page="page-admin-dashboard"  onclick="showPage('page-admin-dashboard');renderAdminDashboard()">${SVG_DASH}<span>Dashboard</span></button>
       <button class="nav-item"        data-page="page-admin-owners"     onclick="showPage('page-admin-owners');renderOwnersList()">${SVG.users}<span>Propietarios</span></button>
+      <button class="nav-item"        data-page="page-admin-expenses"   onclick="showPage('page-admin-expenses');renderAdminExpenses()">${SVG_EXPENSE}<span>Gastos</span></button>
+      <button class="nav-item"        data-page="page-admin-providers"  onclick="showPage('page-admin-providers');renderAdminProviders()">${SVG_PROVIDER}<span>Proveedores</span></button>
       <button class="nav-item"        data-page="page-admin-notices"    onclick="showPage('page-admin-notices');renderAdminNotices()">${SVG.bell}<span>Avisos</span></button>
       <button class="nav-item"        data-page="page-admin-claims"     onclick="showPage('page-admin-claims');renderAdminClaims()">${SVG.claim}<span>Reclamos</span></button>
       <button class="nav-item"        data-page="page-admin-settings"   onclick="showPage('page-admin-settings');renderAdminSettings()">${SVG.settings}<span>Config</span></button>`;
