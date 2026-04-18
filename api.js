@@ -233,6 +233,12 @@ const api = {
     markAsPaid:(id, data = {}) => request(`/expenses/${id}/paid`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete:    (id) => request(`/expenses/${id}`, { method: 'DELETE' }),
   },
+
+  // ── Reportes ──────────────────────────────────────────────────
+  reports: {
+    getMonthlySummary: (month) =>
+      request(`/reports/monthly-summary?month=${encodeURIComponent(month)}`),
+  },
 };
 
 // Exponer globalmente
