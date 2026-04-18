@@ -54,7 +54,10 @@ consorcio-app/
 │       │   ├── dashboard.js # renderAdminDashboard()
 │       │   ├── owners.js    # renderOwnersList()
 │       │   ├── notices.js   # renderAdminNotices()
-│       │   └── claims.js    # renderAdminClaims()
+│       │   ├── claims.js    # renderAdminClaims()
+│       │   ├── expenses.js  # renderAdminExpenses()
+│       │   ├── providers.js # renderAdminProviders()
+│       │   └── report.js    # renderAdminReport()
 │       └── owner/
 │           ├── home.js      # renderOwnerHome()
 │           ├── pay.js       # renderUploadPage()
@@ -90,6 +93,9 @@ consorcio-app/
 | `page-admin-owners` | CRUD de propietarios con paginación (10/pág), filtro por nombre y lote |
 | `page-admin-notices` | CRUD de avisos (info / warning / urgent) con push opcional |
 | `page-admin-claims` | Ver todos los reclamos, cambiar estado (open/in_progress/resolved), agregar nota |
+| `page-admin-expenses` | Registro de gastos por categoría/proveedor, marcar como pagado, filtrar y exportar |
+| `page-admin-providers` | ABM de proveedores de servicio (limpieza, seguridad, mantenimiento, etc.) |
+| `page-admin-report` | Resumen financiero mensual (ingresos, egresos por categoría, saldo) |
 | `page-admin-settings` | Configuración: monto, período, recargo, datos de contacto, credenciales MercadoPago |
 
 ## Estado global (js/core/state.js)
@@ -161,15 +167,20 @@ api.owners.getStats()
 api.owners.create(data)
 api.owners.update(id, data)
 api.owners.delete(id)
+api.owners.notify(id, title, body)
 
 api.payments.getAll(params?)
+api.payments.getOne(id)
 api.payments.create(formData)    // FormData con archivo receipt (PDF/JPG/PNG/WebP/HEIC)
 api.payments.approve(id)
 api.payments.reject(id, rejectionNote)
+api.payments.delete(id)
 api.payments.getDashboard(year?)
 api.payments.getReceiptUrl(id)
+api.payments.sendReminders()
 
 api.notices.getAll(params?)
+api.notices.getOne(id)
 api.notices.create(data)
 api.notices.update(id, data)
 api.notices.delete(id)
@@ -178,6 +189,19 @@ api.claims.getAll(params?)
 api.claims.create(data)
 api.claims.updateStatus(id, status, adminNote?)
 api.claims.delete(id)
+
+api.expenses.getAll(params?)
+api.expenses.create(data)        // FormData con archivo receipt opcional
+api.expenses.update(id, data)
+api.expenses.markAsPaid(id, data?)
+api.expenses.delete(id)
+
+api.providers.getAll(params?)
+api.providers.create(data)
+api.providers.update(id, data)
+api.providers.delete(id)
+
+api.reports.getMonthlySummary(month)  // month: 'YYYY-MM'
 
 api.config.get()
 api.config.update(data)
