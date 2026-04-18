@@ -220,10 +220,11 @@ const ADMIN_NAV_GROUPS = {
 const OWNER_NAV_GROUPS = {
   comunidad: {
     label: 'Comunidad',
-    pages: ['page-owner-notices', 'page-owner-claims'],
+    pages: ['page-owner-notices', 'page-owner-claims', 'page-owner-expenses'],
     items: [
-      { page: 'page-owner-notices', label: 'Avisos',   fn: 'renderOwnerNotices', icon: SVG_S_BELL  },
-      { page: 'page-owner-claims',  label: 'Reclamos', fn: 'renderOwnerClaims',  icon: SVG_S_CLAIM },
+      { page: 'page-owner-expenses', label: 'Gastos',   fn: 'renderOwnerExpenses', icon: SVG_S_EXP   },
+      { page: 'page-owner-notices',  label: 'Avisos',   fn: 'renderOwnerNotices',  icon: SVG_S_BELL  },
+      { page: 'page-owner-claims',   label: 'Reclamos', fn: 'renderOwnerClaims',   icon: SVG_S_CLAIM },
     ],
   },
 };
@@ -307,7 +308,7 @@ export function setupNav() {
       <button class="nav-item active" data-page="page-owner-home"    onclick="showPage('page-owner-home');renderOwnerHome()">${SVG.home}<span>Inicio</span></button>
       <button class="nav-item"        data-page="page-owner-pay"     onclick="showPage('page-owner-pay');renderUploadPage()">${SVG.upload}<span>Pagar</span></button>
       <button class="nav-item"        data-page="page-owner-history" onclick="showPage('page-owner-history');renderOwnerHistory()">${SVG.list}<span>Historial</span></button>
-      <button class="nav-item" data-pages="page-owner-notices,page-owner-claims" onclick="navToggleGroup('comunidad')">${SVG.bell}<span>Comunidad</span></button>`;
+      <button class="nav-item" data-pages="page-owner-notices,page-owner-claims,page-owner-expenses" onclick="navToggleGroup('comunidad')">${SVG.bell}<span>Comunidad</span></button>`;
   }
 }
 

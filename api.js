@@ -232,6 +232,7 @@ const api = {
 
   // ── Gastos ────────────────────────────────────────────────────
   expenses: {
+    getSummary: (month) => request(`/expenses/summary${month ? `?month=${encodeURIComponent(month)}` : ''}`),
     getAll:    (params = {}) => request(`/expenses?${new URLSearchParams(params)}`),
     create:    (data) => request('/expenses', {
       method: 'POST',

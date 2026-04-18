@@ -372,6 +372,18 @@ export async function saveNewOwner() {
   }
 }
 
+// ── Descargar plantilla Excel (generada en el cliente) ────────
+export function downloadBulkTemplate() {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['nombre', 'email', 'contraseña', 'unidad', 'telefono', 'saldo', 'moroso'],
+    ['María García', 'maria@mail.com', 'clave123', 'Lote 12', '1122334455', '0', 'no'],
+    ['Juan Pérez',   'juan@mail.com',  'clave456', 'Casa 5A', '',           '0', 'no'],
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Propietarios');
+  XLSX.writeFile(wb, 'plantilla_propietarios.xlsx');
+}
+
 // ── Carga masiva desde Excel ──────────────────────────────────
 export function openBulkOwnerModal() {
   document.getElementById('modal').innerHTML = `
@@ -383,12 +395,12 @@ export function openBulkOwnerModal() {
     </p>
     <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:1rem;font-size:.82rem">
       <p style="font-weight:600;margin-bottom:.35rem">Columnas esperadas:</p>
-      <code style="display:block;white-space:pre-wrap;color:var(--accent)">name · email · password · unit · phone · balance · isDebtor</code>
-      <p style="margin-top:.5rem;color:var(--text-muted)"><em>name, email y password son obligatorios.</em></p>
+      <code style="display:block;white-space:pre-wrap;color:var(--accent)">nombre · email · contraseña · unidad · telefono · saldo · moroso</code>
+      <p style="margin-top:.5rem;color:var(--text-muted)"><em>nombre, email y contraseña son obligatorios.</em></p>
     </div>
-    <a href="${api.owners.downloadTemplate()}" class="btn btn-ghost btn-sm" style="margin-bottom:1rem;display:inline-flex;align-items:center;gap:.35rem" download>
+    <button class="btn btn-ghost btn-sm" style="margin-bottom:1rem;display:inline-flex;align-items:center;gap:.35rem" onclick="downloadBulkTemplate()">
       ${SVG.download} Descargar plantilla
-    </a>
+    </button>
     <div class="form-group">
       <label>Archivo Excel (.xlsx)</label>
       <input class="input" type="file" id="bulk-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
@@ -459,5 +471,6 @@ window.saveEditOwner          = saveEditOwner;
 window.openNewOwnerModal           = openNewOwnerModal;
 window.saveNewOwner                = saveNewOwner;
 window.updateNewOwnerDebtPreview   = updateNewOwnerDebtPreview;
+window.downloadBulkTemplate        = downloadBulkTemplate;
 window.openBulkOwnerModal          = openBulkOwnerModal;
 window.submitBulkOwners            = submitBulkOwners;
