@@ -42,6 +42,7 @@ import { renderOwnerNotices } from './js/pages/owner/notices.js';
 import { renderOwnerClaims }    from './js/pages/owner/claims.js';
 import { renderOwnerExpenses }  from './js/pages/owner/expenses.js';
 import { renderOwnerVotes }    from './js/pages/owner/votes.js';
+import { renderOwnerProfile }  from './js/pages/owner/profile.js';
 
 // ── Registrar renderers en el router ─────────────────────────
 PAGE_RENDERERS['page-admin-home']      = () => renderAdminHome();
@@ -61,6 +62,7 @@ PAGE_RENDERERS['page-owner-notices']   = () => renderOwnerNotices();
 PAGE_RENDERERS['page-owner-claims']    = () => renderOwnerClaims();
 PAGE_RENDERERS['page-owner-expenses']  = () => renderOwnerExpenses();
 PAGE_RENDERERS['page-owner-votes']     = () => renderOwnerVotes();
+PAGE_RENDERERS['page-owner-profile']   = () => renderOwnerProfile();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)
 window.PAGE_RENDERERS = PAGE_RENDERERS;

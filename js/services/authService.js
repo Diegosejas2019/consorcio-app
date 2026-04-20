@@ -176,6 +176,9 @@ const SVG_S_PROV  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" 
 const SVG_S_SETT   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`;
 const SVG_S_REPORT = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M9 17v-2m3 2v-4m3 4v-6M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/></svg>`;
 const SVG_S_VOTE   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l-2 2 4 4"/></svg>`;
+const SVG_S_PROF   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
+// Nav-bar sized profile icon (22px)
+const SVG_PROFILE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" width="22" height="22"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
 
 // ── Nav group definitions ─────────────────────────────────────
 const ADMIN_NAV_GROUPS = {
@@ -217,6 +220,13 @@ const OWNER_NAV_GROUPS = {
       { page: 'page-owner-notices',  label: 'Avisos',      fn: 'renderOwnerNotices',  icon: SVG_S_BELL  },
       { page: 'page-owner-claims',   label: 'Reclamos',    fn: 'renderOwnerClaims',   icon: SVG_S_CLAIM },
       { page: 'page-owner-votes',    label: 'Votaciones',  fn: 'renderOwnerVotes',    icon: SVG_S_VOTE  },
+    ],
+  },
+  cuenta: {
+    label: 'Mi cuenta',
+    pages: ['page-owner-profile'],
+    items: [
+      { page: 'page-owner-profile', label: 'Mi perfil', fn: 'renderOwnerProfile', icon: SVG_S_PROF },
     ],
   },
 };
@@ -300,7 +310,8 @@ export function setupNav() {
       <button class="nav-item active" data-page="page-owner-home"    onclick="showPage('page-owner-home');renderOwnerHome()">${SVG.home}<span>Inicio</span></button>
       <button class="nav-item"        data-page="page-owner-pay"     onclick="showPage('page-owner-pay');renderUploadPage()">${SVG.upload}<span>Pagar</span></button>
       <button class="nav-item"        data-page="page-owner-history" onclick="showPage('page-owner-history');renderOwnerHistory()">${SVG.list}<span>Historial</span></button>
-      <button class="nav-item" data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes" onclick="navToggleGroup('comunidad')">${SVG.bell}<span>Comunidad</span></button>`;
+      <button class="nav-item" data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes" onclick="navToggleGroup('comunidad')">${SVG.bell}<span>Comunidad</span></button>
+      <button class="nav-item" data-pages="page-owner-profile" onclick="navToggleGroup('cuenta')">${SVG_PROFILE}<span>Perfil</span></button>`;
   }
 }
 
