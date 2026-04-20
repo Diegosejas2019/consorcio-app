@@ -222,8 +222,28 @@ function _renderModalList(year) {
     </div>`).join('');
 }
 
-export function openPeriodsModal() {
+export async function openPeriodsModal() {
   const currentYear = new Date().getFullYear();
+
+  // Esqueleto inicial mientras carga
+  openModal(`
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1rem">Períodos configurados</h2>
+    <div id="modal-periods-loading" style="padding:1.5rem 0;text-align:center">
+      <span class="text-sm text-muted">Cargando períodos…</span>
+    </div>
+    <button class="btn btn-secondary w-full" style="margin-top:1.25rem" onclick="closeModal()">Cerrar</button>
+  `);
+
+  try {
+    const res = await api.config.get();
+    _allPeriods = res.data.config.paymentPeriods || [];
+  } catch (err) {
+    const loading = document.getElementById('modal-periods-loading');
+    if (loading) loading.innerHTML = `<p class="text-sm text-muted" style="padding:.5rem 0">Error al cargar los períodos.</p>`;
+    return;
+  }
+
   const defaultYears = [String(currentYear), String(currentYear - 1)];
   const years = [...new Set([
     ..._allPeriods.map(p => p.split('-')[0]),
@@ -231,9 +251,10 @@ export function openPeriodsModal() {
   ])].sort().reverse();
   const defaultYear = String(currentYear);
 
-  openModal(`
-    <div class="modal-handle"></div>
-    <h2 style="margin-bottom:1rem">Períodos configurados</h2>
+  const loading = document.getElementById('modal-periods-loading');
+  if (!loading) return; // modal cerrado antes de que resuelva
+
+  loading.outerHTML = `
     <div class="flex gap-2" style="margin-bottom:1rem;align-items:center">
       <label style="font-size:.85rem;color:var(--muted);white-space:nowrap">Filtrar por año</label>
       <select class="select" id="modal-year-filter" onchange="filterPeriodsByYear(this.value)" style="flex:1">
@@ -243,9 +264,15 @@ export function openPeriodsModal() {
     </div>
     <div id="modal-periods-list">
       ${_renderModalList(defaultYear)}
-    </div>
-    <button class="btn btn-secondary w-full" style="margin-top:1.25rem" onclick="closeModal()">Cerrar</button>
-  `);
+    </div>`;
+
+  // Sincronizar lista principal en la página con los datos frescos
+  const settingsList = document.getElementById('periods-list');
+  if (settingsList) {
+    settingsList.innerHTML = _allPeriods.length
+      ? _allPeriods.map(p => periodChip(p)).join('')
+      : '<span class="text-sm text-muted">Sin períodos configurados</span>';
+  }
 }
 
 export function filterPeriodsByYear(year) {
