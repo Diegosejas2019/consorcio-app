@@ -5,6 +5,7 @@ import { SVG } from '../ui/icons.js';
 import { showInstallBanner, isStandalone } from '../ui/pwa.js';
 import { updateOnlineStatus } from '../ui/offline.js';
 import { setupPushNotifications, checkMonthlyReminder } from './pushService.js';
+import { runOnboarding } from '../ui/onboarding.js';
 
 // ── Toggle visibilidad de contraseña ─────────────────────────
 export function togglePassword(inputId, btn) {
@@ -147,6 +148,7 @@ export function enterApp() {
     setupPushNotifications();
     checkMonthlyReminder();
   }
+  runOnboarding(state.role);
   if (!isStandalone()) {
     setTimeout(showInstallBanner, 4000);
   }

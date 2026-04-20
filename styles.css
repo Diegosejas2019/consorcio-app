@@ -989,11 +989,67 @@ body.is-offline #app-shell { padding-top: 36px; }
   border-top: 1px solid var(--border-md);
 }
 
+/* ── Onboarding tooltips ── */
+.ob-tooltip {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 1.5rem), 440px);
+  background: var(--surface-3);
+  border: 1px solid rgba(0, 214, 143, 0.35);
+  border-radius: var(--radius);
+  padding: .9rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  z-index: 450;
+  box-shadow: var(--shadow-md), 0 0 0 1px rgba(0, 214, 143, 0.06);
+  animation: obSlideUp .32s cubic-bezier(.22, .68, 0, 1.1) both;
+}
+.ob-tooltip--hide {
+  animation: obFadeOut .25s ease forwards;
+}
+.ob-tooltip__icon {
+  color: var(--accent);
+  flex-shrink: 0;
+  display: flex;
+}
+.ob-tooltip__msg {
+  flex: 1;
+  font-size: .875rem;
+  color: var(--text-bright);
+  line-height: 1.45;
+}
+.ob-tooltip__btn {
+  background: var(--accent);
+  color: var(--primary);
+  border: none;
+  border-radius: 8px;
+  padding: .4rem .9rem;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: var(--font);
+  transition: background .15s;
+}
+.ob-tooltip__btn:hover { background: var(--accent-2); }
+
+@keyframes obSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(14px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes obFadeOut {
+  to { opacity: 0; transform: translateX(-50%) translateY(8px); }
+}
+
 /* ── Print ── */
 @media print {
   .top-bar, .bottom-nav, .nav-submenu, .nav-submenu-backdrop,
   .offline-banner, .install-banner, .report-controls,
-  .report-print-btn, #toast-container, #modal-overlay { display: none !important; }
+  .report-print-btn, #toast-container, #modal-overlay, .ob-tooltip { display: none !important; }
   body { background: #fff !important; color: #000 !important; }
   .page { padding: 1rem !important; max-width: 100% !important; background: #fff; }
   .report-table { border: 1px solid #ccc !important; box-shadow: none !important;
