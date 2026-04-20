@@ -248,6 +248,18 @@ const api = {
     getMonthlySummary: (month) =>
       request(`/reports/monthly-summary?month=${encodeURIComponent(month)}`),
   },
+
+  // ── Votaciones ────────────────────────────────────────────────
+  votes: {
+    getAll:   (params = {}) => request(`/votes?${new URLSearchParams(params)}`),
+    getOne:   (id)          => request(`/votes/${id}`),
+    create:   (data)        => request('/votes', { method: 'POST', body: JSON.stringify(data) }),
+    update:   (id, data)    => request(`/votes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    close:    (id)          => request(`/votes/${id}/close`, { method: 'PATCH' }),
+    delete:   (id)          => request(`/votes/${id}`, { method: 'DELETE' }),
+    cast:     (id, optionIndex) => request(`/votes/${id}/cast`, { method: 'POST', body: JSON.stringify({ optionIndex }) }),
+    results:  (id)          => request(`/votes/${id}/results`),
+  },
 };
 
 // Exponer globalmente

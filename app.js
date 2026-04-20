@@ -32,6 +32,7 @@ import { renderAdminSettings }  from './js/services/configService.js';
 import { renderAdminExpenses }  from './js/pages/admin/expenses.js';
 import { renderAdminProviders } from './js/pages/admin/providers.js';
 import { renderAdminReport }   from './js/pages/admin/report.js';
+import { renderAdminVotes }    from './js/pages/admin/votes.js';
 
 // ── Owner pages ───────────────────────────────────────────────
 import { renderOwnerHome }    from './js/pages/owner/home.js';
@@ -40,6 +41,7 @@ import { renderOwnerHistory } from './js/pages/owner/history.js';
 import { renderOwnerNotices } from './js/pages/owner/notices.js';
 import { renderOwnerClaims }    from './js/pages/owner/claims.js';
 import { renderOwnerExpenses }  from './js/pages/owner/expenses.js';
+import { renderOwnerVotes }    from './js/pages/owner/votes.js';
 
 // ── Registrar renderers en el router ─────────────────────────
 PAGE_RENDERERS['page-admin-home']      = () => renderAdminHome();
@@ -51,12 +53,14 @@ PAGE_RENDERERS['page-admin-settings']  = () => renderAdminSettings();
 PAGE_RENDERERS['page-admin-expenses']  = () => renderAdminExpenses();
 PAGE_RENDERERS['page-admin-providers'] = () => renderAdminProviders();
 PAGE_RENDERERS['page-admin-report']    = () => renderAdminReport();
+PAGE_RENDERERS['page-admin-votes']     = () => renderAdminVotes();
 PAGE_RENDERERS['page-owner-home']      = () => renderOwnerHome();
 PAGE_RENDERERS['page-owner-pay']       = () => renderUploadPage();
 PAGE_RENDERERS['page-owner-history']   = () => renderOwnerHistory();
 PAGE_RENDERERS['page-owner-notices']   = () => renderOwnerNotices();
 PAGE_RENDERERS['page-owner-claims']    = () => renderOwnerClaims();
 PAGE_RENDERERS['page-owner-expenses']  = () => renderOwnerExpenses();
+PAGE_RENDERERS['page-owner-votes']     = () => renderOwnerVotes();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)
 window.PAGE_RENDERERS = PAGE_RENDERERS;

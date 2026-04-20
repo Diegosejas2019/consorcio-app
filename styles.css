@@ -1010,3 +1010,39 @@ body.is-offline #app-shell { padding-top: 36px; }
   .text-success { color: #16a34a !important; }
   .text-danger  { color: #dc2626 !important; }
 }
+
+/* ═══════════════════════════════════════════════
+   Votaciones
+   ═══════════════════════════════════════════════ */
+
+.vote-option-row {
+  padding: .5rem .6rem;
+  border-radius: .5rem;
+  background: var(--surface2);
+  border: 1.5px solid transparent;
+  transition: border-color .15s;
+}
+
+.vote-option-chosen {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface2));
+}
+
+.vote-bar-bg {
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.vote-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width .4s ease;
+}
+
+.vote-bar-fill--chosen {
+  background: var(--accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
+}
