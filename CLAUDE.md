@@ -41,7 +41,8 @@ consorcio-app/
 │   │   ├── offline.js       # updateOnlineStatus()
 │   │   ├── pwa.js           # showInstallBanner(), isStandalone()
 │   │   ├── icons.js         # Objeto SVG con iconos inline
-│   │   └── helpers.js       # Utilidades UI compartidas
+│   │   ├── helpers.js       # Utilidades UI compartidas
+│   │   └── onboarding.js    # Hints de primera visita (guardados en localStorage)
 │   ├── services/
 │   │   ├── authService.js   # Login, logout, enterApp, restore sesión, forgot/reset password
 │   │   ├── pushService.js   # setupPushNotifications(), checkMonthlyReminder()
@@ -57,13 +58,17 @@ consorcio-app/
 │       │   ├── claims.js    # renderAdminClaims()
 │       │   ├── expenses.js  # renderAdminExpenses()
 │       │   ├── providers.js # renderAdminProviders()
-│       │   └── report.js    # renderAdminReport()
+│       │   ├── report.js    # renderAdminReport()
+│       │   └── votes.js     # renderAdminVotes()
 │       └── owner/
 │           ├── home.js      # renderOwnerHome()
 │           ├── pay.js       # renderUploadPage()
 │           ├── history.js   # renderOwnerHistory()
 │           ├── notices.js   # renderOwnerNotices()
-│           └── claims.js    # renderOwnerClaims()
+│           ├── claims.js    # renderOwnerClaims()
+│           ├── expenses.js  # renderOwnerExpenses()
+│           ├── votes.js     # renderOwnerVotes()
+│           └── profile.js   # renderOwnerProfile()
 └── tests/
     ├── globals.js           # Mocks globales para Jest
     ├── setup/               # Configuración de entorno de test
@@ -84,19 +89,23 @@ consorcio-app/
 | `page-owner-history` | Historial de pagos con descarga de comprobante |
 | `page-owner-notices` | Lista de avisos del consorcio/organización |
 | `page-owner-claims` | Crear y ver estado de reclamos propios |
+| `page-owner-expenses` | Ver gastos compartidos de la organización (solo lectura) |
+| `page-owner-votes` | Participar en votaciones abiertas |
+| `page-owner-profile` | Editar nombre, email y cambiar contraseña |
 
 ### Admin
 | id | Contenido |
 |----|-----------|
 | `page-admin-home` | Resumen: propietarios al día / deudores, pagos pendientes, avisos recientes |
 | `page-admin-dashboard` | Gráfico de recaudación mensual (filtrable por año), stats, exportar Excel |
-| `page-admin-owners` | CRUD de propietarios con paginación (10/pág), filtro por nombre y lote |
+| `page-admin-owners` | CRUD de propietarios con paginación (10/pág), filtro por nombre y lote, carga masiva Excel |
 | `page-admin-notices` | CRUD de avisos (info / warning / urgent) con push opcional |
 | `page-admin-claims` | Ver todos los reclamos, cambiar estado (open/in_progress/resolved), agregar nota |
 | `page-admin-expenses` | Registro de gastos por categoría/proveedor, marcar como pagado, filtrar y exportar |
 | `page-admin-providers` | ABM de proveedores de servicio (limpieza, seguridad, mantenimiento, etc.) |
 | `page-admin-report` | Resumen financiero mensual (ingresos, egresos por categoría, saldo) |
 | `page-admin-settings` | Configuración: monto, período, recargo, datos de contacto, credenciales MercadoPago |
+| `page-admin-votes` | Crear y gestionar votaciones, cerrarlas y ver resultados |
 
 ## Estado global (js/core/state.js)
 
@@ -168,6 +177,8 @@ api.owners.create(data)
 api.owners.update(id, data)
 api.owners.delete(id)
 api.owners.notify(id, title, body)
+api.owners.bulkCreate(formData)        // FormData con archivo .xlsx
+api.owners.downloadTemplate()          // URL para descargar plantilla Excel
 
 api.payments.getAll(params?)
 api.payments.getOne(id)
@@ -190,8 +201,9 @@ api.claims.create(data)
 api.claims.updateStatus(id, status, adminNote?)
 api.claims.delete(id)
 
+api.expenses.getSummary(month)         // month: 'YYYY-MM' — accesible a owner y admin
 api.expenses.getAll(params?)
-api.expenses.create(data)        // FormData con archivo receipt opcional
+api.expenses.create(data)              // FormData con archivo receipt opcional
 api.expenses.update(id, data)
 api.expenses.markAsPaid(id, data?)
 api.expenses.delete(id)
@@ -208,6 +220,18 @@ api.config.update(data)
 
 api.mercadopago.createPreference()
 api.mercadopago.getPaymentStatus(mpPaymentId)
+
+api.organizations.getTemplates()
+api.organizations.create(data)
+
+api.votes.getAll(params?)
+api.votes.getOne(id)
+api.votes.create(data)                 // {title, description, options[], endsAt?}
+api.votes.update(id, data)
+api.votes.close(id)
+api.votes.cast(id, optionIndex)        // owner vota
+api.votes.results(id)                  // admin ve resultados
+api.votes.delete(id)
 ```
 
 ## SVG Icons (js/ui/icons.js)
