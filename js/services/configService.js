@@ -211,7 +211,10 @@ function _periodsForYear(year) {
 
 function _renderModalList(year) {
   const list = _periodsForYear(year);
-  if (!list.length) return '<p class="text-sm text-muted" style="padding:.5rem 0">No hay períodos para este año.</p>';
+  if (!list.length) {
+    const msg = year ? `No hay períodos configurados para ${year}.` : 'No hay períodos configurados.';
+    return `<p class="text-sm text-muted" style="padding:.5rem 0">${msg}</p>`;
+  }
   return list.map(p => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--border)">
       <span class="text-sm">${formatPeriodLabel(p)}</span>
@@ -220,8 +223,13 @@ function _renderModalList(year) {
 }
 
 export function openPeriodsModal() {
-  const years = [...new Set(_allPeriods.map(p => p.split('-')[0]))].sort().reverse();
-  const defaultYear = years[0] || '';
+  const currentYear = new Date().getFullYear();
+  const defaultYears = [String(currentYear), String(currentYear - 1)];
+  const years = [...new Set([
+    ..._allPeriods.map(p => p.split('-')[0]),
+    ...defaultYears,
+  ])].sort().reverse();
+  const defaultYear = String(currentYear);
 
   openModal(`
     <div class="modal-handle"></div>
