@@ -53,9 +53,6 @@ export async function renderAdminSettings() {
           </div>
           <div class="card-body flex col gap-2">
             <p class="text-sm text-muted">Definí qué meses pueden seleccionar los propietarios al subir un comprobante. Si no hay ninguno, se muestran los últimos 6 meses automáticamente.</p>
-            <div id="periods-list" class="flex gap-2" style="flex-wrap:wrap;min-height:2rem">
-              ${_allPeriods.map(p => periodChip(p)).join('') || '<span class="text-sm text-muted">Sin períodos configurados</span>'}
-            </div>
             <div class="flex gap-2" style="align-items:center">
               <input class="input" type="month" id="cfg-new-period" style="flex:1">
               <button class="btn btn-secondary" id="btn-add-period" onclick="addPaymentPeriod()">Agregar</button>
@@ -266,13 +263,6 @@ export async function openPeriodsModal() {
       ${_renderModalList(defaultYear)}
     </div>`;
 
-  // Sincronizar lista principal en la página con los datos frescos
-  const settingsList = document.getElementById('periods-list');
-  if (settingsList) {
-    settingsList.innerHTML = _allPeriods.length
-      ? _allPeriods.map(p => periodChip(p)).join('')
-      : '<span class="text-sm text-muted">Sin períodos configurados</span>';
-  }
 }
 
 export function filterPeriodsByYear(year) {
@@ -285,12 +275,6 @@ export async function removePaymentPeriodFromModal(value) {
   try {
     await api.config.update({ paymentPeriods: updated });
     _allPeriods = updated;
-    const settingsList = document.getElementById('periods-list');
-    if (settingsList) {
-      settingsList.innerHTML = _allPeriods.length
-        ? _allPeriods.map(p => periodChip(p)).join('')
-        : '<span class="text-sm text-muted">Sin períodos configurados</span>';
-    }
     const year = document.getElementById('modal-year-filter')?.value || '';
     const years = [...new Set(_allPeriods.map(p => p.split('-')[0]))].sort().reverse();
     const yearSelect = document.getElementById('modal-year-filter');
@@ -388,7 +372,6 @@ export async function addPaymentPeriod() {
   try {
     await api.config.update({ paymentPeriods: updated });
     _allPeriods = updated;
-    document.getElementById('periods-list').innerHTML = _allPeriods.map(p => periodChip(p)).join('');
     input.value = '';
     toast('Período agregado', 'success');
   } catch (err) {
@@ -403,9 +386,6 @@ export async function removePaymentPeriod(value) {
   try {
     await api.config.update({ paymentPeriods: updated });
     _allPeriods = updated;
-    document.getElementById('periods-list').innerHTML = _allPeriods.length
-      ? _allPeriods.map(p => periodChip(p)).join('')
-      : '<span class="text-sm text-muted">Sin períodos configurados</span>';
     toast('Período eliminado', 'success');
   } catch (err) { toast(err.message, 'error'); }
 }
