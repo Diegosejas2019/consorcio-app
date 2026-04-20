@@ -61,41 +61,19 @@
       </div>
     </div>
 
-    <div class="role-tabs" id="role-tabs-container">
-      <button class="role-tab active" data-role="owner">Propietario</button>
-      <button class="role-tab" data-role="admin">Administrador</button>
-    </div>
-
-    <!-- Owner fields -->
-    <div id="owner-fields" class="flex col gap-2">
+    <!-- Login fields -->
+    <div id="login-fields" class="flex col gap-2">
       <div class="form-group">
         <label>Email</label>
-        <input class="input" type="email" id="owner-email" placeholder="tu@email.com" value="maria@mail.com">
+        <input class="input" type="email" id="login-email" placeholder="tu@email.com" value="maria@mail.com">
       </div>
       <div class="form-group">
         <label>Contraseña</label>
         <div class="input-password-wrap">
-          <input class="input" type="password" id="owner-pass" placeholder="••••••••" value="Prop2025!">
-          <button type="button" class="btn-show-pass" onclick="togglePassword('owner-pass', this)" tabindex="-1">👁</button>
+          <input class="input" type="password" id="login-pass" placeholder="••••••••" value="Prop2025!">
+          <button type="button" class="btn-show-pass" onclick="togglePassword('login-pass', this)" tabindex="-1">👁</button>
         </div>
       </div>
-      <p class="text-muted text-sm" style="text-align:center">Demo: maria@mail.com / Prop2025!</p>
-    </div>
-
-    <!-- Admin fields -->
-    <div id="admin-fields" class="flex col gap-2 hidden">
-      <div class="form-group">
-        <label>Email de administrador</label>
-        <input class="input" type="email" id="admin-email" placeholder="admin@consorcio.com" value="admin@consorcio.com">
-      </div>
-      <div class="form-group">
-        <label>Contraseña</label>
-        <div class="input-password-wrap">
-          <input class="input" type="password" id="admin-pass" placeholder="••••••••" value="Admin2025!">
-          <button type="button" class="btn-show-pass" onclick="togglePassword('admin-pass', this)" tabindex="-1">👁</button>
-        </div>
-      </div>
-      <p class="text-muted text-sm" style="text-align:center">Demo: admin@consorcio.com / Admin2025!</p>
     </div>
 
     <label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text-muted);cursor:pointer;margin-top:1rem">

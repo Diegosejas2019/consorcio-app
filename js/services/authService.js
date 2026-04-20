@@ -16,13 +16,10 @@ export function togglePassword(inputId, btn) {
 }
 
 // ── Login / Forgot Password / Reset Password ──────────────────
-let loginRole   = 'owner';
 let _resetToken = null;
 
 export function showForgotView() {
-  document.getElementById('role-tabs-container').classList.add('hidden');
-  document.getElementById('owner-fields').classList.add('hidden');
-  document.getElementById('admin-fields').classList.add('hidden');
+  document.getElementById('login-fields').classList.add('hidden');
   document.getElementById('btn-login').classList.add('hidden');
   document.getElementById('forgot-link').classList.add('hidden');
   document.getElementById('forgot-view').classList.remove('hidden');
@@ -30,8 +27,7 @@ export function showForgotView() {
 }
 
 export function showLoginView() {
-  document.getElementById('role-tabs-container').classList.remove('hidden');
-  document.getElementById(loginRole === 'owner' ? 'owner-fields' : 'admin-fields').classList.remove('hidden');
+  document.getElementById('login-fields').classList.remove('hidden');
   document.getElementById('btn-login').classList.remove('hidden');
   document.getElementById('forgot-link').classList.remove('hidden');
   document.getElementById('forgot-view').classList.add('hidden');
@@ -75,34 +71,25 @@ export async function submitResetPassword() {
   }
 }
 
-// ── Role tabs ─────────────────────────────────────────────────
-document.querySelectorAll('.role-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    loginRole = tab.dataset.role;
-    document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('owner-fields').classList.toggle('hidden', loginRole !== 'owner');
-    document.getElementById('admin-fields').classList.toggle('hidden', loginRole !== 'admin');
-  });
-});
-
 // ── Login button ──────────────────────────────────────────────
 document.getElementById('btn-login').addEventListener('click', async () => {
-  const emailField = loginRole === 'admin' ? 'admin-email' : 'owner-email';
-  const passField  = loginRole === 'admin' ? 'admin-pass'  : 'owner-pass';
-  const email      = document.getElementById(emailField).value.trim();
-  const password   = document.getElementById(passField).value.trim();
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-pass').value.trim();
   if (!email || !password) { toast('Completá email y contraseña', 'error'); return; }
   const remember = document.getElementById('remember-me')?.checked ?? true;
   try {
     showLoading(true);
     const res = await api.auth.login(email, password);
     setToken(res.token, remember);
-    setState({ role: res.data.user.role, user: res.data.user });
+    const meRes = await api.auth.getMe();
+    setState({ role: meRes.data.user.role, user: meRes.data.user });
     cache.clear();
     enterApp();
   } catch (err) {
-    toast(err.message, 'error');
+    const msg = err.status === 401
+      ? 'Email o contraseña incorrectos'
+      : (err.message || 'No se pudo iniciar sesión. Intentá nuevamente');
+    toast(msg, 'error');
   } finally {
     showLoading(false);
   }
@@ -323,7 +310,7 @@ export function logout() {
   setState({ role: null, user: null });
   document.getElementById('app-shell').style.display    = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  ['owner-email', 'owner-pass', 'admin-email', 'admin-pass'].forEach(id => {
+  ['login-email', 'login-pass'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
