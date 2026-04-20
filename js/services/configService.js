@@ -64,6 +64,18 @@ export async function renderAdminSettings() {
         </div>
 
         <div class="card">
+          <div class="card-header"><h3>Monto mensual</h3></div>
+          <div class="card-body flex col gap-2">
+            <p class="text-sm text-muted">Importe que se usa por defecto al registrar un pago. El propietario puede modificarlo al subir el comprobante.</p>
+            <div class="form-group">
+              <label>Monto mensual ($)</label>
+              <input class="input" type="number" id="cfg-monthly-fee" value="${cfg.monthlyFee || ''}" min="0" placeholder="Ej: 10000">
+            </div>
+            <button class="btn btn-primary" id="btn-save-monthly-fee" data-requires-network onclick="saveMonthlyFeeSettings()">Guardar</button>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-header"><h3>Concepto Extraordinario</h3></div>
           <div class="card-body flex col gap-2">
             <div class="form-group">
@@ -363,6 +375,21 @@ export async function removePaymentPeriod(value) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+export async function saveMonthlyFeeSettings() {
+  const btn = document.getElementById('btn-save-monthly-fee');
+  setBtnLoading(btn, true);
+  try {
+    const value = document.getElementById('cfg-monthly-fee')?.value;
+    if (value === '' || value === undefined) { toast('Ingresá un monto válido', 'error'); return; }
+    await api.config.update({ monthlyFee: Number(value) });
+    toast('Monto mensual guardado', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
 export async function saveMPSettings() {
   const update = {};
   const key   = document.getElementById('cfg-mp-key')?.value.trim();
@@ -388,4 +415,5 @@ window.removePaymentPeriod          = removePaymentPeriod;
 window.openPeriodsModal             = openPeriodsModal;
 window.filterPeriodsByYear          = filterPeriodsByYear;
 window.removePaymentPeriodFromModal = removePaymentPeriodFromModal;
+window.saveMonthlyFeeSettings       = saveMonthlyFeeSettings;
 window.saveMPSettings               = saveMPSettings;

@@ -15,9 +15,11 @@ export async function renderUploadPage() {
   try {
     const cfgRes = await api.config.get();
     const cfg    = cfgRes.data.config;
+    const monthlyFee = cfg.monthlyFee || 0;
+    const feeLabel   = monthlyFee > 0 ? ` — $${monthlyFee.toLocaleString('es-AR')}` : '';
     const months = cfg.paymentPeriods?.length
-      ? cfg.paymentPeriods.map(v => ({ value: v, label: formatPeriodLabel(v) }))
-      : getRecentMonths(6);
+      ? cfg.paymentPeriods.map(v => ({ value: v, label: `${formatPeriodLabel(v)}${feeLabel}` }))
+      : getRecentMonths(6).map(m => ({ ...m, label: `${m.label}${feeLabel}` }));
 
     el.innerHTML = `
       <div class="oh-wrap">
@@ -41,7 +43,7 @@ export async function renderUploadPage() {
               </div>
               <div class="form-group">
                 <label>Importe ($)</label>
-                <input class="input" type="number" id="pay-amount" placeholder="${cfg.expenseAmount}" min="1">
+                <input class="input" type="number" id="pay-amount" value="${monthlyFee || ''}" placeholder="${monthlyFee || cfg.expenseAmount || ''}" min="1">
               </div>
             </div>
             <div class="form-group">
@@ -78,7 +80,7 @@ export async function renderUploadPage() {
             </svg>
           </div>
           <div class="op-mp-card__amount-row">
-            <span class="op-mp-card__amount">$${(cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
+            <span class="op-mp-card__amount">$${(monthlyFee || cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
             <span class="op-mp-card__period">· ${cfg.expenseMonth || ''}</span>
           </div>
           <button class="op-mp-btn" onclick="initMercadoPago()" data-requires-network>

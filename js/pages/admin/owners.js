@@ -10,7 +10,8 @@ import { cache } from '../../core/state.js';
 export const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
 export const _debouncedOwnerFilter = debounce(() => { ownersListState.page = 1; _renderOwnersView(); }, 350);
 
-let _newOwnerCfg = null;
+let _newOwnerCfg   = null;
+let _ownerDetailCfg = null;
 
 function _calcDebt(months, cfg) {
   if (!cfg || months <= 0) return { total: 0, surcharge: 0 };
@@ -192,7 +193,8 @@ export async function viewOwnerDetail(ownerId) {
         <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
         <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.unit || ''}', '${owner.phone || ''}')">Editar</button>
         <button class="btn btn-ghost" onclick="openNotifyOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Notificar</button>
-        <button class="btn btn-primary" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
+        <button class="btn btn-primary" onclick="openRegisterPaymentModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Registrar pago</button>
+        <button class="btn btn-ghost" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
           ${owner.isDebtor ? 'Al día' : 'Moroso'}
         </button>
         <button class="btn btn-danger" onclick="confirmDeleteOwner('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Eliminar</button>
@@ -372,6 +374,85 @@ export async function saveNewOwner() {
   }
 }
 
+// ── Registrar pago manual (admin) ────────────────────────────
+export async function openRegisterPaymentModal(ownerId, ownerName) {
+  _ownerDetailCfg = cache.get('config');
+  if (!_ownerDetailCfg) {
+    try {
+      const res = await api.config.get();
+      _ownerDetailCfg = res.data.config;
+      cache.set('config', _ownerDetailCfg);
+    } catch { _ownerDetailCfg = null; }
+  }
+
+  const cfg        = _ownerDetailCfg || {};
+  const monthlyFee = cfg.monthlyFee || 0;
+  const periods    = cfg.paymentPeriods || [];
+  const now        = new Date();
+  const currentCode = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const periodOptions = periods.length
+    ? periods.map(p => `<option value="${p}" ${p === currentCode ? 'selected' : ''}>${formatMonth(p)}</option>`).join('')
+    : (() => {
+        const opts = [];
+        for (let i = 0; i < 6; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const code  = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          const label = formatMonth(code);
+          opts.push(`<option value="${code}" ${i === 0 ? 'selected' : ''}>${label}</option>`);
+        }
+        return opts.join('');
+      })();
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.25rem">Registrar pago</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1rem">Para: ${ownerName}</p>
+    <div class="flex col gap-2">
+      <div class="form-group">
+        <label>Período</label>
+        <select class="select" id="rp-month">${periodOptions}</select>
+      </div>
+      <div class="form-group">
+        <label>Importe ($)</label>
+        <input class="input" type="number" id="rp-amount" value="${monthlyFee || ''}" placeholder="${monthlyFee || ''}" min="1">
+      </div>
+      <div class="form-group">
+        <label>Nota (opcional)</label>
+        <input class="input" id="rp-note" placeholder="Ej: Pago en efectivo">
+      </div>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${ownerId}')">Cancelar</button>
+        <button class="btn btn-primary w-full" data-requires-network onclick="submitRegisterPayment('${ownerId}')">Registrar</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+export async function submitRegisterPayment(ownerId) {
+  const month  = document.getElementById('rp-month')?.value;
+  const amount = document.getElementById('rp-amount')?.value;
+  const note   = document.getElementById('rp-note')?.value?.trim();
+
+  if (!month)               { toast('Seleccioná el período', 'error'); return; }
+  if (!amount || amount < 1) { toast('Ingresá un importe válido', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('month',   month);
+  formData.append('amount',  amount);
+  formData.append('ownerId', ownerId);
+  if (note) formData.append('ownerNote', note);
+
+  try {
+    await api.payments.create(formData);
+    toast('Pago registrado correctamente', 'success');
+    viewOwnerDetail(ownerId);
+    cache.del('owner_home');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
 // ── Descargar plantilla Excel (generada en el cliente) ────────
 export function downloadBulkTemplate() {
   const wb = XLSX.utils.book_new();
@@ -471,6 +552,8 @@ window.saveEditOwner          = saveEditOwner;
 window.openNewOwnerModal           = openNewOwnerModal;
 window.saveNewOwner                = saveNewOwner;
 window.updateNewOwnerDebtPreview   = updateNewOwnerDebtPreview;
+window.openRegisterPaymentModal    = openRegisterPaymentModal;
+window.submitRegisterPayment       = submitRegisterPayment;
 window.downloadBulkTemplate        = downloadBulkTemplate;
 window.openBulkOwnerModal          = openBulkOwnerModal;
 window.submitBulkOwners            = submitBulkOwners;

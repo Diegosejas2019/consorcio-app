@@ -65,8 +65,8 @@ export async function renderOwnerHome() {
           </div>` : ''}
           <div class="oh-balance-card__footer">
             <div class="oh-balance-card__meta">
-              <span>Expensa</span>
-              <strong>$${(cfg.expenseAmount || 0).toLocaleString('es-AR')}</strong>
+              <span>Monto mensual</span>
+              <strong>$${(cfg.monthlyFee || 0).toLocaleString('es-AR')}</strong>
             </div>
             <div class="oh-balance-card__sep"></div>
             <div class="oh-balance-card__meta">
