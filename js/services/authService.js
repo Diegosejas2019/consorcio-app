@@ -353,6 +353,7 @@ export function logout() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  showLoginView();
 }
 
 document.getElementById('btn-logout').addEventListener('click', logout);
