@@ -102,9 +102,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     cache.clear();
     enterApp();
   } catch (err) {
-    const msg = err.status === 401
-      ? 'Email o contraseña incorrectos'
-      : (err.message || 'No se pudo iniciar sesión. Intentá nuevamente');
+    const msg = err.message || 'No se pudo iniciar sesión. Intentá nuevamente';
     toast(msg, 'error');
   } finally {
     showLoading(false);

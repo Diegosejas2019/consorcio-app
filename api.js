@@ -47,13 +47,6 @@ async function request(endpoint, options = {}) {
     throw new Error('Sin conexión con el servidor. Verificá tu internet.');
   }
 
-  // Token expirado o inválido → desloguear
-  if (response.status === 401) {
-    clearToken();
-    window.dispatchEvent(new CustomEvent('auth:expired'));
-    throw new Error('Sesión expirada. Por favor iniciá sesión nuevamente.');
-  }
-
   // Intentar parsear JSON
   let data;
   try {
@@ -65,6 +58,11 @@ async function request(endpoint, options = {}) {
   if (!response.ok) {
     const err = new Error(data.message || `Error ${response.status}`);
     err.status = response.status;
+    // Token expirado o inválido fuera del login → desloguear
+    if (response.status === 401 && endpoint !== '/auth/login') {
+      clearToken();
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+    }
     throw err;
   }
 
