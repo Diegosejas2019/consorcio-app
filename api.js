@@ -259,6 +259,23 @@ const api = {
     delete: (id) => request(`/visits/${id}`, { method: 'DELETE' }),
   },
 
+  // ── Espacios comunes ──────────────────────────────────────────
+  spaces: {
+    getAll:  ()          => request('/spaces'),
+    create:  (data)      => request('/spaces', { method: 'POST', body: JSON.stringify(data) }),
+    update:  (id, data)  => request(`/spaces/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete:  (id)        => request(`/spaces/${id}`, { method: 'DELETE' }),
+  },
+
+  // ── Reservas ──────────────────────────────────────────────────
+  reservations: {
+    getAll:       (params = {}) => request(`/reservations?${new URLSearchParams(params)}`),
+    getMine:      ()            => request('/reservations?limit=50'),
+    create:       (data)        => request('/reservations', { method: 'POST', body: JSON.stringify(data) }),
+    updateStatus: (id, status)  => request(`/reservations/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    delete:       (id)          => request(`/reservations/${id}`, { method: 'DELETE' }),
+  },
+
   // ── Votaciones ────────────────────────────────────────────────
   votes: {
     getAll:   (params = {}) => request(`/votes?${new URLSearchParams(params)}`),

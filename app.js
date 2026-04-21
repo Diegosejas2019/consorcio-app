@@ -23,28 +23,31 @@ import './js/services/paymentsService.js';
 import './js/services/configService.js';
 
 // ── Admin pages ───────────────────────────────────────────────
-import { renderAdminHome }      from './js/pages/admin/home.js';
-import { renderAdminDashboard } from './js/pages/admin/dashboard.js';
-import { renderOwnersList }     from './js/pages/admin/owners.js';
-import { renderAdminNotices }   from './js/pages/admin/notices.js';
-import { renderAdminClaims }    from './js/pages/admin/claims.js';
-import { renderAdminSettings }  from './js/services/configService.js';
-import { renderAdminExpenses }  from './js/pages/admin/expenses.js';
-import { renderAdminProviders } from './js/pages/admin/providers.js';
-import { renderAdminReport }   from './js/pages/admin/report.js';
-import { renderAdminVotes }    from './js/pages/admin/votes.js';
-import { renderAdminVisits }   from './js/pages/admin/visits.js';
+import { renderAdminHome }         from './js/pages/admin/home.js';
+import { renderAdminDashboard }    from './js/pages/admin/dashboard.js';
+import { renderOwnersList }        from './js/pages/admin/owners.js';
+import { renderAdminNotices }      from './js/pages/admin/notices.js';
+import { renderAdminClaims }       from './js/pages/admin/claims.js';
+import { renderAdminSettings }     from './js/services/configService.js';
+import { renderAdminExpenses }     from './js/pages/admin/expenses.js';
+import { renderAdminProviders }    from './js/pages/admin/providers.js';
+import { renderAdminReport }       from './js/pages/admin/report.js';
+import { renderAdminVotes }        from './js/pages/admin/votes.js';
+import { renderAdminVisits }       from './js/pages/admin/visits.js';
+import { renderAdminReservations } from './js/pages/admin/reservations.js';
+import { renderAdminSpaces }       from './js/pages/admin/spaces.js';
 
 // ── Owner pages ───────────────────────────────────────────────
-import { renderOwnerHome }    from './js/pages/owner/home.js';
-import { renderUploadPage }   from './js/pages/owner/pay.js';
-import { renderOwnerHistory } from './js/pages/owner/history.js';
-import { renderOwnerNotices } from './js/pages/owner/notices.js';
-import { renderOwnerClaims }    from './js/pages/owner/claims.js';
-import { renderOwnerExpenses }  from './js/pages/owner/expenses.js';
-import { renderOwnerVotes }    from './js/pages/owner/votes.js';
-import { renderOwnerVisits }   from './js/pages/owner/visits.js';
-import { renderOwnerProfile }  from './js/pages/owner/profile.js';
+import { renderOwnerHome }         from './js/pages/owner/home.js';
+import { renderUploadPage }        from './js/pages/owner/pay.js';
+import { renderOwnerHistory }      from './js/pages/owner/history.js';
+import { renderOwnerNotices }      from './js/pages/owner/notices.js';
+import { renderOwnerClaims }       from './js/pages/owner/claims.js';
+import { renderOwnerExpenses }     from './js/pages/owner/expenses.js';
+import { renderOwnerVotes }        from './js/pages/owner/votes.js';
+import { renderOwnerVisits }       from './js/pages/owner/visits.js';
+import { renderOwnerProfile }      from './js/pages/owner/profile.js';
+import { renderOwnerReservations } from './js/pages/owner/reservations.js';
 
 // ── Registrar renderers en el router ─────────────────────────
 PAGE_RENDERERS['page-admin-home']      = () => renderAdminHome();
@@ -57,8 +60,10 @@ PAGE_RENDERERS['page-admin-expenses']  = () => renderAdminExpenses();
 PAGE_RENDERERS['page-admin-providers'] = () => renderAdminProviders();
 PAGE_RENDERERS['page-admin-report']    = () => renderAdminReport();
 PAGE_RENDERERS['page-admin-votes']     = () => renderAdminVotes();
-PAGE_RENDERERS['page-admin-visits']    = () => renderAdminVisits();
-PAGE_RENDERERS['page-owner-home']      = () => renderOwnerHome();
+PAGE_RENDERERS['page-admin-visits']        = () => renderAdminVisits();
+PAGE_RENDERERS['page-admin-reservations']  = () => renderAdminReservations();
+PAGE_RENDERERS['page-admin-spaces']        = () => renderAdminSpaces();
+PAGE_RENDERERS['page-owner-home']          = () => renderOwnerHome();
 PAGE_RENDERERS['page-owner-pay']       = () => renderUploadPage();
 PAGE_RENDERERS['page-owner-history']   = () => renderOwnerHistory();
 PAGE_RENDERERS['page-owner-notices']   = () => renderOwnerNotices();
@@ -66,7 +71,8 @@ PAGE_RENDERERS['page-owner-claims']    = () => renderOwnerClaims();
 PAGE_RENDERERS['page-owner-expenses']  = () => renderOwnerExpenses();
 PAGE_RENDERERS['page-owner-votes']     = () => renderOwnerVotes();
 PAGE_RENDERERS['page-owner-visits']    = () => renderOwnerVisits();
-PAGE_RENDERERS['page-owner-profile']   = () => renderOwnerProfile();
+PAGE_RENDERERS['page-owner-profile']       = () => renderOwnerProfile();
+PAGE_RENDERERS['page-owner-reservations']  = () => renderOwnerReservations();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)
 window.PAGE_RENDERERS = PAGE_RENDERERS;
