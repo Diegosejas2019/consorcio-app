@@ -1,4 +1,4 @@
-import { state } from '../core/state.js';
+import { state, setState } from '../core/state.js';
 import { toast } from '../ui/toast.js';
 import { showLoading, setBtnLoading } from '../ui/loading.js';
 import { skeleton } from '../ui/skeleton.js';
@@ -24,6 +24,69 @@ export function periodChip(value) {
     ${formatPeriodLabel(value)}
     <button onclick="removePaymentPeriod('${value}')" style="background:none;border:none;cursor:pointer;color:inherit;line-height:1;padding:0;font-size:.9rem">✕</button>
   </span>`;
+}
+
+const FEATURE_LABELS = {
+  visits:       'Visitas',
+  reservations: 'Reservas',
+  votes:        'Votaciones',
+  expenses:     'Gastos',
+  providers:    'Proveedores',
+};
+
+async function _renderFeaturesCard() {
+  const orgId = state.user?.organization;
+  if (!orgId) return '';
+
+  let features = {};
+  try {
+    const res = await api.organizations.getFeatures(orgId);
+    features = res.data.features;
+  } catch (_) {
+    // Error cargando features → mostrar todos habilitados
+    Object.keys(FEATURE_LABELS).forEach(k => { features[k] = true; });
+  }
+
+  const toggles = Object.entries(FEATURE_LABELS).map(([key, label]) => {
+    const checked = features[key] !== false;
+    return `
+      <label style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--border);cursor:pointer">
+        <span class="text-sm">${label}</span>
+        <input type="checkbox" id="feat-${key}" ${checked ? 'checked' : ''} style="accent-color:var(--primary);width:18px;height:18px;cursor:pointer">
+      </label>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="card-header"><h3>Módulos habilitados</h3></div>
+      <div class="card-body flex col gap-1">
+        <p class="text-sm text-muted">Activá o desactivá módulos para todos los miembros del consorcio.</p>
+        ${toggles}
+        <button class="btn btn-primary" id="btn-save-features" style="margin-top:.5rem" data-requires-network onclick="saveFeatureSettings()">Guardar módulos</button>
+      </div>
+    </div>`;
+}
+
+export async function saveFeatureSettings() {
+  const btn = document.getElementById('btn-save-features');
+  setBtnLoading(btn, true);
+  try {
+    const orgId = state.user?.organization;
+    if (!orgId) { toast('No tenés una organización asignada', 'error'); return; }
+
+    const features = {};
+    Object.keys(FEATURE_LABELS).forEach(key => {
+      features[key] = !!document.getElementById(`feat-${key}`)?.checked;
+    });
+
+    const res = await api.organizations.updateFeatures(orgId, features);
+    setState({ features: res.data.features });
+    toast('Módulos guardados correctamente', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
 export async function renderAdminSettings() {
@@ -139,6 +202,8 @@ export async function renderAdminSettings() {
             <button class="btn btn-primary" data-requires-network onclick="saveMPSettings()">Guardar credenciales</button>
           </div>
         </div>
+
+        ${await _renderFeaturesCard()}
 
         <div class="card">
           <div class="card-header"><h3>Cuenta</h3></div>
@@ -419,6 +484,7 @@ export async function saveMPSettings() {
 }
 
 window.renderAdminSettings          = renderAdminSettings;
+window.saveFeatureSettings          = saveFeatureSettings;
 window.createOrganization           = createOrganization;
 window.toggleLateFeeType            = toggleLateFeeType;
 window.fillCurrentPeriod            = fillCurrentPeriod;

@@ -16,6 +16,7 @@ import './js/ui/offline.js';
 import './js/ui/pwa.js';
 
 // ── Services ──────────────────────────────────────────────────
+import './js/services/featureService.js';
 import './js/services/authService.js';
 import './js/services/pushService.js';
 import './js/services/mercadopagoService.js';

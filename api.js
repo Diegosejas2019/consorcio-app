@@ -211,6 +211,15 @@ const api = {
 
     create: (data) =>
       request('/organizations', { method: 'POST', body: JSON.stringify(data) }),
+
+    getFeatures: (orgId) =>
+      request(`/organizations/${orgId}/features`),
+
+    updateFeatures: (orgId, features) =>
+      request(`/organizations/${orgId}/features`, {
+        method: 'PUT',
+        body: JSON.stringify(features),
+      }),
   },
 
   // ── MercadoPago ───────────────────────────────────────────────

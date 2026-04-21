@@ -6,6 +6,19 @@ import { showInstallBanner, isStandalone } from '../ui/pwa.js';
 import { updateOnlineStatus } from '../ui/offline.js';
 import { setupPushNotifications, checkMonthlyReminder } from './pushService.js';
 import { runOnboarding } from '../ui/onboarding.js';
+import { isFeatureEnabled, PAGE_FEATURE_MAP } from './featureService.js';
+
+// ── Carga de feature flags ────────────────────────────────────
+async function loadFeatures() {
+  const orgId = state.user?.organization;
+  if (!orgId) return;
+  try {
+    const res = await api.organizations.getFeatures(orgId);
+    setState({ features: res.data.features });
+  } catch (_) {
+    // Sin features configuradas → todos habilitados por defecto
+  }
+}
 
 // ── Toggle visibilidad de contraseña ─────────────────────────
 export function togglePassword(inputId, btn) {
@@ -60,6 +73,7 @@ export async function submitResetPassword() {
     const res = await api.auth.resetPassword(_resetToken, newPassword);
     setToken(res.token);
     setState({ role: res.data.user.role, user: res.data.user });
+    await loadFeatures();
     window.history.replaceState({}, '', window.location.pathname);
     document.getElementById('reset-screen').style.display = 'none';
     cache.clear();
@@ -84,6 +98,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     setToken(res.token, remember);
     const meRes = await api.auth.getMe();
     setState({ role: meRes.data.user.role, user: meRes.data.user });
+    await loadFeatures();
     cache.clear();
     enterApp();
   } catch (err) {
@@ -115,6 +130,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     showLoading(true);
     const res = await api.auth.getMe();
     setState({ role: res.data.user.role, user: res.data.user });
+    await loadFeatures();
     enterApp();
   } catch (err) {
     if (err.status === 401 || err.message?.includes('Sesión expirada')) {
@@ -249,9 +265,13 @@ function navOpenGroup(group) {
   _navOpenGroup = group;
   const groupDef   = _navCurrentGroups[group];
   const activePage = document.querySelector('.page.active')?.id || '';
+  const visibleItems = groupDef.items.filter(item => {
+    const feature = PAGE_FEATURE_MAP[item.page];
+    return !feature || isFeatureEnabled(feature);
+  });
   submenu.innerHTML =
     `<div class="nav-submenu-title">${groupDef.label}</div>` +
-    groupDef.items.map(item =>
+    visibleItems.map(item =>
       `<button class="nav-submenu-item${activePage === item.page ? ' active' : ''}" onclick="navGoToPage('${item.page}','${item.fn}')">${item.icon}<span>${item.label}</span></button>`
     ).join('');
   submenu.classList.add('open');
@@ -328,7 +348,7 @@ export function logout() {
   if (window.Sentry) Sentry.onLoad(() => Sentry.setUser(null));
   clearToken();
   cache.clear();
-  setState({ role: null, user: null });
+  setState({ role: null, user: null, features: {} });
   document.getElementById('app-shell').style.display    = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   ['login-email', 'login-pass'].forEach(id => {

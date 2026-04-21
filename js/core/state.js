@@ -1,5 +1,5 @@
 // ── Estado global de sesión ───────────────────────────────────
-export const state = { role: null, user: null };
+export const state = { role: null, user: null, features: {} };
 
 /**
  * Reemplaza el estado de sesión.
