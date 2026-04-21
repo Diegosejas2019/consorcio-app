@@ -249,6 +249,16 @@ const api = {
       request(`/reports/monthly-summary?month=${encodeURIComponent(month)}`),
   },
 
+  // ── Visitas ───────────────────────────────────────────────────
+  visits: {
+    getAll: (params = {}) => request(`/visits?${new URLSearchParams(params)}`),
+    getMy:  ()             => request('/visits?limit=50'),
+    create: (data)         => request('/visits', { method: 'POST', body: JSON.stringify(data) }),
+    updateStatus: (id, status) =>
+      request(`/visits/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    delete: (id) => request(`/visits/${id}`, { method: 'DELETE' }),
+  },
+
   // ── Votaciones ────────────────────────────────────────────────
   votes: {
     getAll:   (params = {}) => request(`/votes?${new URLSearchParams(params)}`),

@@ -33,6 +33,7 @@ import { renderAdminExpenses }  from './js/pages/admin/expenses.js';
 import { renderAdminProviders } from './js/pages/admin/providers.js';
 import { renderAdminReport }   from './js/pages/admin/report.js';
 import { renderAdminVotes }    from './js/pages/admin/votes.js';
+import { renderAdminVisits }   from './js/pages/admin/visits.js';
 
 // ── Owner pages ───────────────────────────────────────────────
 import { renderOwnerHome }    from './js/pages/owner/home.js';
@@ -42,6 +43,7 @@ import { renderOwnerNotices } from './js/pages/owner/notices.js';
 import { renderOwnerClaims }    from './js/pages/owner/claims.js';
 import { renderOwnerExpenses }  from './js/pages/owner/expenses.js';
 import { renderOwnerVotes }    from './js/pages/owner/votes.js';
+import { renderOwnerVisits }   from './js/pages/owner/visits.js';
 import { renderOwnerProfile }  from './js/pages/owner/profile.js';
 
 // ── Registrar renderers en el router ─────────────────────────
@@ -55,6 +57,7 @@ PAGE_RENDERERS['page-admin-expenses']  = () => renderAdminExpenses();
 PAGE_RENDERERS['page-admin-providers'] = () => renderAdminProviders();
 PAGE_RENDERERS['page-admin-report']    = () => renderAdminReport();
 PAGE_RENDERERS['page-admin-votes']     = () => renderAdminVotes();
+PAGE_RENDERERS['page-admin-visits']    = () => renderAdminVisits();
 PAGE_RENDERERS['page-owner-home']      = () => renderOwnerHome();
 PAGE_RENDERERS['page-owner-pay']       = () => renderUploadPage();
 PAGE_RENDERERS['page-owner-history']   = () => renderOwnerHistory();
@@ -62,6 +65,7 @@ PAGE_RENDERERS['page-owner-notices']   = () => renderOwnerNotices();
 PAGE_RENDERERS['page-owner-claims']    = () => renderOwnerClaims();
 PAGE_RENDERERS['page-owner-expenses']  = () => renderOwnerExpenses();
 PAGE_RENDERERS['page-owner-votes']     = () => renderOwnerVotes();
+PAGE_RENDERERS['page-owner-visits']    = () => renderOwnerVisits();
 PAGE_RENDERERS['page-owner-profile']   = () => renderOwnerProfile();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)
