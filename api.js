@@ -69,6 +69,25 @@ async function request(endpoint, options = {}) {
   return data;
 }
 
+// Variante de request para descargas de archivos binarios (PDF, etc.)
+async function requestBlob(endpoint) {
+  const token = getToken();
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    throw new Error('Sin conexión con el servidor. Verificá tu internet.');
+  }
+  if (!response.ok) {
+    let msg = `Error ${response.status}`;
+    try { const d = await response.json(); msg = d.message || msg; } catch {}
+    throw new Error(msg);
+  }
+  return response.blob();
+}
+
 // ── API client ────────────────────────────────────────────────
 const api = {
 
@@ -254,6 +273,8 @@ const api = {
   reports: {
     getMonthlySummary: (month) =>
       request(`/reports/monthly-summary?month=${encodeURIComponent(month)}`),
+    downloadExpensasPdf: (month) =>
+      requestBlob(`/reports/expensas-pdf?month=${encodeURIComponent(month)}`),
   },
 
   // ── Visitas ───────────────────────────────────────────────────

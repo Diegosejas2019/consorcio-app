@@ -53,6 +53,13 @@ export async function renderAdminReport() {
                 onclick="loadReport()" style="align-self:flex-end;gap:.4rem;display:flex;align-items:center">
           ${SVG.list} Generar
         </button>
+        <button class="btn btn-secondary" id="btn-download-expensas"
+                onclick="downloadExpensasPdf()" style="align-self:flex-end;gap:.4rem;display:flex;align-items:center">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V19a2 2 0 002 2h14a2 2 0 002-2v-2M7 9a5 5 0 0110 0"/>
+          </svg>
+          Liquidación PDF
+        </button>
       </div>
     </div>
 
@@ -185,6 +192,36 @@ function _renderReportTable(d) {
   </div>`;
 }
 
+// ── Descarga de liquidación PDF ───────────────────────────────
+export async function downloadExpensasPdf() {
+  const month = document.getElementById('report-month-picker')?.value || reportState.month;
+  const btn   = document.getElementById('btn-download-expensas');
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
+
+  try {
+    const blob = await api.reports.downloadExpensasPdf(month);
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `liquidacion_expensas_${month}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="15" height="15">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V19a2 2 0 002 2h14a2 2 0 002-2v-2M7 9a5 5 0 0110 0"/>
+      </svg> Liquidación PDF`;
+    }
+  }
+}
+
 // ── Exponer globalmente ───────────────────────────────────────
-window.renderAdminReport = renderAdminReport;
-window.loadReport        = loadReport;
+window.renderAdminReport    = renderAdminReport;
+window.loadReport           = loadReport;
+window.downloadExpensasPdf  = downloadExpensasPdf;
