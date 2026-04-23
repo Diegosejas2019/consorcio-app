@@ -201,6 +201,12 @@ const api = {
 
     delete: (id) =>
       request(`/notices/${id}`, { method: 'DELETE' }),
+
+    markRead: (id) =>
+      request(`/notices/${id}/read`, { method: 'PATCH' }),
+
+    markUnread: (id) =>
+      request(`/notices/${id}/unread`, { method: 'PATCH' }),
   },
 
   // ── Reclamos ─────────────────────────────────────────────────
