@@ -636,6 +636,13 @@ body.is-offline #app-shell { padding-top: 36px; }
   to   { transform: rotate(360deg); }
 }
 .loading-spinner { animation: spin 1s linear infinite; }
+.splash-ring {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 2px solid rgba(156,242,123,0.2);
+  border-top-color: #9cf27b;
+  animation: spin 0.9s linear infinite;
+}
 
 /* ── Loading overlay visibility ── */
 #loading-overlay.hidden { display: none !important; }

@@ -10,6 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="GestionAr">
   <title>GestionAr</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -208,7 +209,12 @@
 
   <!-- Install Banner -->
   <div id="install-banner" class="install-banner hidden">
-    <img src="icons/icon-192.png" alt="GestionAr" class="install-banner-icon">
+    <svg width="42" height="42" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="border-radius:10px;flex-shrink:0">
+      <rect x="0" y="0" width="100" height="100" rx="22" fill="#0e1512"/>
+      <path d="M 30 22 L 18 22 L 18 78 L 30 78" stroke="#9cf27b" stroke-width="8" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M 70 22 L 82 22 L 82 78 L 70 78" stroke="#9cf27b" stroke-width="8" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
+      <rect x="40" y="40" width="20" height="20" fill="#eef1ed"/>
+    </svg>
     <div class="install-banner-text">
       <strong>GestionAr</strong>
       <span>Instalá la app en tu dispositivo</span>
@@ -221,33 +227,32 @@
   <nav class="bottom-nav" id="bottom-nav"></nav>
 </div>
 
-<!-- ── Loading Overlay ── -->
+<!-- ── Loading Overlay (Splash primario · Oscuro) ── -->
 <div id="loading-overlay" class="hidden" style="
   position:fixed;inset:0;
-  background:rgba(0,0,0,.45);
+  background:radial-gradient(120% 80% at 50% 10%, #18221d 0%, #0e1512 55%, #080c0a 100%);
   z-index:9999;
   display:flex;
+  flex-direction:column;
   align-items:center;
   justify-content:center;
-  backdrop-filter:blur(2px);
+  font-family:'Inter',system-ui,sans-serif;
 ">
-  <div style="
-    background:#0C1226;
-    border:1px solid rgba(255,255,255,0.1);
-    padding:1.5rem 2.5rem;
-    border-radius:16px;
-    display:flex;
-    align-items:center;
-    gap:.85rem;
-    font-weight:600;
-    color:#a8b3ac;
-    box-shadow:0 8px 48px rgba(0,0,0,.7);
-    font-family:'Inter',system-ui,sans-serif;
-  ">
-    <svg class="loading-spinner" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9cf27b" stroke-width="2.5">
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-    </svg>
-    Cargando…
+  <div style="position:absolute;top:25%;left:50%;transform:translateX(-50%);width:260px;height:260px;background:radial-gradient(circle, rgba(156,242,123,0.22), transparent 65%);filter:blur(10px);pointer-events:none"></div>
+  <svg width="110" height="110" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="100" height="100" rx="22" fill="#0e1512"/>
+    <path d="M 30 22 L 18 22 L 18 78 L 30 78" stroke="#9cf27b" stroke-width="8" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M 70 22 L 82 22 L 82 78 L 70 78" stroke="#9cf27b" stroke-width="8" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
+    <rect x="40" y="40" width="20" height="20" fill="#eef1ed"/>
+  </svg>
+  <div style="margin-top:22px;font-family:'Inter Tight',sans-serif;font-weight:700;font-size:32px;letter-spacing:-0.04em;color:#eef1ed;line-height:1">
+    Gestion<em style="color:#9cf27b;font-style:italic;font-weight:500">Ar</em>
+  </div>
+  <div style="margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b7870;text-transform:uppercase;letter-spacing:0.25em">
+    Administración de barrios
+  </div>
+  <div style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%)">
+    <div class="splash-ring"></div>
   </div>
 </div>
 
