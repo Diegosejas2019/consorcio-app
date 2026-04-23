@@ -188,8 +188,22 @@ export async function renderAdminSettings() {
           <div class="card-header"><h3>Datos del Consorcio</h3></div>
           <div class="card-body flex col gap-2">
             <div class="form-group"><label>Nombre del consorcio</label><input class="input" id="cfg-name" value="${cfg.consortiumName || ''}" placeholder="Barrio Privado Los Pinos"></div>
+            <div class="form-group"><label>Dirección</label><input class="input" id="cfg-address" value="${cfg.consortiumAddress || ''}" placeholder="Av. Siempre Viva 742"></div>
+            <div class="form-group"><label>CUIT</label><input class="input" id="cfg-cuit" value="${cfg.consortiumCuit || ''}" placeholder="20-12345678-9"></div>
             <div class="form-group"><label>Email de contacto</label><input class="input" id="cfg-email" value="${cfg.adminEmail || ''}"></div>
             <button class="btn btn-primary" id="btn-save-consortium" data-requires-network onclick="saveConsortiumSettings()">Guardar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Datos bancarios para transferencia</h3></div>
+          <div class="card-body flex col gap-2">
+            <p class="text-sm text-muted">Estos datos aparecen al final de la liquidación de expensas en PDF.</p>
+            <div class="form-group"><label>Banco</label><input class="input" id="cfg-bank-name" value="${cfg.bankName || ''}" placeholder="Banco Nación"></div>
+            <div class="form-group"><label>N° de cuenta</label><input class="input" id="cfg-bank-account" value="${cfg.bankAccount || ''}" placeholder="0000000000"></div>
+            <div class="form-group"><label>CBU</label><input class="input" id="cfg-bank-cbu" value="${cfg.bankCbu || ''}" placeholder="0000000000000000000000"></div>
+            <div class="form-group"><label>Titular</label><input class="input" id="cfg-bank-holder" value="${cfg.bankHolder || ''}" placeholder="Nombre del titular"></div>
+            <button class="btn btn-primary" id="btn-save-bank" data-requires-network onclick="saveBankSettings()">Guardar</button>
           </div>
         </div>
 
@@ -414,11 +428,31 @@ export async function saveConsortiumSettings() {
   setBtnLoading(btn, true);
   try {
     await api.config.update({
-      consortiumName: document.getElementById('cfg-name')?.value.trim(),
-      adminEmail:     document.getElementById('cfg-email')?.value.trim(),
+      consortiumName:    document.getElementById('cfg-name')?.value.trim(),
+      consortiumAddress: document.getElementById('cfg-address')?.value.trim(),
+      consortiumCuit:    document.getElementById('cfg-cuit')?.value.trim(),
+      adminEmail:        document.getElementById('cfg-email')?.value.trim(),
     });
     toast('Datos del consorcio guardados', 'success');
     setupTopBar();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+export async function saveBankSettings() {
+  const btn = document.getElementById('btn-save-bank');
+  setBtnLoading(btn, true);
+  try {
+    await api.config.update({
+      bankName:    document.getElementById('cfg-bank-name')?.value.trim(),
+      bankAccount: document.getElementById('cfg-bank-account')?.value.trim(),
+      bankCbu:     document.getElementById('cfg-bank-cbu')?.value.trim(),
+      bankHolder:  document.getElementById('cfg-bank-holder')?.value.trim(),
+    });
+    toast('Datos bancarios guardados', 'success');
   } catch (err) {
     toast(err.message, 'error');
   } finally {
@@ -497,4 +531,5 @@ window.openPeriodsModal             = openPeriodsModal;
 window.filterPeriodsByYear          = filterPeriodsByYear;
 window.removePaymentPeriodFromModal = removePaymentPeriodFromModal;
 window.saveMonthlyFeeSettings       = saveMonthlyFeeSettings;
+window.saveBankSettings             = saveBankSettings;
 window.saveMPSettings               = saveMPSettings;
