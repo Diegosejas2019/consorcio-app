@@ -285,6 +285,22 @@ Admin:       admin@consorcio.com / Admin2025!
 - Usar clase `.loading-spinner` (no estilos inline) para spinner de carga.
 - Después de cada cambio terminado, hacer commit y push.
 
+## Emails automáticos (disparados desde el frontend)
+
+El backend envía emails automáticamente en respuesta a las siguientes acciones del usuario. El frontend no gestiona emails directamente.
+
+| Acción del usuario | Email enviado | Quién lo recibe |
+|--------------------|---------------|-----------------|
+| Admin crea un propietario (individual o carga masiva) | Bienvenida con contraseña temporal | Propietario creado |
+| Usuario solicita recuperar contraseña | Link de reset (válido 10 min) | Usuario solicitante |
+| Admin aprueba un pago | Confirmación de pago aprobado | Propietario del pago |
+| Admin aprueba un pago (si genera recibo PDF) | Recibo de pago con link de descarga | Propietario del pago |
+| Admin rechaza un pago | Notificación de rechazo con motivo | Propietario del pago |
+| Admin reenvía recibo (`POST /api/payments/:id/resend-receipt`) | Recibo de pago con link de descarga | Propietario del pago |
+| Webhook MercadoPago acredita un pago | Confirmación de pago aprobado | Propietario del pago |
+| Admin dispara recordatorios manuales | Recordatorio de vencimiento de expensas | Owners sin pago aprobado del período |
+| Cron diario 09:00 UTC (automático) | Recordatorio de vencimiento de expensas | Owners sin pago aprobado del período |
+
 ## MCPs disponibles
 
 | Servidor | Uso |
