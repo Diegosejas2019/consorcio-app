@@ -1,40 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#2563EB"/>
-      <stop offset="100%" style="stop-color:#0EA5E9"/>
-    </linearGradient>
-    <linearGradient id="building" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#E0F2FE;stop-opacity:1"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Background rounded square -->
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-
-  <!-- Main building body -->
-  <rect x="146" y="210" width="220" height="210" rx="8" fill="url(#building)"/>
-
-  <!-- Roof / top triangle -->
-  <polygon points="120,215 256,100 392,215" fill="white" opacity="0.95"/>
-
-  <!-- Door -->
-  <rect x="218" y="340" width="76" height="80" rx="38" fill="#2563EB"/>
-
-  <!-- Windows row 1 -->
-  <rect x="170" y="240" width="44" height="44" rx="6" fill="#BAE6FD"/>
-  <rect x="234" y="240" width="44" height="44" rx="6" fill="#BAE6FD"/>
-  <rect x="298" y="240" width="44" height="44" rx="6" fill="#BAE6FD"/>
-
-  <!-- Windows row 2 -->
-  <rect x="170" y="300" width="44" height="32" rx="6" fill="#BAE6FD"/>
-  <rect x="298" y="300" width="44" height="32" rx="6" fill="#BAE6FD"/>
-
-  <!-- Chimney detail -->
-  <rect x="310" y="138" width="24" height="52" rx="4" fill="white" opacity="0.7"/>
-
-  <!-- Small star/sun accent top right -->
-  <circle cx="390" cy="130" r="22" fill="white" opacity="0.25"/>
-  <circle cx="390" cy="130" r="12" fill="white" opacity="0.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+  <rect x="0" y="0" width="100" height="100" rx="22" fill="#0e1512"/>
+  <path d="M 30 22 L 18 22 L 18 78 L 30 78" stroke="#9cf27b" stroke-width="8" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M 70 22 L 82 22 L 82 78 L 70 78" stroke="#9cf27b" stroke-width="8" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
+  <rect x="40" y="40" width="20" height="20" fill="#eef1ed"/>
 </svg>
