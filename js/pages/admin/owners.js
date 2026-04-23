@@ -15,7 +15,7 @@ let _ownerDetailCfg = null;
 
 function _calcDebt(months, cfg) {
   if (!cfg || months <= 0) return { total: 0, surcharge: 0 };
-  const fee       = cfg.expenseAmount || 0;
+  const fee       = cfg.monthlyFee || cfg.expenseAmount || 0;
   const surcharge = cfg.isOverdue ? (cfg.surcharge || 0) : 0;
   return { total: months * fee + surcharge, surcharge };
 }
