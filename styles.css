@@ -888,6 +888,23 @@ body.is-offline #app-shell { padding-top: 36px; }
 .op-mp-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
 .op-mp-note { font-size: .72rem; opacity: .65; text-align: center; }
 
+/* ── Debt card ── */
+.op-debt-card {
+  border-color: rgba(248, 113, 113, 0.25) !important;
+  background: rgba(248, 40, 40, 0.06) !important;
+}
+.op-debt-period-row {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .5rem .65rem; border-radius: 8px;
+  cursor: pointer; transition: background .12s;
+}
+.op-debt-period-row:hover { background: rgba(255,255,255,.05); }
+.op-debt-period-row input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; accent-color: var(--primary); }
+
+/* ── Balance card clickable ── */
+.oh-balance-card--clickable { cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.oh-balance-card--clickable:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(248,113,113,0.3); }
+
 /* ══════════════════════════════════════
    Owner History Page (ohi-)
 ══════════════════════════════════════ */

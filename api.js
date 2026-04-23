@@ -247,8 +247,11 @@ const api = {
 
   // ── MercadoPago ───────────────────────────────────────────────
   mercadopago: {
-    createPreference: () =>
-      request('/mercadopago/preference', { method: 'POST' }),
+    createPreference: (periods) =>
+      request('/mercadopago/preference', {
+        method: 'POST',
+        body: JSON.stringify(periods?.length ? { periods } : {}),
+      }),
 
     getPaymentStatus: (mpPaymentId) =>
       request(`/mercadopago/payment/${mpPaymentId}`),

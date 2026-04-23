@@ -3,9 +3,10 @@ import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
 import { errorState } from '../../ui/helpers.js';
 import { setBtnLoading } from '../../ui/loading.js';
-import { cache } from '../../core/state.js';
+import { cache, state } from '../../core/state.js';
 
 let selectedFile = null;
+let _monthlyFee  = 0;
 const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 export async function renderUploadPage() {
@@ -13,13 +14,61 @@ export async function renderUploadPage() {
   el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
 
   try {
-    const cfgRes = await api.config.get();
-    const cfg    = cfgRes.data.config;
-    const monthlyFee = cfg.monthlyFee || 0;
-    const feeLabel   = monthlyFee > 0 ? ` — $${monthlyFee.toLocaleString('es-AR')}` : '';
-    const months = cfg.paymentPeriods?.length
+    const [cfgRes, payRes] = await Promise.all([
+      api.config.get(),
+      api.payments.getAll({ limit: 50 }),
+    ]);
+
+    const cfg      = cfgRes.data.config;
+    const payments = payRes.data.payments;
+    const owner    = state.user;
+
+    _monthlyFee      = cfg.monthlyFee || 0;
+    const feeLabel   = _monthlyFee > 0 ? ` — $${_monthlyFee.toLocaleString('es-AR')}` : '';
+    const months     = cfg.paymentPeriods?.length
       ? cfg.paymentPeriods.map(v => ({ value: v, label: `${formatPeriodLabel(v)}${feeLabel}` }))
       : getRecentMonths(6).map(m => ({ ...m, label: `${m.label}${feeLabel}` }));
+
+    // Períodos ya pagados o con comprobante manual en revisión
+    const approvedPeriods      = new Set(payments.filter(p => p.status === 'approved').map(p => p.month));
+    const manualPendingPeriods = new Set(payments.filter(p => p.status === 'pending' && p.paymentMethod !== 'mercadopago').map(p => p.month));
+    const unpaidPeriods        = (cfg.paymentPeriods || []).filter(p => !approvedPeriods.has(p) && !manualPendingPeriods.has(p));
+
+    const isDebtor = owner?.isDebtor || (owner?.balance || 0) < 0;
+    const hasDebt  = isDebtor && unpaidPeriods.length > 0;
+
+    // ── Sección de deuda ─────────────────────────────────────────
+    let debtHtml = '';
+    if (hasDebt) {
+      const periodsHtml = unpaidPeriods.map(p => `
+        <label class="op-debt-period-row">
+          <input type="checkbox" class="op-debt-check" value="${p}" checked onchange="updateDebtTotal()">
+          <span style="flex:1">${formatPeriodLabel(p)}</span>
+          <span style="font-size:.88rem;opacity:.7">$${_monthlyFee.toLocaleString('es-AR')}</span>
+        </label>`).join('');
+
+      debtHtml = `
+        <div class="card oh-entry op-debt-card" style="--delay:60ms">
+          <div class="card-body flex col gap-2">
+            <div class="flex between" style="align-items:center">
+              <h2 style="font-size:1rem;font-weight:700">⚠ Saldar deuda</h2>
+              <span class="badge badge-danger">${unpaidPeriods.length} período${unpaidPeriods.length > 1 ? 's' : ''}</span>
+            </div>
+            <p class="text-sm text-muted">Seleccioná los períodos que querés pagar:</p>
+            <div class="flex col" style="gap:.35rem" id="debt-periods-list">
+              ${periodsHtml}
+            </div>
+            <div class="flex between" style="align-items:center;padding:.55rem .75rem;background:rgba(255,255,255,.06);border-radius:8px;margin-top:.1rem">
+              <span class="text-sm text-muted">Total a pagar</span>
+              <strong id="debt-total" style="font-size:1.05rem">$${(_monthlyFee * unpaidPeriods.length).toLocaleString('es-AR')}</strong>
+            </div>
+            <button class="op-mp-btn" id="btn-pay-debt" onclick="payDebtWithMP()" data-requires-network>
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              Pagar con MercadoPago
+            </button>
+          </div>
+        </div>`;
+    }
 
     el.innerHTML = `
       <div class="oh-wrap">
@@ -32,7 +81,9 @@ export async function renderUploadPage() {
           <span class="op-header-icon">${SVG.upload}</span>
         </div>
 
-        <div class="card oh-entry" style="--delay:60ms">
+        ${debtHtml}
+
+        <div class="card oh-entry" style="--delay:${hasDebt ? 100 : 60}ms">
           <div class="card-body flex col gap-2">
             <div class="op-form-grid">
               <div class="form-group">
@@ -43,7 +94,7 @@ export async function renderUploadPage() {
               </div>
               <div class="form-group">
                 <label>Importe ($)</label>
-                <input class="input" type="number" id="pay-amount" value="${monthlyFee || ''}" placeholder="${monthlyFee || cfg.expenseAmount || ''}" min="1">
+                <input class="input" type="number" id="pay-amount" value="${_monthlyFee || ''}" placeholder="${_monthlyFee || cfg.expenseAmount || ''}" min="1">
               </div>
             </div>
             <div class="form-group">
@@ -67,6 +118,7 @@ export async function renderUploadPage() {
           </div>
         </div>
 
+        ${!hasDebt ? `
         <div class="op-divider oh-entry" style="--delay:100ms">
           <span>o pagá online</span>
         </div>
@@ -80,7 +132,7 @@ export async function renderUploadPage() {
             </svg>
           </div>
           <div class="op-mp-card__amount-row">
-            <span class="op-mp-card__amount">$${(monthlyFee || cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
+            <span class="op-mp-card__amount">$${(_monthlyFee || cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
             <span class="op-mp-card__period">· ${cfg.expenseMonth || ''}</span>
           </div>
           <button class="op-mp-btn" onclick="initMercadoPago()" data-requires-network>
@@ -88,7 +140,7 @@ export async function renderUploadPage() {
             Ir al checkout seguro
           </button>
           <p class="op-mp-note">Serás redirigido a MercadoPago · Pagá con tarjeta, débito o saldo MP</p>
-        </div>
+        </div>` : ''}
 
       </div>`;
 
@@ -99,6 +151,24 @@ export async function renderUploadPage() {
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderUploadPage()');
   }
+}
+
+export function updateDebtTotal() {
+  const checks  = document.querySelectorAll('.op-debt-check:checked');
+  const total   = checks.length * _monthlyFee;
+  const totalEl = document.getElementById('debt-total');
+  if (totalEl) totalEl.textContent = `$${total.toLocaleString('es-AR')}`;
+  const btn = document.getElementById('btn-pay-debt');
+  if (btn) btn.disabled = checks.length === 0;
+}
+
+export async function payDebtWithMP() {
+  const periods = [...document.querySelectorAll('.op-debt-check:checked')].map(c => c.value);
+  if (periods.length === 0) {
+    toast('Seleccioná al menos un período para pagar', 'error');
+    return;
+  }
+  await initMercadoPago(periods);
 }
 
 export function handleFileSelect(e) { selectedFile = e.target.files[0]; showFilePreview(selectedFile); }
@@ -173,3 +243,5 @@ window.handleFileSelect  = handleFileSelect;
 window.handleFileDrop    = handleFileDrop;
 window.clearFile         = clearFile;
 window.submitReceipt     = submitReceipt;
+window.updateDebtTotal   = updateDebtTotal;
+window.payDebtWithMP     = payDebtWithMP;

@@ -48,7 +48,7 @@ export async function renderOwnerHome() {
           ${owner.unit ? `<span class="oh-unit-chip">${owner.unit}</span>` : ''}
         </div>
 
-        <div class="oh-balance-card oh-entry" style="--delay:60ms">
+        <div class="oh-balance-card oh-entry${balance < 0 ? ' oh-balance-card--clickable' : ''}" style="--delay:60ms" ${balance < 0 ? 'onclick="showPage(\'page-owner-pay\');renderUploadPage()" role="button" tabindex="0"' : ''}>
           <div class="oh-balance-card__header">
             <span class="oh-balance-card__label">Saldo actual</span>
             <span class="oh-balance-card__status ${isDebtor ? 'oh-status-debt' : 'oh-status-ok'}">
@@ -62,6 +62,10 @@ export async function renderOwnerHome() {
           <div style="display:flex;align-items:center;gap:.4rem;margin:.4rem 0 .1rem;padding:.45rem .65rem;background:rgba(255,80,80,.12);border-radius:8px;font-size:.82rem;color:#ff5050">
             <span>⚠</span>
             <span>Recargo por mora: <strong>+$${cfg.surcharge.toLocaleString('es-AR')}</strong> — Total a pagar: <strong>$${cfg.totalDue.toLocaleString('es-AR')}</strong></span>
+          </div>` : ''}
+          ${balance < 0 ? `
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:.35rem;margin-bottom:.5rem;font-size:.75rem;color:#fca5a5;opacity:.8">
+            <span>Ir a Pagos</span><span>›</span>
           </div>` : ''}
           <div class="oh-balance-card__footer">
             <div class="oh-balance-card__meta">
