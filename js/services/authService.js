@@ -101,7 +101,6 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     await loadFeatures();
     cache.clear();
     enterApp();
-    handleMPRedirect();
   } catch (err) {
     const msg = err.message || 'No se pudo iniciar sesión. Intentá nuevamente';
     toast(msg, 'error');
@@ -119,17 +118,51 @@ function getMPStatus() {
   return null;
 }
 
+const MP_CONFIGS = {
+  success: {
+    icon: `<svg width="72" height="72" viewBox="0 0 72 72" fill="none"><circle cx="36" cy="36" r="36" fill="rgba(34,197,94,0.12)"/><circle cx="36" cy="36" r="26" fill="rgba(34,197,94,0.18)"/><path d="M23 36l9 9 17-17" stroke="#22C55E" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    color:    'var(--success)',
+    title:    '¡Pago realizado!',
+    subtitle: 'Tu pago fue procesado exitosamente. En breve recibirás una confirmación por email.',
+  },
+  pending: {
+    icon: `<svg width="72" height="72" viewBox="0 0 72 72" fill="none"><circle cx="36" cy="36" r="36" fill="rgba(251,191,36,0.12)"/><circle cx="36" cy="36" r="26" fill="rgba(251,191,36,0.18)"/><circle cx="36" cy="36" r="14" stroke="#FBBF24" stroke-width="2.5" fill="none"/><path d="M36 24v12l7 7" stroke="#FBBF24" stroke-width="3.5" stroke-linecap="round"/></svg>`,
+    color:    'var(--warning)',
+    title:    'Pago en proceso',
+    subtitle: 'Tu pago está siendo verificado por MercadoPago. Te notificaremos cuando se confirme.',
+  },
+  failure: {
+    icon: `<svg width="72" height="72" viewBox="0 0 72 72" fill="none"><circle cx="36" cy="36" r="36" fill="rgba(248,113,113,0.12)"/><circle cx="36" cy="36" r="26" fill="rgba(248,113,113,0.18)"/><path d="M27 27l18 18M45 27L27 45" stroke="#F87171" stroke-width="3.5" stroke-linecap="round"/></svg>`,
+    color:    'var(--danger)',
+    title:    'Pago no completado',
+    subtitle: 'No se pudo procesar el pago. Podés intentarlo nuevamente desde la aplicación.',
+  },
+};
+
+function showMPResultScreen(status) {
+  const cfg = MP_CONFIGS[status] || MP_CONFIGS.pending;
+  document.getElementById('mp-result-icon').innerHTML     = cfg.icon;
+  document.getElementById('mp-result-title').textContent  = cfg.title;
+  document.getElementById('mp-result-title').style.color  = cfg.color;
+  document.getElementById('mp-result-subtitle').textContent = cfg.subtitle;
+  document.getElementById('login-screen').style.display   = 'none';
+  document.getElementById('mp-result-screen').style.display = 'flex';
+  window.history.replaceState({}, '', '/');
+}
+
 function handleMPRedirect() {
   const mpStatus = getMPStatus();
   if (!mpStatus) return false;
-  window.showPage('page-owner-pago-resultado');
-  window.renderPaymentResult?.();
+  showMPResultScreen(mpStatus);
   return true;
 }
 
 // ── Restaurar sesión / detectar reset token ───────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   updateOnlineStatus();
+
+  // MP redirect: mostrar resultado sin requerir autenticación
+  if (handleMPRedirect()) return;
 
   const params = new URLSearchParams(window.location.search);
   const resetToken = params.get('token');
@@ -148,7 +181,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     setState({ role: res.data.user.role, user: res.data.user });
     await loadFeatures();
     enterApp();
-    handleMPRedirect();
   } catch (err) {
     if (err.status === 401 || err.message?.includes('Sesión expirada')) {
       clearToken();

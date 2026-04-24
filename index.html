@@ -150,6 +150,26 @@
 </div>
 
 <!-- ══════════════════════════════════════
+     PAYMENT RESULT SCREEN (MercadoPago redirect)
+═══════════════════════════════════════ -->
+<div id="mp-result-screen" style="display:none;justify-content:center;align-items:center;min-height:100vh;background:var(--bg)">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:1.5rem;max-width:340px;width:100%;padding:2rem 1.25rem;text-align:center">
+    <div id="mp-result-icon"></div>
+    <div style="display:flex;flex-direction:column;gap:.5rem">
+      <h1 id="mp-result-title" style="font-size:1.5rem;letter-spacing:-.03em"></h1>
+      <p id="mp-result-subtitle" class="text-muted text-sm" style="line-height:1.65"></p>
+    </div>
+    <button class="btn btn-primary w-full" style="padding:.85rem" onclick="window.location.href='/'">
+      Ir al inicio
+    </button>
+  </div>
+  <style>
+    @keyframes pr-pop { from { opacity:0;transform:scale(.6) } to { opacity:1;transform:scale(1) } }
+    #mp-result-icon > * { animation: pr-pop .45s cubic-bezier(.34,1.56,.64,1) both .05s }
+  </style>
+</div>
+
+<!-- ══════════════════════════════════════
      APP SHELL
 ═══════════════════════════════════════ -->
 <div id="app-shell" style="display:none;flex-direction:column;min-height:100vh">
