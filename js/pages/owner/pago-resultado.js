@@ -79,12 +79,13 @@ export async function renderPaymentResult() {
           <p class="text-muted text-sm" style="line-height:1.65">${cfg.subtitle}</p>
         </div>
 
+        ${status !== 'success' ? `
         <button
           class="btn btn-primary w-full"
           style="margin-top:.5rem;padding:.85rem"
           onclick="window.showPage('${cfg.btnPage}'); window['${cfg.btnFn}']?.()">
           ${cfg.btnLabel}
-        </button>
+        </button>` : ''}
 
         ${status === 'failure' ? `
         <button
@@ -104,15 +105,16 @@ export async function renderPaymentResult() {
       }
     </style>`;
 
-  // Si el pago fue exitoso, actualizar el estado del usuario
   if (status === 'success') {
     try {
       const res = await api.auth.getMe();
       setState({ user: res.data.user });
       cache.clear();
-    } catch (_) {
-      // No interrumpir el flujo si falla el refresco
-    }
+    } catch (_) {}
+    setTimeout(() => {
+      window.showPage?.('page-owner-pay');
+      window.renderUploadPage?.();
+    }, 1500);
   }
 }
 
