@@ -83,7 +83,7 @@ window.PAGE_RENDERERS = PAGE_RENDERERS;
 // ── Service Worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
     let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (reloading) return;
