@@ -151,44 +151,23 @@ function showMPResultScreen(status) {
 
   const btn = document.getElementById('mp-result-btn');
 
-  async function enterFromMP(targetPage, targetFn) {
-    document.getElementById('mp-result-screen').style.display = 'none';
-    const token = getToken();
-    if (!token) {
-      document.getElementById('login-screen').style.display = 'flex';
-      return;
-    }
-    try {
-      showLoading(true);
-      const res = await api.auth.getMe();
-      setState({ role: res.data.user.role, user: res.data.user });
-      await loadFeatures();
-      cache.clear();
-      enterApp();
-      if (targetPage && targetFn) {
-        setTimeout(() => {
-          window.showPage?.(targetPage);
-          window[targetFn]?.();
-        }, 100);
-      }
-    } catch (_) {
-      document.getElementById('login-screen').style.display = 'flex';
-    } finally {
-      showLoading(false);
-    }
-  }
-
   if (status === 'success') {
     btn.style.display = 'none';
-    setTimeout(() => enterFromMP('page-owner-pay', 'renderUploadPage'), 1500);
+    setTimeout(() => {
+      sessionStorage.setItem('mp-goto', 'pagos');
+      window.location.reload();
+    }, 1500);
   } else if (status === 'failure') {
     btn.style.display = '';
     btn.textContent = 'Volver a Pagos';
-    btn.onclick = () => enterFromMP('page-owner-pay', 'renderUploadPage');
+    btn.onclick = () => {
+      sessionStorage.setItem('mp-goto', 'pagos');
+      window.location.reload();
+    };
   } else {
     btn.style.display = '';
     btn.textContent = 'Ir al inicio';
-    btn.onclick = () => enterFromMP(null, null);
+    btn.onclick = () => { window.location.reload(); };
   }
 }
 
@@ -222,7 +201,18 @@ window.addEventListener('DOMContentLoaded', async () => {
     const res = await api.auth.getMe();
     setState({ role: res.data.user.role, user: res.data.user });
     await loadFeatures();
+    cache.clear();
     enterApp();
+    const mpGoto = sessionStorage.getItem('mp-goto');
+    if (mpGoto) {
+      sessionStorage.removeItem('mp-goto');
+      if (mpGoto === 'pagos') {
+        setTimeout(() => {
+          window.showPage?.('page-owner-pay');
+          window.renderUploadPage?.();
+        }, 200);
+      }
+    }
   } catch (err) {
     if (err.status === 401 || err.message?.includes('Sesión expirada')) {
       clearToken();
