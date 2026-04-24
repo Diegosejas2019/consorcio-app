@@ -101,6 +101,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     await loadFeatures();
     cache.clear();
     enterApp();
+    handleMPRedirect();
   } catch (err) {
     const msg = err.message || 'No se pudo iniciar sesión. Intentá nuevamente';
     toast(msg, 'error');
@@ -108,6 +109,20 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     showLoading(false);
   }
 });
+
+// ── Detectar y manejar redirect de MercadoPago ───────────────
+function getMPStatus() {
+  if (!window.location.pathname.includes('pago-resultado')) return null;
+  return new URLSearchParams(window.location.search).get('status');
+}
+
+function handleMPRedirect() {
+  const mpStatus = getMPStatus();
+  if (!mpStatus) return false;
+  window.showPage('page-owner-pago-resultado');
+  window.renderPaymentResult?.();
+  return true;
+}
 
 // ── Restaurar sesión / detectar reset token ───────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -130,6 +145,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     setState({ role: res.data.user.role, user: res.data.user });
     await loadFeatures();
     enterApp();
+    handleMPRedirect();
   } catch (err) {
     if (err.status === 401 || err.message?.includes('Sesión expirada')) {
       clearToken();

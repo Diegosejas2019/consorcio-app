@@ -49,6 +49,7 @@ import { renderOwnerVotes }        from './js/pages/owner/votes.js';
 import { renderOwnerVisits }       from './js/pages/owner/visits.js';
 import { renderOwnerProfile }      from './js/pages/owner/profile.js';
 import { renderOwnerReservations } from './js/pages/owner/reservations.js';
+import { renderPaymentResult }     from './js/pages/owner/pago-resultado.js';
 
 // ── Registrar renderers en el router ─────────────────────────
 PAGE_RENDERERS['page-admin-home']      = () => renderAdminHome();
@@ -73,7 +74,8 @@ PAGE_RENDERERS['page-owner-expenses']  = () => renderOwnerExpenses();
 PAGE_RENDERERS['page-owner-votes']     = () => renderOwnerVotes();
 PAGE_RENDERERS['page-owner-visits']    = () => renderOwnerVisits();
 PAGE_RENDERERS['page-owner-profile']       = () => renderOwnerProfile();
-PAGE_RENDERERS['page-owner-reservations']  = () => renderOwnerReservations();
+PAGE_RENDERERS['page-owner-reservations']    = () => renderOwnerReservations();
+PAGE_RENDERERS['page-owner-pago-resultado']  = () => renderPaymentResult();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)
 window.PAGE_RENDERERS = PAGE_RENDERERS;
