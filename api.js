@@ -259,23 +259,24 @@ const api = {
 
   // ── Proveedores ───────────────────────────────────────────────
   providers: {
-    getAll:  (params = {}) => request(`/providers?${new URLSearchParams(params)}`),
-    create:  (data) => request('/providers', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
-    update:  (id, data) => request(`/providers/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
-    delete:  (id) => request(`/providers/${id}`, { method: 'DELETE' }),
+    getAll:           (params = {}) => request(`/providers?${new URLSearchParams(params)}`),
+    create:           (data) => request('/providers', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
+    update:           (id, data) => request(`/providers/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
+    delete:           (id) => request(`/providers/${id}`, { method: 'DELETE' }),
+    getDocumentUrl:   (id, index) => `${API_BASE}/providers/${id}/document/${index}`,
+    deleteDocument:   (id, index) => request(`/providers/${id}/document/${index}`, { method: 'DELETE' }),
   },
 
   // ── Gastos ────────────────────────────────────────────────────
   expenses: {
-    getSummary: (month) => request(`/expenses/summary${month ? `?month=${encodeURIComponent(month)}` : ''}`),
-    getAll:    (params = {}) => request(`/expenses?${new URLSearchParams(params)}`),
-    create:    (data) => request('/expenses', {
-      method: 'POST',
-      body: data instanceof FormData ? data : JSON.stringify(data),
-    }),
-    update:    (id, data) => request(`/expenses/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
-    markAsPaid:(id, data = {}) => request(`/expenses/${id}/paid`, { method: 'PATCH', body: JSON.stringify(data) }),
-    delete:    (id) => request(`/expenses/${id}`, { method: 'DELETE' }),
+    getSummary:       (month) => request(`/expenses/summary${month ? `?month=${encodeURIComponent(month)}` : ''}`),
+    getAll:           (params = {}) => request(`/expenses?${new URLSearchParams(params)}`),
+    create:           (data) => request('/expenses', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
+    update:           (id, data) => request(`/expenses/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
+    markAsPaid:       (id, data = {}) => request(`/expenses/${id}/paid`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete:           (id) => request(`/expenses/${id}`, { method: 'DELETE' }),
+    getAttachmentUrl: (id, index) => `${API_BASE}/expenses/${id}/attachment/${index}`,
+    deleteAttachment: (id, index) => request(`/expenses/${id}/attachment/${index}`, { method: 'DELETE' }),
   },
 
   // ── Reportes ──────────────────────────────────────────────────

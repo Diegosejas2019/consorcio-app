@@ -1,7 +1,7 @@
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { errorState } from '../../ui/helpers.js';
+import { errorState, downloadAttachment } from '../../ui/helpers.js';
 
 const SERVICE_LABELS = {
   cleaning:       'Limpieza',
@@ -42,7 +42,7 @@ function _renderProvidersList(el, providers) {
         ${providers.map(p => `
           <div class="card" style="padding:.85rem 1rem;opacity:${p.active ? 1 : 0.55}">
             <div class="flex between" style="align-items:flex-start">
-              <div>
+              <div style="flex:1;min-width:0">
                 <div class="flex gap-2" style="align-items:center;margin-bottom:.25rem">
                   <strong>${p.name}</strong>
                   <span class="badge badge-info">${SERVICE_LABELS[p.serviceType] || p.serviceType}</span>
@@ -52,8 +52,15 @@ function _renderProvidersList(el, providers) {
                   ${p.cuit  ? `<span>CUIT: ${p.cuit}</span>` : ''}
                   ${p.phone ? `<span>📞 ${p.phone}</span>`  : ''}
                   ${p.email ? `<span>✉ ${p.email}</span>`   : ''}
-                  ${p.document?.url ? `<a href="${p.document.url}" target="_blank" style="color:var(--accent)">📎 Documento</a>` : ''}
                 </div>
+                ${p.documents?.length ? `
+                <div class="flex gap-1" style="flex-wrap:wrap;margin-top:.4rem">
+                  ${p.documents.map((d, i) => `
+                    <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:.2rem .5rem"
+                      onclick="downloadProviderDoc('${p._id}',${i},'${(d.filename || 'documento').replace(/'/g, "\\'")}')">
+                      📎 ${d.filename ? _truncate(d.filename, 20) : `Documento ${i + 1}`}
+                    </button>`).join('')}
+                </div>` : ''}
               </div>
               <div class="flex gap-1">
                 <button class="btn btn-sm btn-ghost" onclick="openEditProviderModal('${p._id}')">Editar</button>
@@ -64,6 +71,27 @@ function _renderProvidersList(el, providers) {
           </div>`).join('')}
       </div>`}
     </div>`;
+}
+
+function _truncate(str, max) {
+  return str.length > max ? str.slice(0, max - 1) + '…' : str;
+}
+
+// ── Descarga de documento via API (signed URL proxy) ─────────
+export async function downloadProviderDoc(providerId, index, filename) {
+  await downloadAttachment(api.providers.getDocumentUrl(providerId, index), filename);
+}
+
+// ── Eliminar documento individual ────────────────────────────
+export async function deleteProviderDoc(providerId, index) {
+  if (!confirm('¿Eliminar este documento?')) return;
+  try {
+    await api.providers.deleteDocument(providerId, index);
+    toast('Documento eliminado.', 'success');
+    await renderAdminProviders();
+  } catch (err) {
+    toast(err.message || 'Error al eliminar.', 'error');
+  }
 }
 
 // ── Modal nuevo proveedor ─────────────────────────────────────
@@ -97,9 +125,23 @@ export async function openEditProviderModal(id) {
 }
 
 function _providerForm(p = {}) {
-  const existingDoc = p.document?.url
-    ? `<p class="text-sm text-muted" style="margin-bottom:.3rem">Archivo actual: <a href="${p.document.url}" target="_blank" style="color:var(--accent)">ver archivo</a></p>`
+  const existingDocs = p.documents?.length
+    ? `<div style="margin-bottom:.5rem">
+        <p class="text-sm text-muted" style="margin-bottom:.3rem">Documentos actuales:</p>
+        <div class="flex col gap-1">
+          ${p.documents.map((d, i) => `
+            <div class="flex between" style="align-items:center;gap:.5rem">
+              <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:.2rem .5rem;text-align:left"
+                onclick="downloadProviderDoc('${p._id}',${i},'${(d.filename || 'documento').replace(/'/g, "\\'")}')">
+                📎 ${d.filename ? _truncate(d.filename, 30) : `Documento ${i + 1}`}
+              </button>
+              <button class="btn btn-danger-ghost btn-sm" style="font-size:.7rem;padding:.15rem .4rem"
+                onclick="deleteProviderDoc('${p._id}',${i})">✕</button>
+            </div>`).join('')}
+        </div>
+      </div>`
     : '';
+
   return `
     <div class="flex col gap-2">
       <div class="flex gap-2">
@@ -131,11 +173,23 @@ function _providerForm(p = {}) {
         <input id="prov-email" class="input" type="email" value="${p.email || ''}" placeholder="contacto@empresa.com">
       </div>
       <div>
-        <label class="label">${p.document?.url ? 'Reemplazar documento' : 'Adjuntar documento'} (DNI, foto, contrato…)</label>
-        ${existingDoc}
-        <input id="prov-doc" class="input" type="file" accept=".pdf,image/*">
+        <label class="label">Adjuntar documentos (DNI, foto, contrato…)</label>
+        ${existingDocs}
+        <input id="prov-doc" class="input" type="file" accept=".pdf,image/*" multiple>
+        <p class="text-muted text-sm" style="margin-top:.2rem">Podés seleccionar varios archivos. Máx. 5 por vez, 10 MB c/u.</p>
       </div>
     </div>`;
+}
+
+function _buildProviderBody(fields) {
+  const { files, ...rest } = fields;
+  if (!files?.length) {
+    return rest;
+  }
+  const fd = new FormData();
+  Object.entries(rest).forEach(([k, v]) => { if (v !== undefined) fd.append(k, v); });
+  Array.from(files).forEach(f => fd.append('documents', f));
+  return fd;
 }
 
 function _providerFields() {
@@ -145,17 +199,8 @@ function _providerFields() {
     cuit:        document.getElementById('prov-cuit')?.value.trim() || undefined,
     phone:       document.getElementById('prov-phone')?.value.trim() || undefined,
     email:       document.getElementById('prov-email')?.value.trim() || undefined,
-    file:        document.getElementById('prov-doc')?.files[0] || null,
+    files:       document.getElementById('prov-doc')?.files,
   };
-}
-
-function _buildProviderBody(fields) {
-  const { file, ...rest } = fields;
-  if (!file) return rest;
-  const fd = new FormData();
-  Object.entries(rest).forEach(([k, v]) => { if (v !== undefined) fd.append(k, v); });
-  fd.append('document', file);
-  return fd;
 }
 
 export async function saveNewProvider() {
@@ -209,3 +254,5 @@ window.openEditProviderModal   = openEditProviderModal;
 window.saveNewProvider         = saveNewProvider;
 window.updateProvider          = updateProvider;
 window.toggleProvider          = toggleProvider;
+window.downloadProviderDoc     = downloadProviderDoc;
+window.deleteProviderDoc       = deleteProviderDoc;

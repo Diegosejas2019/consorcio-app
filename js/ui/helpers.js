@@ -86,3 +86,30 @@ export function errorState(msg, fn = '') {
 }
 
 window.downloadReceipt = downloadReceipt;
+
+export async function downloadAttachment(url, filename = 'archivo') {
+  try {
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!resp.ok) { toast('Error al descargar el archivo.', 'error'); return; }
+    const blob    = await resp.blob();
+    const objUrl  = URL.createObjectURL(blob);
+    const isImage = blob.type.startsWith('image/');
+    if (isImage) {
+      window.open(objUrl, '_blank');
+    } else {
+      const a    = document.createElement('a');
+      a.href     = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
+    }
+  } catch {
+    toast('No se pudo descargar el archivo.', 'error');
+  }
+}
+
+window.downloadAttachment = downloadAttachment;

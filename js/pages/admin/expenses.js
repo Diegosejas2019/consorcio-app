@@ -1,7 +1,7 @@
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { formatDate, errorState } from '../../ui/helpers.js';
+import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
 
 const CAT_LABELS = {
   cleaning:       'Limpieza',
@@ -36,6 +36,20 @@ export async function renderAdminExpenses() {
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderAdminExpenses()');
   }
+}
+
+function _attachmentButtons(expenseId, attachments) {
+  if (!attachments?.length) return '';
+  return attachments.map((a, i) =>
+    `<button class="btn btn-sm btn-ghost" style="font-size:.72rem;padding:.2rem .45rem"
+      onclick="downloadExpenseAttachment('${expenseId}',${i},'${(a.filename || 'comprobante').replace(/'/g, "\\'")}')">
+      📎 ${a.filename ? _truncate(a.filename, 18) : `Archivo ${i + 1}`}
+    </button>`
+  ).join('');
+}
+
+function _truncate(str, max) {
+  return str.length > max ? str.slice(0, max - 1) + '…' : str;
 }
 
 function _renderExpensesView() {
@@ -83,7 +97,10 @@ function _renderExpensesView() {
             ${slice.map(e => `
               <tr>
                 <td style="white-space:nowrap">${formatDate(e.date)}</td>
-                <td>${e.description}</td>
+                <td>
+                  <div>${e.description}</div>
+                  ${e.attachments?.length ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:.25rem">${_attachmentButtons(e._id, e.attachments)}</div>` : ''}
+                </td>
                 <td><span class="badge badge-info">${CAT_LABELS[e.category] || e.category}</span></td>
                 <td>${e.provider ? e.provider.name : '<span class="text-muted">—</span>'}</td>
                 <td style="font-weight:600">$${e.amount.toLocaleString('es-AR')}</td>
@@ -94,7 +111,6 @@ function _renderExpensesView() {
                 <td>
                   <div class="flex gap-1">
                     ${e.status === 'pending' ? `<button class="btn btn-sm btn-ghost" onclick="markExpensePaid('${e._id}')">Marcar pagado</button>` : ''}
-                    ${e.receipt?.url ? `<a class="btn btn-sm btn-ghost" href="${e.receipt.url}" target="_blank">Ver comprobante</a>` : ''}
                     <button class="btn btn-sm btn-ghost" onclick="openEditExpenseModal('${e._id}')">Editar</button>
                     <button class="btn btn-sm btn-danger-ghost" onclick="deleteExpense('${e._id}','${e.description.replace(/'/g, "\\'")}')">✕</button>
                   </div>
@@ -111,6 +127,23 @@ function _renderExpensesView() {
         <button class="btn btn-sm btn-ghost" ${expensesState.page >= pages ? 'disabled' : ''} onclick="expensesState.page++;_renderExpensesView()">Sig ›</button>
       </div>` : ''}
     </div>`;
+}
+
+// ── Descarga de adjunto via API (signed URL proxy) ────────────
+export async function downloadExpenseAttachment(expenseId, index, filename) {
+  await downloadAttachment(api.expenses.getAttachmentUrl(expenseId, index), filename);
+}
+
+// ── Eliminar adjunto individual ───────────────────────────────
+export async function deleteExpenseAttachment(expenseId, index) {
+  if (!confirm('¿Eliminar este adjunto?')) return;
+  try {
+    await api.expenses.deleteAttachment(expenseId, index);
+    toast('Adjunto eliminado.', 'success');
+    await renderAdminExpenses();
+  } catch (err) {
+    toast(err.message || 'Error al eliminar.', 'error');
+  }
 }
 
 // ── Modal nuevo gasto ─────────────────────────────────────────
@@ -162,8 +195,9 @@ export async function openNewExpenseModal() {
         </select>
       </div>
       <div>
-        <label class="label">Comprobante (PDF o imagen)</label>
-        <input id="exp-receipt" class="input" type="file" accept=".pdf,image/*">
+        <label class="label">Comprobantes (PDF o imagen)</label>
+        <input id="exp-receipt" class="input" type="file" accept=".pdf,image/*" multiple>
+        <p class="text-muted text-sm" style="margin-top:.2rem">Podés adjuntar varios archivos. Máx. 5 por vez, 10 MB c/u.</p>
       </div>
       <div class="flex gap-2" style="margin-top:.5rem">
         <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-new-expense')">Cancelar</button>
@@ -180,7 +214,7 @@ export async function saveNewExpense() {
   const date     = document.getElementById('exp-date')?.value;
   const provider = document.getElementById('exp-provider')?.value;
   const method   = document.getElementById('exp-method')?.value;
-  const file     = document.getElementById('exp-receipt')?.files[0];
+  const files    = document.getElementById('exp-receipt')?.files;
 
   if (!desc || !cat || !amount || !date) {
     return toast('Completá los campos obligatorios.', 'warning');
@@ -191,15 +225,15 @@ export async function saveNewExpense() {
 
   try {
     let body;
-    if (file) {
+    if (files?.length) {
       const fd = new FormData();
       fd.append('description', desc);
       fd.append('category', cat);
       fd.append('amount', amount);
       fd.append('date', date);
-      if (provider)  fd.append('provider', provider);
-      if (method)    fd.append('paymentMethod', method);
-      fd.append('receipt', file);
+      if (provider) fd.append('provider', provider);
+      if (method)   fd.append('paymentMethod', method);
+      Array.from(files).forEach(f => fd.append('attachments', f));
       body = fd;
     } else {
       body = { description: desc, category: cat, amount, date,
@@ -294,6 +328,23 @@ export async function openEditExpenseModal(id) {
 
   const dateStr = expense.date ? expense.date.split('T')[0] : '';
 
+  const existingAttachments = expense.attachments?.length
+    ? `<div style="margin-bottom:.5rem">
+        <p class="text-sm text-muted" style="margin-bottom:.3rem">Adjuntos actuales:</p>
+        <div class="flex col gap-1">
+          ${expense.attachments.map((a, i) => `
+            <div class="flex between" style="align-items:center;gap:.5rem">
+              <button class="btn btn-ghost btn-sm" style="font-size:.72rem;padding:.2rem .5rem;text-align:left"
+                onclick="downloadExpenseAttachment('${expense._id}',${i},'${(a.filename || 'comprobante').replace(/'/g, "\\'")}')">
+                📎 ${a.filename ? _truncate(a.filename, 30) : `Archivo ${i + 1}`}
+              </button>
+              <button class="btn btn-danger-ghost btn-sm" style="font-size:.7rem;padding:.15rem .4rem"
+                onclick="deleteExpenseAttachment('${expense._id}',${i})">✕</button>
+            </div>`).join('')}
+        </div>
+      </div>`
+    : '';
+
   openModal('modal-edit-expense', `
     <h2 style="margin-bottom:1rem">Editar gasto</h2>
     <div class="flex col gap-2">
@@ -331,9 +382,10 @@ export async function openEditExpenseModal(id) {
         </select>
       </div>
       <div>
-        <label class="label">Reemplazar comprobante (opcional)</label>
-        ${expense.receipt?.url ? `<p class="text-sm text-muted" style="margin-bottom:.3rem">Comprobante actual: <a href="${expense.receipt.url}" target="_blank" style="color:var(--accent)">ver archivo</a></p>` : ''}
-        <input id="ee-receipt" class="input" type="file" accept=".pdf,image/*">
+        <label class="label">Agregar comprobantes</label>
+        ${existingAttachments}
+        <input id="ee-receipt" class="input" type="file" accept=".pdf,image/*" multiple>
+        <p class="text-muted text-sm" style="margin-top:.2rem">Los archivos nuevos se agregan a los existentes.</p>
       </div>
       <div class="flex gap-2" style="margin-top:.5rem">
         <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-edit-expense')">Cancelar</button>
@@ -350,7 +402,7 @@ export async function saveEditExpense(id) {
   const date     = document.getElementById('ee-date')?.value;
   const provider = document.getElementById('ee-provider')?.value;
   const method   = document.getElementById('ee-method')?.value;
-  const file     = document.getElementById('ee-receipt')?.files[0];
+  const files    = document.getElementById('ee-receipt')?.files;
 
   if (!desc || !cat || !amount || !date) {
     return toast('Completá los campos obligatorios.', 'warning');
@@ -361,7 +413,7 @@ export async function saveEditExpense(id) {
 
   try {
     let body;
-    if (file) {
+    if (files?.length) {
       const fd = new FormData();
       fd.append('description', desc);
       fd.append('category', cat);
@@ -369,7 +421,7 @@ export async function saveEditExpense(id) {
       fd.append('date', date);
       if (provider) fd.append('provider', provider);
       if (method)   fd.append('paymentMethod', method);
-      fd.append('receipt', file);
+      Array.from(files).forEach(f => fd.append('attachments', f));
       body = fd;
     } else {
       body = { description: desc, category: cat, amount, date,
@@ -387,14 +439,16 @@ export async function saveEditExpense(id) {
 }
 
 // ── Exponer globalmente ───────────────────────────────────────
-window.renderAdminExpenses   = renderAdminExpenses;
-window.openNewExpenseModal   = openNewExpenseModal;
-window.saveNewExpense        = saveNewExpense;
-window.markExpensePaid       = markExpensePaid;
-window.confirmMarkPaid       = confirmMarkPaid;
-window.deleteExpense         = deleteExpense;
-window.confirmDeleteExpense  = confirmDeleteExpense;
-window.openEditExpenseModal  = openEditExpenseModal;
-window.saveEditExpense       = saveEditExpense;
-window.expensesState         = expensesState;
-window._renderExpensesView   = _renderExpensesView;
+window.renderAdminExpenses        = renderAdminExpenses;
+window.openNewExpenseModal        = openNewExpenseModal;
+window.saveNewExpense             = saveNewExpense;
+window.markExpensePaid            = markExpensePaid;
+window.confirmMarkPaid            = confirmMarkPaid;
+window.deleteExpense              = deleteExpense;
+window.confirmDeleteExpense       = confirmDeleteExpense;
+window.openEditExpenseModal       = openEditExpenseModal;
+window.saveEditExpense            = saveEditExpense;
+window.downloadExpenseAttachment  = downloadExpenseAttachment;
+window.deleteExpenseAttachment    = deleteExpenseAttachment;
+window.expensesState              = expensesState;
+window._renderExpensesView        = _renderExpensesView;
