@@ -54,6 +54,14 @@ export async function renderOwnerProfile() {
                 style="opacity:.5;cursor:not-allowed">
               <small style="color:var(--muted);font-size:.78rem;margin-top:.3rem;display:block">El email no puede modificarse.</small>
             </div>
+            ${user.startBillingPeriod ? `
+            <div class="form-group" style="margin-top:1rem">
+              <label style="color:var(--muted)">Inicio de cobro</label>
+              <input class="input"
+                value="${formatPeriodLabel(user.startBillingPeriod)}"
+                disabled
+                style="opacity:.5;cursor:not-allowed">
+            </div>` : ''}
             <button class="btn btn-primary w-full" style="margin-top:1.5rem"
               id="btn-save-profile" onclick="saveOwnerProfile()">
               Guardar cambios

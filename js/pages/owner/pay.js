@@ -24,16 +24,22 @@ export async function renderUploadPage() {
     const owner    = state.user;
 
     _monthlyFee      = cfg.monthlyFee || 0;
-    const feeLabel   = _monthlyFee > 0 ? ` — $${_monthlyFee.toLocaleString('es-AR')}` : '';
-    const allMonths  = cfg.paymentPeriods?.length
-      ? cfg.paymentPeriods.map(v => ({ value: v, label: `${formatPeriodLabel(v)}${feeLabel}` }))
-      : getRecentMonths(6).map(m => ({ ...m, label: `${m.label}${feeLabel}` }));
+    const feeLabel      = _monthlyFee > 0 ? ` — $${_monthlyFee.toLocaleString('es-AR')}` : '';
+    const startBilling  = owner?.startBillingPeriod;
+    const allMonths     = cfg.paymentPeriods?.length
+      ? cfg.paymentPeriods
+          .filter(v => !startBilling || v >= startBilling)
+          .map(v => ({ value: v, label: `${formatPeriodLabel(v)}${feeLabel}` }))
+      : getRecentMonths(6)
+          .filter(m => !startBilling || m.value >= startBilling)
+          .map(m => ({ ...m, label: `${m.label}${feeLabel}` }));
 
     // Períodos con pago activo (aprobado o pendiente por cualquier canal)
     const approvedPeriods = new Set(payments.filter(p => p.status === 'approved').map(p => p.month));
     const pendingPeriods  = new Set(payments.filter(p => p.status === 'pending').map(p => p.month));
     const activePeriods   = new Set([...approvedPeriods, ...pendingPeriods]);
-    const unpaidPeriods   = (cfg.paymentPeriods || []).filter(p => !activePeriods.has(p));
+    const unpaidPeriods   = (cfg.paymentPeriods || [])
+      .filter(p => !activePeriods.has(p) && (!startBilling || p >= startBilling));
     // Dropdown solo muestra períodos sin pago activo
     const months          = allMonths.filter(m => !activePeriods.has(m.value));
 

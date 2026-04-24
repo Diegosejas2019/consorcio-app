@@ -181,12 +181,17 @@ export async function viewOwnerDetail(ownerId) {
         </div>
         <span class="badge ${owner.isDebtor ? 'badge-danger' : 'badge-success'}">${owner.isDebtor ? 'Deudor' : 'Al día'}</span>
       </div>
-      <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:1rem" class="flex between">
+      <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:.5rem" class="flex between">
         <span class="text-sm text-muted">Saldo</span>
         <span class="bold" style="color:${(owner.balance || 0) < 0 ? 'var(--danger)' : 'var(--success)'}">
           ${(owner.balance || 0) < 0 ? '-' : ''}$${Math.abs(owner.balance || 0).toLocaleString('es-AR')}
         </span>
       </div>
+      ${owner.startBillingPeriod ? `
+      <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:1rem" class="flex between">
+        <span class="text-sm text-muted">Inicio de cobro</span>
+        <span class="bold">${formatMonth(owner.startBillingPeriod)}</span>
+      </div>` : ''}
 
       ${unitsHtml}
 
@@ -206,7 +211,7 @@ export async function viewOwnerDetail(ownerId) {
           </table></div>`}
       <div class="flex gap-1 mt-3" style="flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
-        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}')">Editar</button>
+        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}', '${owner.startBillingPeriod || ''}')">Editar</button>
         <button class="btn btn-ghost" onclick="openNotifyOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Notificar</button>
         ${owner.phone ? `<button class="btn btn-ghost" style="color:#25D366" onclick="openWhatsAppOwnerModal('${owner.name.replace(/'/g, "\\'")}','${owner.phone}')">💬 WhatsApp</button>` : ''}
         <button class="btn btn-primary" onclick="openRegisterPaymentModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Registrar pago</button>
@@ -365,7 +370,7 @@ export async function sendOwnerNotification(id) {
 }
 
 // ── Editar propietario ────────────────────────────────────────
-export function openEditOwnerModal(id, name, phone) {
+export function openEditOwnerModal(id, name, phone, startBillingPeriod = '') {
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <div class="modal-handle"></div>
@@ -373,6 +378,11 @@ export function openEditOwnerModal(id, name, phone) {
     <div class="flex col gap-2">
       <div class="form-group"><label>Nombre completo</label><input class="input" id="eo-name" value="${name}"></div>
       <div class="form-group"><label>Teléfono</label><input class="input" type="tel" id="eo-phone" value="${phone}" placeholder="1122334455"></div>
+      <div class="form-group">
+        <label>Inicio de cobro (YYYY-MM)</label>
+        <input class="input" id="eo-start-billing" value="${startBillingPeriod}" placeholder="Ej: 2026-04">
+        <small class="text-muted" style="display:block;margin-top:.25rem">Período desde el que el propietario puede registrar pagos.</small>
+      </div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${id}')">Cancelar</button>
         <button class="btn btn-primary w-full" data-requires-network onclick="saveEditOwner('${id}')">Guardar</button>
@@ -382,11 +392,18 @@ export function openEditOwnerModal(id, name, phone) {
 }
 
 export async function saveEditOwner(id) {
-  const name  = document.getElementById('eo-name')?.value.trim();
-  const phone = document.getElementById('eo-phone')?.value.trim();
+  const name               = document.getElementById('eo-name')?.value.trim();
+  const phone              = document.getElementById('eo-phone')?.value.trim();
+  const startBillingPeriod = document.getElementById('eo-start-billing')?.value.trim();
   if (!name) { toast('El nombre es obligatorio', 'error'); return; }
+  if (startBillingPeriod && !/^\d{4}-\d{2}$/.test(startBillingPeriod)) {
+    toast('El inicio de cobro debe tener formato YYYY-MM (ej: 2026-04)', 'error');
+    return;
+  }
+  const update = { name, phone };
+  if (startBillingPeriod) update.startBillingPeriod = startBillingPeriod;
   try {
-    await api.owners.update(id, { name, phone });
+    await api.owners.update(id, update);
     toast('Propietario actualizado', 'success');
     viewOwnerDetail(id);
     renderOwnersList();
@@ -455,6 +472,15 @@ export async function openNewOwnerModal() {
         <input class="input" type="number" id="no-months" value="0" min="0" oninput="updateNewOwnerDebtPreview()">
         <p id="no-debt-preview" style="display:none;margin:.4rem 0 0;font-size:.82rem;color:var(--danger);font-weight:600"></p>
       </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;font-weight:500">
+          <input type="checkbox" id="no-charge-current" checked style="width:16px;height:16px;flex-shrink:0">
+          ¿Cobrar mes en curso?
+        </label>
+        <small class="text-muted" style="display:block;margin-top:.25rem">
+          Si se desactiva, el cobro comenzará el mes siguiente.
+        </small>
+      </div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
         <button class="btn btn-primary w-full" data-requires-network onclick="saveNewOwner()">Crear</button>
@@ -484,11 +510,12 @@ export async function saveNewOwner() {
   if (!name || !email || !pass) { toast('Nombre, email y contraseña son obligatorios', 'error'); return; }
 
   const { total: debtTotal } = _calcDebt(months, _newOwnerCfg);
-  const balance  = -debtTotal;
-  const isDebtor = debtTotal > 0;
+  const balance            = -debtTotal;
+  const isDebtor           = debtTotal > 0;
+  const chargeCurrentMonth = document.getElementById('no-charge-current')?.checked !== false;
 
   try {
-    const res     = await api.owners.create({ name, email, password: pass, phone, balance, isDebtor });
+    const res     = await api.owners.create({ name, email, password: pass, phone, balance, isDebtor, chargeCurrentMonth });
     const ownerId = res.data?.owner?._id;
 
     if (ownerId && _newOwnerUnits.length > 0) {
