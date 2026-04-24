@@ -150,16 +150,45 @@ function showMPResultScreen(status) {
   window.history.replaceState({}, '', '/');
 
   const btn = document.getElementById('mp-result-btn');
-  if (status === 'failure') {
+
+  async function enterFromMP(targetPage, targetFn) {
+    document.getElementById('mp-result-screen').style.display = 'none';
+    const token = getToken();
+    if (!token) {
+      document.getElementById('login-screen').style.display = 'flex';
+      return;
+    }
+    try {
+      showLoading(true);
+      const res = await api.auth.getMe();
+      setState({ role: res.data.user.role, user: res.data.user });
+      await loadFeatures();
+      cache.clear();
+      enterApp();
+      if (targetPage && targetFn) {
+        setTimeout(() => {
+          window.showPage?.(targetPage);
+          window[targetFn]?.();
+        }, 100);
+      }
+    } catch (_) {
+      document.getElementById('login-screen').style.display = 'flex';
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  if (status === 'success') {
+    btn.style.display = 'none';
+    setTimeout(() => enterFromMP('page-owner-pay', 'renderUploadPage'), 1500);
+  } else if (status === 'failure') {
+    btn.style.display = '';
     btn.textContent = 'Volver a Pagos';
-    btn.onclick = () => {
-      document.getElementById('mp-result-screen').style.display = 'none';
-      window.showPage?.('page-owner-pay');
-      window.renderUploadPage?.();
-    };
+    btn.onclick = () => enterFromMP('page-owner-pay', 'renderUploadPage');
   } else {
+    btn.style.display = '';
     btn.textContent = 'Ir al inicio';
-    btn.onclick = () => { window.location.href = '/'; };
+    btn.onclick = () => enterFromMP(null, null);
   }
 }
 
