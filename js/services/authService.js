@@ -112,8 +112,11 @@ document.getElementById('btn-login').addEventListener('click', async () => {
 
 // ── Detectar y manejar redirect de MercadoPago ───────────────
 function getMPStatus() {
-  if (!window.location.pathname.includes('pago-resultado')) return null;
-  return new URLSearchParams(window.location.search).get('status');
+  const path = window.location.pathname;
+  if (path.includes('/pago/exitoso'))   return 'success';
+  if (path.includes('/pago/fallido'))   return 'failure';
+  if (path.includes('/pago/pendiente')) return 'pending';
+  return null;
 }
 
 function handleMPRedirect() {

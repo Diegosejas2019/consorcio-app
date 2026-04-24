@@ -44,12 +44,22 @@ const CONFIGS = {
   },
 };
 
+function resolvePaymentStatus() {
+  const path = window.location.pathname;
+  if (path.includes('/pago/exitoso'))   return 'success';
+  if (path.includes('/pago/fallido'))   return 'failure';
+  if (path.includes('/pago/pendiente')) return 'pending';
+  const s = new URLSearchParams(window.location.search).get('status') || '';
+  if (s === 'approved') return 'success';
+  if (s === 'rejected') return 'failure';
+  return 'pending';
+}
+
 export async function renderPaymentResult() {
   const el = document.getElementById('page-owner-pago-resultado');
   if (!el) return;
 
-  const params = new URLSearchParams(window.location.search);
-  const status = params.get('status') || 'pending';
+  const status = resolvePaymentStatus();
 
   // Limpiar la URL para que el back button no vuelva al resultado
   window.history.replaceState({}, '', '/');
