@@ -10,8 +10,9 @@ import { cache } from '../../core/state.js';
 export const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
 export const _debouncedOwnerFilter = debounce(() => { ownersListState.page = 1; _renderOwnersView(); }, 350);
 
-let _newOwnerCfg   = null;
+let _newOwnerCfg    = null;
 let _ownerDetailCfg = null;
+let _newOwnerUnits  = [];
 
 function _calcDebt(months, cfg) {
   if (!cfg || months <= 0) return { total: 0, surcharge: 0 };
@@ -389,6 +390,36 @@ export async function saveEditOwner(id) {
   }
 }
 
+// ── Unidades en formulario nuevo propietario ─────────────────
+function _renderNewOwnerUnits() {
+  const container = document.getElementById('no-units-container');
+  if (!container) return;
+  container.innerHTML = `
+    ${_newOwnerUnits.map((u, i) => `
+      <div class="flex between" style="padding:.4rem .5rem;background:var(--bg);border-radius:6px;margin-bottom:.3rem">
+        <span class="text-sm">${u.name}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:.15rem .4rem;color:var(--danger)" onclick="removeNewOwnerUnit(${i})">×</button>
+      </div>`).join('')}
+    <div class="flex gap-1" style="margin-top:${_newOwnerUnits.length ? '.4rem' : '0'}">
+      <input class="input" id="no-unit-input" placeholder="Ej: Lote 12" style="flex:1"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addNewOwnerUnit()}">
+      <button class="btn btn-ghost btn-sm" onclick="addNewOwnerUnit()">+ Agregar</button>
+    </div>`;
+}
+
+export function addNewOwnerUnit() {
+  const input = document.getElementById('no-unit-input');
+  const name = input?.value.trim();
+  if (!name) return;
+  _newOwnerUnits.push({ name });
+  _renderNewOwnerUnits();
+}
+
+export function removeNewOwnerUnit(index) {
+  _newOwnerUnits.splice(index, 1);
+  _renderNewOwnerUnits();
+}
+
 // ── Nuevo propietario ─────────────────────────────────────────
 export async function openNewOwnerModal() {
   _newOwnerCfg = cache.get('config');
@@ -400,6 +431,7 @@ export async function openNewOwnerModal() {
     } catch { _newOwnerCfg = null; }
   }
 
+  _newOwnerUnits = [];
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <div class="modal-handle"></div>
@@ -408,7 +440,10 @@ export async function openNewOwnerModal() {
       <div class="form-group"><label>Nombre completo</label><input class="input" id="no-name" placeholder="María García"></div>
       <div class="form-group"><label>Email</label><input class="input" type="email" id="no-email" placeholder="propietario@mail.com"></div>
       <div class="form-group"><label>Contraseña temporal</label><input class="input" id="no-pass" placeholder="Mín. 6 caracteres"></div>
-      <div class="form-group"><label>Unidad (lote/casa)</label><input class="input" id="no-unit" placeholder="Lote 12"></div>
+      <div class="form-group">
+        <label>Unidades</label>
+        <div id="no-units-container"></div>
+      </div>
       <div class="form-group"><label>Teléfono</label><input class="input" id="no-phone" placeholder="1122334455"></div>
       <div class="form-group">
         <label>Meses sin pagar</label>
@@ -421,6 +456,7 @@ export async function openNewOwnerModal() {
       </div>
     </div>`;
   openModal();
+  _renderNewOwnerUnits();
 }
 
 export function updateNewOwnerDebtPreview() {
@@ -438,7 +474,6 @@ export async function saveNewOwner() {
   const name   = document.getElementById('no-name')?.value.trim();
   const email  = document.getElementById('no-email')?.value.trim();
   const pass   = document.getElementById('no-pass')?.value.trim();
-  const unit   = document.getElementById('no-unit')?.value.trim();
   const phone  = document.getElementById('no-phone')?.value.trim();
   const months = Number(document.getElementById('no-months')?.value || 0);
   if (!name || !email || !pass) { toast('Nombre, email y contraseña son obligatorios', 'error'); return; }
@@ -448,7 +483,17 @@ export async function saveNewOwner() {
   const isDebtor = debtTotal > 0;
 
   try {
-    await api.owners.create({ name, email, password: pass, unit, phone, balance, isDebtor });
+    const res     = await api.owners.create({ name, email, password: pass, phone, balance, isDebtor });
+    const ownerId = res.data?.owner?._id;
+
+    if (ownerId && _newOwnerUnits.length > 0) {
+      const results = await Promise.allSettled(
+        _newOwnerUnits.map(u => api.units.create({ ownerId, name: u.name }))
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed > 0) toast(`Propietario creado, pero ${failed} unidad${failed > 1 ? 'es' : ''} no se pudo${failed > 1 ? 'ieron' : ''} guardar`, 'warning');
+    }
+
     closeModal();
     toast('Propietario creado exitosamente', 'success');
     renderOwnersList();
@@ -640,8 +685,11 @@ window.submitRegisterPayment       = submitRegisterPayment;
 window.downloadBulkTemplate        = downloadBulkTemplate;
 window.openBulkOwnerModal          = openBulkOwnerModal;
 window.submitBulkOwners            = submitBulkOwners;
-// Unidades
+// Unidades (modal detalle)
 window.openAddUnitForm   = openAddUnitForm;
 window.cancelAddUnit     = cancelAddUnit;
 window.submitAddUnit     = submitAddUnit;
 window.deleteUnit        = deleteUnit;
+// Unidades (formulario nuevo propietario)
+window.addNewOwnerUnit    = addNewOwnerUnit;
+window.removeNewOwnerUnit = removeNewOwnerUnit;
