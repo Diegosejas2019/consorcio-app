@@ -141,13 +141,26 @@ const MP_CONFIGS = {
 
 function showMPResultScreen(status) {
   const cfg = MP_CONFIGS[status] || MP_CONFIGS.pending;
-  document.getElementById('mp-result-icon').innerHTML     = cfg.icon;
-  document.getElementById('mp-result-title').textContent  = cfg.title;
-  document.getElementById('mp-result-title').style.color  = cfg.color;
+  document.getElementById('mp-result-icon').innerHTML       = cfg.icon;
+  document.getElementById('mp-result-title').textContent    = cfg.title;
+  document.getElementById('mp-result-title').style.color    = cfg.color;
   document.getElementById('mp-result-subtitle').textContent = cfg.subtitle;
-  document.getElementById('login-screen').style.display   = 'none';
+  document.getElementById('login-screen').style.display     = 'none';
   document.getElementById('mp-result-screen').style.display = 'flex';
   window.history.replaceState({}, '', '/');
+
+  const btn = document.getElementById('mp-result-btn');
+  if (status === 'failure') {
+    btn.textContent = 'Volver a Pagos';
+    btn.onclick = () => {
+      document.getElementById('mp-result-screen').style.display = 'none';
+      window.showPage?.('page-owner-pay');
+      window.renderUploadPage?.();
+    };
+  } else {
+    btn.textContent = 'Ir al inicio';
+    btn.onclick = () => { window.location.href = '/'; };
+  }
 }
 
 function handleMPRedirect() {
