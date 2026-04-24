@@ -17,14 +17,16 @@ export async function renderOwnerHome() {
   el.innerHTML = `<div class="oh-wrap">${skeleton(5)}</div>`;
 
   try {
-    const [cfgRes, payRes] = await Promise.all([
+    const [cfgRes, payRes, unitsRes] = await Promise.all([
       api.config.get(),
       api.payments.getAll({ limit: 10 }),
+      api.units.getAll(),
     ]);
 
     const cfg      = cfgRes.data.config;
     const payments = payRes.data.payments;
     const owner    = state.user;
+    const units    = unitsRes.data?.units || [];
 
     const pending  = payments.filter(p => p.status === 'pending').length;
     const lastPay  = payments.find(p => p.status === 'approved');
@@ -45,7 +47,11 @@ export async function renderOwnerHome() {
             <p class="oh-greeting-sub">Bienvenido/a</p>
             <h1 class="oh-greeting-name">${owner.name}</h1>
           </div>
-          ${owner.unit ? `<span class="oh-unit-chip">${owner.unit}</span>` : ''}
+          <div style="display:flex;flex-wrap:wrap;gap:.35rem;justify-content:flex-end">
+            ${units.length > 0
+              ? units.map(u => `<span class="oh-unit-chip">${u.name}</span>`).join('')
+              : owner.unit ? `<span class="oh-unit-chip">${owner.unit}</span>` : ''}
+          </div>
         </div>
 
         <div class="oh-balance-card oh-entry${balance < 0 ? ' oh-balance-card--clickable' : ''}" style="--delay:60ms" ${balance < 0 ? 'onclick="showPage(\'page-owner-pay\');renderUploadPage()" role="button" tabindex="0"' : ''}>
@@ -70,7 +76,9 @@ export async function renderOwnerHome() {
           <div class="oh-balance-card__footer">
             <div class="oh-balance-card__meta">
               <span>Monto mensual</span>
-              <strong>$${(cfg.monthlyFee || 0).toLocaleString('es-AR')}</strong>
+              <strong>$${(units.length > 0
+                ? units.reduce((s, u) => s + (u.finalFee || 0), 0)
+                : (cfg.monthlyFee || 0)).toLocaleString('es-AR')}</strong>
             </div>
             <div class="oh-balance-card__sep"></div>
             <div class="oh-balance-card__meta">

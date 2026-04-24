@@ -157,15 +157,22 @@ export async function viewOwnerDetail(ownerId) {
   openModal();
   document.getElementById('modal').innerHTML = `<div class="modal-handle"></div>${skeleton(4)}`;
   try {
-    const res      = await api.owners.getOne(ownerId);
-    const owner    = res.data.owner;
-    const payments = res.data.payments || [];
+    const [ownerRes, unitsRes] = await Promise.all([
+      api.owners.getOne(ownerId),
+      api.units.getAll({ ownerId }),
+    ]);
+    const owner    = ownerRes.data.owner;
+    const payments = ownerRes.data.payments || [];
+    const units    = unitsRes.data.units || [];
+
+    const unitsHtml = _renderUnitsSection(ownerId, units);
+
     document.getElementById('modal').innerHTML = `
       <div class="modal-handle"></div>
       <div class="flex between" style="margin-bottom:1.25rem">
         <div>
           <h2>${owner.name}</h2>
-          <small>${[owner.unit, owner.phone, owner.email].filter(Boolean).join(' · ')}</small>
+          <small>${[owner.phone, owner.email].filter(Boolean).join(' · ')}</small>
         </div>
         <span class="badge ${owner.isDebtor ? 'badge-danger' : 'badge-success'}">${owner.isDebtor ? 'Deudor' : 'Al día'}</span>
       </div>
@@ -175,6 +182,9 @@ export async function viewOwnerDetail(ownerId) {
           ${(owner.balance || 0) < 0 ? '-' : ''}$${Math.abs(owner.balance || 0).toLocaleString('es-AR')}
         </span>
       </div>
+
+      ${unitsHtml}
+
       <h3 style="margin-bottom:.75rem">Historial de Pagos</h3>
       ${payments.length === 0
         ? '<p class="text-muted text-sm">Sin pagos registrados.</p>'
@@ -191,7 +201,7 @@ export async function viewOwnerDetail(ownerId) {
           </table></div>`}
       <div class="flex gap-1 mt-3" style="flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
-        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.unit || ''}', '${owner.phone || ''}')">Editar</button>
+        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}')">Editar</button>
         <button class="btn btn-ghost" onclick="openNotifyOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Notificar</button>
         <button class="btn btn-primary" onclick="openRegisterPaymentModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Registrar pago</button>
         <button class="btn btn-ghost" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
@@ -201,6 +211,81 @@ export async function viewOwnerDetail(ownerId) {
       </div>`;
   } catch (err) {
     document.getElementById('modal').innerHTML = `<div class="modal-handle"></div><p style="color:var(--danger)">${err.message}</p>`;
+  }
+}
+
+// ── Sección de unidades dentro del modal de detalle ───────────
+function _renderUnitsSection(ownerId, units) {
+  const totalFee = units.reduce((sum, u) => sum + (u.finalFee || 0), 0);
+  const unitRows = units.map(u => `
+    <div class="flex between" style="padding:.5rem 0;border-bottom:1px solid var(--border)">
+      <span class="text-sm">${u.name}</span>
+      <div class="flex gap-1" style="align-items:center">
+        <span class="text-sm bold">$${(u.finalFee || 0).toLocaleString('es-AR')}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:.2rem .45rem;color:var(--danger)"
+          onclick="deleteUnit('${u._id}', '${ownerId}')" title="Eliminar unidad">×</button>
+      </div>
+    </div>`).join('');
+
+  return `
+    <div style="margin-bottom:1rem">
+      <div class="flex between" style="margin-bottom:.5rem;align-items:center">
+        <h3>Unidades</h3>
+        <button class="btn btn-ghost btn-sm" onclick="openAddUnitForm('${ownerId}')">+ Agregar</button>
+      </div>
+      <div id="units-section-${ownerId}">
+        ${units.length === 0
+          ? '<p class="text-muted text-sm">Sin unidades asignadas.</p>'
+          : `${unitRows}
+             <div class="flex between" style="padding:.5rem 0;font-size:.82rem;color:var(--text-muted)">
+               <span>Total mensual</span>
+               <span class="bold" style="color:var(--text)">$${totalFee.toLocaleString('es-AR')}</span>
+             </div>`}
+      </div>
+      <div id="add-unit-form-${ownerId}" style="display:none;margin-top:.75rem">
+        <div class="flex col gap-1">
+          <div class="form-group" style="margin-bottom:0">
+            <input class="input" id="new-unit-name-${ownerId}" placeholder="Nombre (ej: Lote 12)" style="margin-bottom:.4rem">
+          </div>
+          <div class="flex gap-1">
+            <button class="btn btn-secondary btn-sm" onclick="cancelAddUnit('${ownerId}')">Cancelar</button>
+            <button class="btn btn-primary btn-sm" onclick="submitAddUnit('${ownerId}')">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+export function openAddUnitForm(ownerId) {
+  const form = document.getElementById(`add-unit-form-${ownerId}`);
+  if (form) { form.style.display = ''; document.getElementById(`new-unit-name-${ownerId}`)?.focus(); }
+}
+
+export function cancelAddUnit(ownerId) {
+  const form = document.getElementById(`add-unit-form-${ownerId}`);
+  if (form) form.style.display = 'none';
+}
+
+export async function submitAddUnit(ownerId) {
+  const nameInput = document.getElementById(`new-unit-name-${ownerId}`);
+  const name = nameInput?.value.trim();
+  if (!name) { toast('El nombre de la unidad es obligatorio', 'error'); return; }
+  try {
+    await api.units.create({ ownerId, name });
+    toast('Unidad agregada', 'success');
+    viewOwnerDetail(ownerId);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+export async function deleteUnit(unitId, ownerId) {
+  try {
+    await api.units.delete(unitId);
+    toast('Unidad eliminada', 'success');
+    viewOwnerDetail(ownerId);
+  } catch (err) {
+    toast(err.message, 'error');
   }
 }
 
@@ -274,14 +359,13 @@ export async function sendOwnerNotification(id) {
 }
 
 // ── Editar propietario ────────────────────────────────────────
-export function openEditOwnerModal(id, name, unit, phone) {
+export function openEditOwnerModal(id, name, phone) {
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:1rem">Editar Propietario</h2>
     <div class="flex col gap-2">
       <div class="form-group"><label>Nombre completo</label><input class="input" id="eo-name" value="${name}"></div>
-      <div class="form-group"><label>Unidad (lote/casa)</label><input class="input" id="eo-unit" value="${unit}" placeholder="Lote 12"></div>
       <div class="form-group"><label>Teléfono</label><input class="input" type="tel" id="eo-phone" value="${phone}" placeholder="1122334455"></div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${id}')">Cancelar</button>
@@ -293,11 +377,10 @@ export function openEditOwnerModal(id, name, unit, phone) {
 
 export async function saveEditOwner(id) {
   const name  = document.getElementById('eo-name')?.value.trim();
-  const unit  = document.getElementById('eo-unit')?.value.trim();
   const phone = document.getElementById('eo-phone')?.value.trim();
   if (!name) { toast('El nombre es obligatorio', 'error'); return; }
   try {
-    await api.owners.update(id, { name, unit, phone });
+    await api.owners.update(id, { name, phone });
     toast('Propietario actualizado', 'success');
     viewOwnerDetail(id);
     renderOwnersList();
@@ -557,3 +640,8 @@ window.submitRegisterPayment       = submitRegisterPayment;
 window.downloadBulkTemplate        = downloadBulkTemplate;
 window.openBulkOwnerModal          = openBulkOwnerModal;
 window.submitBulkOwners            = submitBulkOwners;
+// Unidades
+window.openAddUnitForm   = openAddUnitForm;
+window.cancelAddUnit     = cancelAddUnit;
+window.submitAddUnit     = submitAddUnit;
+window.deleteUnit        = deleteUnit;

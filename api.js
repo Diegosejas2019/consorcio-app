@@ -313,6 +313,21 @@ const api = {
     delete:       (id)          => request(`/reservations/${id}`, { method: 'DELETE' }),
   },
 
+  // ── Unidades ──────────────────────────────────────────────────
+  units: {
+    getAll: (params = {}) =>
+      request(`/units?${new URLSearchParams(params)}`),
+
+    create: (data) =>
+      request('/units', { method: 'POST', body: JSON.stringify(data) }),
+
+    update: (id, data) =>
+      request(`/units/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    delete: (id) =>
+      request(`/units/${id}`, { method: 'DELETE' }),
+  },
+
   // ── Votaciones ────────────────────────────────────────────────
   votes: {
     getAll:   (params = {}) => request(`/votes?${new URLSearchParams(params)}`),

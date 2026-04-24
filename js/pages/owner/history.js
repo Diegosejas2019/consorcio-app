@@ -21,6 +21,10 @@ export async function renderOwnerHistory() {
                <div class="ohi-item__info">
                  <p class="ohi-item__period">${formatMonth(p.month)}</p>
                  <p class="ohi-item__channel">${p.paymentMethod === 'mercadopago' ? '💳 MercadoPago' : '📄 Manual'}</p>
+                 ${p.breakdown?.length > 1 ? `
+                   <div class="ohi-breakdown">
+                     ${p.breakdown.map(b => `<span>${b.name}: $${b.amount.toLocaleString('es-AR')}</span>`).join('')}
+                   </div>` : ''}
                  ${p.rejectionNote ? `<p class="ohi-item__rejection">↳ ${p.rejectionNote}</p>` : ''}
                </div>
                <div class="ohi-item__right">
