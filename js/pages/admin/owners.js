@@ -26,7 +26,9 @@ export async function renderOwnersList() {
   el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
   try {
     const res = await api.owners.getAll({ limit: 500 });
-    ownersListState.all  = res.data.owners;
+    ownersListState.all  = (res.data.owners || []).sort((a, b) =>
+      (a.unit || '').localeCompare(b.unit || '', undefined, { numeric: true, sensitivity: 'base' })
+    );
     ownersListState.page = 1;
     _renderOwnersView();
   } catch (err) {
