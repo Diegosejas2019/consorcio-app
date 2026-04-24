@@ -69,6 +69,14 @@ export function currentMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+export function formatPhone(phone) {
+  return (phone || '').replace(/\D/g, '');
+}
+
+export function buildWhatsAppLink(phone, message) {
+  return `https://wa.me/${formatPhone(phone)}?text=${encodeURIComponent(message)}`;
+}
+
 export function errorState(msg, fn = '') {
   return `<div style="text-align:center;padding:2rem;color:var(--danger)">
     <p style="font-size:2rem">⚠</p>

@@ -3,7 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { showLoading } from '../../ui/loading.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
-import { formatMonth, statusBadge, errorState, downloadReceipt, debounce } from '../../ui/helpers.js';
+import { formatMonth, statusBadge, errorState, downloadReceipt, debounce, formatPhone, buildWhatsAppLink } from '../../ui/helpers.js';
 import { cache } from '../../core/state.js';
 
 // ── Estado de la vista ────────────────────────────────────────
@@ -105,6 +105,7 @@ export function _renderOwnersView() {
                   <span class="badge ${o.isDebtor ? 'badge-danger' : 'badge-success'}">${o.isDebtor ? 'Deuda' : 'Al día'}</span>
                   ${o.lastPayment ? `<small>${formatMonth(o.lastPayment.month)}</small>` : '<small class="text-muted">Sin pagos</small>'}
                 </div>
+                ${o.phone ? `<button class="btn btn-ghost btn-sm" style="color:#25D366" onclick="openWhatsAppOwnerModal('${o.name.replace(/'/g, "\\'")}','${o.phone}')" title="Enviar WhatsApp">💬</button>` : ''}
                 <button class="btn btn-ghost btn-sm" onclick="viewOwnerDetail('${o._id}')">Ver</button>
               </div>`).join('')}
         </div>
@@ -204,6 +205,7 @@ export async function viewOwnerDetail(ownerId) {
         <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
         <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}')">Editar</button>
         <button class="btn btn-ghost" onclick="openNotifyOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Notificar</button>
+        ${owner.phone ? `<button class="btn btn-ghost" style="color:#25D366" onclick="openWhatsAppOwnerModal('${owner.name.replace(/'/g, "\\'")}','${owner.phone}')">💬 WhatsApp</button>` : ''}
         <button class="btn btn-primary" onclick="openRegisterPaymentModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Registrar pago</button>
         <button class="btn btn-ghost" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
           ${owner.isDebtor ? 'Al día' : 'Moroso'}
@@ -494,9 +496,13 @@ export async function saveNewOwner() {
       if (failed > 0) toast(`Propietario creado, pero ${failed} unidad${failed > 1 ? 'es' : ''} no se pudo${failed > 1 ? 'ieron' : ''} guardar`, 'warning');
     }
 
-    closeModal();
     toast('Propietario creado exitosamente', 'success');
     renderOwnersList();
+    if (phone) {
+      openWelcomeWhatsAppModal({ name, phone }, email);
+    } else {
+      closeModal();
+    }
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -664,6 +670,67 @@ export async function submitBulkOwners() {
   }
 }
 
+// ── WhatsApp ──────────────────────────────────────────────────
+export function openWhatsAppOwnerModal(name, phone) {
+  if (!phone || !formatPhone(phone)) { toast('El propietario no tiene teléfono registrado', 'warning'); return; }
+  const cfg = cache.get('config');
+  const orgName = cfg?.consortiumName || 'la administración';
+  const firstName = name.split(' ')[0];
+  const defaultMsg = `Hola ${firstName}, te contacto desde la administración de ${orgName}.`;
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.25rem">Enviar WhatsApp</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1rem">Para: ${name} · ${phone}</p>
+    <div class="flex col gap-2">
+      <div class="form-group">
+        <label>Mensaje</label>
+        <textarea class="input" id="wa-msg" style="min-height:100px">${defaultMsg}</textarea>
+      </div>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary w-full" style="background:#25D366;border-color:#25D366" onclick="sendWhatsAppOwner('${phone.replace(/'/g, "\\'")}')">Abrir WhatsApp</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+export function sendWhatsAppOwner(phone) {
+  const msg = document.getElementById('wa-msg')?.value.trim();
+  if (!msg) { toast('El mensaje no puede estar vacío', 'warning'); return; }
+  window.open(buildWhatsAppLink(phone, msg), '_blank');
+  closeModal();
+}
+
+export function openWelcomeWhatsAppModal(owner, email) {
+  const cfg = cache.get('config');
+  const orgName = cfg?.consortiumName || 'tu consorcio';
+  const appUrl = window.location.origin;
+  const firstName = owner.name.split(' ')[0];
+  const defaultMsg = `👋 Hola ${firstName}\n\nTe damos la bienvenida a ${orgName}.\n\nPodés acceder a la app desde:\n${appUrl}\n\nEmail: ${email}\n\n¡Saludos!`;
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.25rem">Enviar bienvenida por WhatsApp</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1rem">Para: ${owner.name} · ${owner.phone}</p>
+    <div class="flex col gap-2">
+      <div class="form-group">
+        <label>Mensaje</label>
+        <textarea class="input" id="wa-welcome-msg" style="min-height:150px">${defaultMsg}</textarea>
+      </div>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Omitir</button>
+        <button class="btn btn-primary w-full" style="background:#25D366;border-color:#25D366" onclick="sendWelcomeWhatsApp('${owner.phone.replace(/'/g, "\\'")}')">Enviar por WhatsApp</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+export function sendWelcomeWhatsApp(phone) {
+  const msg = document.getElementById('wa-welcome-msg')?.value.trim();
+  if (!msg) { toast('El mensaje no puede estar vacío', 'warning'); return; }
+  window.open(buildWhatsAppLink(phone, msg), '_blank');
+  closeModal();
+}
+
 window.renderOwnersList       = renderOwnersList;
 window._renderOwnersView      = _renderOwnersView;
 window.ownersListState        = ownersListState;
@@ -693,3 +760,8 @@ window.deleteUnit        = deleteUnit;
 // Unidades (formulario nuevo propietario)
 window.addNewOwnerUnit    = addNewOwnerUnit;
 window.removeNewOwnerUnit = removeNewOwnerUnit;
+// WhatsApp
+window.openWhatsAppOwnerModal  = openWhatsAppOwnerModal;
+window.sendWhatsAppOwner       = sendWhatsAppOwner;
+window.openWelcomeWhatsAppModal = openWelcomeWhatsAppModal;
+window.sendWelcomeWhatsApp     = sendWelcomeWhatsApp;

@@ -1,7 +1,7 @@
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { formatDate, errorState } from '../../ui/helpers.js';
+import { formatDate, errorState, buildWhatsAppLink } from '../../ui/helpers.js';
 
 let _notices = [];
 
@@ -123,6 +123,9 @@ export function openNewNoticeModal() {
         <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer">
           <input type="checkbox" id="n-email" checked> Enviar correo electrónico a propietarios
         </label>
+        <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" id="n-whatsapp"> <span>💬 Enviar por WhatsApp <span class="text-muted">(manual)</span></span>
+        </label>
       </div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
@@ -133,17 +136,22 @@ export function openNewNoticeModal() {
 }
 
 export async function saveNotice() {
-  const title     = document.getElementById('n-title')?.value.trim();
-  const body      = document.getElementById('n-body')?.value.trim();
-  const tag       = document.getElementById('n-tag')?.value;
-  const sendPush  = document.getElementById('n-push')?.checked;
-  const sendEmail = document.getElementById('n-email')?.checked;
+  const title       = document.getElementById('n-title')?.value.trim();
+  const body        = document.getElementById('n-body')?.value.trim();
+  const tag         = document.getElementById('n-tag')?.value;
+  const sendPush    = document.getElementById('n-push')?.checked;
+  const sendEmail   = document.getElementById('n-email')?.checked;
+  const sendWhatsApp = document.getElementById('n-whatsapp')?.checked;
   if (!title || !body) { toast('Completá todos los campos', 'error'); return; }
   try {
     await api.notices.create({ title, body, tag, sendPush, sendEmail });
-    closeModal();
-    toast('Aviso publicado', 'success');
-    renderAdminNotices();
+    if (sendWhatsApp) {
+      await _openNoticeWhatsAppModal(title, body);
+    } else {
+      closeModal();
+      toast('Aviso publicado', 'success');
+      renderAdminNotices();
+    }
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -162,6 +170,54 @@ export async function deleteNotice(event, id, fromModal = false) {
   }
 }
 
+// ── WhatsApp ──────────────────────────────────────────────────
+async function _openNoticeWhatsAppModal(title, body) {
+  const appUrl = window.location.origin;
+  const defaultMsg = `📢 Nuevo aviso\n\n${title}\n\n${body}\n\nAbrí la app:\n${appUrl}`;
+
+  let owners = [];
+  try {
+    const res = await api.owners.getAll({ limit: 500 });
+    owners = (res.data.owners || []).filter(o => o.phone);
+  } catch { /* silent — mostrar igual el modal */ }
+
+  toast('Aviso publicado', 'success');
+  renderAdminNotices();
+
+  if (owners.length === 0) {
+    closeModal();
+    toast('No hay propietarios con teléfono registrado', 'warning');
+    return;
+  }
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.25rem">Enviar aviso por WhatsApp</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1rem">${owners.length} propietario${owners.length !== 1 ? 's' : ''} con teléfono</p>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label>Mensaje (editable)</label>
+      <textarea class="input" id="wa-notice-msg" style="min-height:120px">${defaultMsg}</textarea>
+    </div>
+    <div style="max-height:240px;overflow-y:auto;margin-bottom:1rem;border:1px solid var(--border);border-radius:8px">
+      ${owners.map(o => `
+        <div class="flex between" style="padding:.6rem .75rem;border-bottom:1px solid var(--border);align-items:center;gap:.5rem">
+          <div style="min-width:0">
+            <p class="text-sm bold" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.name}</p>
+            <p class="text-sm text-muted">${o.phone}</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="color:#25D366;white-space:nowrap;flex-shrink:0" onclick="sendNoticeWhatsApp('${o.phone.replace(/'/g, "\\'")}')">💬 Enviar</button>
+        </div>`).join('')}
+    </div>
+    <button class="btn btn-secondary w-full" onclick="closeModal()">Cerrar</button>`;
+  openModal();
+}
+
+export function sendNoticeWhatsApp(phone) {
+  const msg = document.getElementById('wa-notice-msg')?.value.trim();
+  if (!msg) { toast('El mensaje no puede estar vacío', 'warning'); return; }
+  window.open(buildWhatsAppLink(phone, msg), '_blank');
+}
+
 function _escapeHtml(str) {
   return str
     .replace(/&/g, '&amp;')
@@ -175,3 +231,4 @@ window.openAdminNotice     = openAdminNotice;
 window.openNewNoticeModal  = openNewNoticeModal;
 window.saveNotice          = saveNotice;
 window.deleteNotice        = deleteNotice;
+window.sendNoticeWhatsApp  = sendNoticeWhatsApp;
