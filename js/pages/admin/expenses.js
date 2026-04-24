@@ -95,6 +95,7 @@ function _renderExpensesView() {
                   <div class="flex gap-1">
                     ${e.status === 'pending' ? `<button class="btn btn-sm btn-ghost" onclick="markExpensePaid('${e._id}')">Marcar pagado</button>` : ''}
                     ${e.receipt?.url ? `<a class="btn btn-sm btn-ghost" href="${e.receipt.url}" target="_blank">Ver comprobante</a>` : ''}
+                    <button class="btn btn-sm btn-ghost" onclick="openEditExpenseModal('${e._id}')">Editar</button>
                     <button class="btn btn-sm btn-danger-ghost" onclick="deleteExpense('${e._id}','${e.description.replace(/'/g, "\\'")}')">✕</button>
                   </div>
                 </td>
@@ -277,6 +278,114 @@ export async function confirmDeleteExpense(id) {
   }
 }
 
+// ── Editar gasto ──────────────────────────────────────────────
+export async function openEditExpenseModal(id) {
+  const expense = expensesState.all.find(e => e._id === id);
+  if (!expense) return toast('Gasto no encontrado.', 'error');
+
+  let providersHtml = '<option value="">Sin proveedor</option>';
+  try {
+    const res = await api.providers.getAll();
+    const currentProviderId = expense.provider?._id || expense.provider;
+    providersHtml += res.data.providers.map(p =>
+      `<option value="${p._id}" ${currentProviderId === p._id ? 'selected' : ''}>${p.name} (${CAT_LABELS[p.serviceType] || p.serviceType})</option>`
+    ).join('');
+  } catch { /* sin proveedores */ }
+
+  const dateStr = expense.date ? expense.date.split('T')[0] : '';
+
+  openModal('modal-edit-expense', `
+    <h2 style="margin-bottom:1rem">Editar gasto</h2>
+    <div class="flex col gap-2">
+      <div>
+        <label class="label">Descripción *</label>
+        <input id="ee-desc" class="input" type="text" value="${expense.description.replace(/"/g, '&quot;')}">
+      </div>
+      <div class="flex gap-2">
+        <div style="flex:1">
+          <label class="label">Categoría *</label>
+          <select id="ee-cat" class="input">
+            ${Object.entries(CAT_LABELS).map(([v, l]) => `<option value="${v}" ${expense.category === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>
+        </div>
+        <div style="flex:1">
+          <label class="label">Importe *</label>
+          <input id="ee-amount" class="input" type="number" min="0.01" step="0.01" value="${expense.amount}">
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <div style="flex:1">
+          <label class="label">Fecha *</label>
+          <input id="ee-date" class="input" type="date" value="${dateStr}">
+        </div>
+        <div style="flex:1">
+          <label class="label">Proveedor</label>
+          <select id="ee-provider" class="input">${providersHtml}</select>
+        </div>
+      </div>
+      <div>
+        <label class="label">Método de pago</label>
+        <select id="ee-method" class="input">
+          <option value="">Sin especificar</option>
+          ${Object.entries(PAY_LABELS).map(([v, l]) => `<option value="${v}" ${expense.paymentMethod === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="label">Reemplazar comprobante (opcional)</label>
+        ${expense.receipt?.url ? `<p class="text-sm text-muted" style="margin-bottom:.3rem">Comprobante actual: <a href="${expense.receipt.url}" target="_blank" style="color:var(--accent)">ver archivo</a></p>` : ''}
+        <input id="ee-receipt" class="input" type="file" accept=".pdf,image/*">
+      </div>
+      <div class="flex gap-2" style="margin-top:.5rem">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-edit-expense')">Cancelar</button>
+        <button id="btn-update-expense" class="btn btn-primary" style="flex:1" onclick="saveEditExpense('${id}')">Guardar</button>
+      </div>
+    </div>
+  `);
+}
+
+export async function saveEditExpense(id) {
+  const desc     = document.getElementById('ee-desc')?.value.trim();
+  const cat      = document.getElementById('ee-cat')?.value;
+  const amount   = parseFloat(document.getElementById('ee-amount')?.value);
+  const date     = document.getElementById('ee-date')?.value;
+  const provider = document.getElementById('ee-provider')?.value;
+  const method   = document.getElementById('ee-method')?.value;
+  const file     = document.getElementById('ee-receipt')?.files[0];
+
+  if (!desc || !cat || !amount || !date) {
+    return toast('Completá los campos obligatorios.', 'warning');
+  }
+
+  const btn = document.getElementById('btn-update-expense');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+
+  try {
+    let body;
+    if (file) {
+      const fd = new FormData();
+      fd.append('description', desc);
+      fd.append('category', cat);
+      fd.append('amount', amount);
+      fd.append('date', date);
+      if (provider) fd.append('provider', provider);
+      if (method)   fd.append('paymentMethod', method);
+      fd.append('receipt', file);
+      body = fd;
+    } else {
+      body = { description: desc, category: cat, amount, date,
+               ...(provider && { provider }), ...(method && { paymentMethod: method }) };
+    }
+
+    await api.expenses.update(id, body);
+    closeModal('modal-edit-expense');
+    toast('Gasto actualizado.', 'success');
+    await renderAdminExpenses();
+  } catch (err) {
+    toast(err.message || 'Error al guardar.', 'error');
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+}
+
 // ── Exponer globalmente ───────────────────────────────────────
 window.renderAdminExpenses   = renderAdminExpenses;
 window.openNewExpenseModal   = openNewExpenseModal;
@@ -285,5 +394,7 @@ window.markExpensePaid       = markExpensePaid;
 window.confirmMarkPaid       = confirmMarkPaid;
 window.deleteExpense         = deleteExpense;
 window.confirmDeleteExpense  = confirmDeleteExpense;
+window.openEditExpenseModal  = openEditExpenseModal;
+window.saveEditExpense       = saveEditExpense;
 window.expensesState         = expensesState;
 window._renderExpensesView   = _renderExpensesView;

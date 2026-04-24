@@ -52,6 +52,7 @@ function _renderProvidersList(el, providers) {
                   ${p.cuit  ? `<span>CUIT: ${p.cuit}</span>` : ''}
                   ${p.phone ? `<span>📞 ${p.phone}</span>`  : ''}
                   ${p.email ? `<span>✉ ${p.email}</span>`   : ''}
+                  ${p.document?.url ? `<a href="${p.document.url}" target="_blank" style="color:var(--accent)">📎 Documento</a>` : ''}
                 </div>
               </div>
               <div class="flex gap-1">
@@ -96,6 +97,9 @@ export async function openEditProviderModal(id) {
 }
 
 function _providerForm(p = {}) {
+  const existingDoc = p.document?.url
+    ? `<p class="text-sm text-muted" style="margin-bottom:.3rem">Archivo actual: <a href="${p.document.url}" target="_blank" style="color:var(--accent)">ver archivo</a></p>`
+    : '';
   return `
     <div class="flex col gap-2">
       <div class="flex gap-2">
@@ -126,6 +130,11 @@ function _providerForm(p = {}) {
         <label class="label">Email</label>
         <input id="prov-email" class="input" type="email" value="${p.email || ''}" placeholder="contacto@empresa.com">
       </div>
+      <div>
+        <label class="label">${p.document?.url ? 'Reemplazar documento' : 'Adjuntar documento'} (DNI, foto, contrato…)</label>
+        ${existingDoc}
+        <input id="prov-doc" class="input" type="file" accept=".pdf,image/*">
+      </div>
     </div>`;
 }
 
@@ -136,17 +145,27 @@ function _providerFields() {
     cuit:        document.getElementById('prov-cuit')?.value.trim() || undefined,
     phone:       document.getElementById('prov-phone')?.value.trim() || undefined,
     email:       document.getElementById('prov-email')?.value.trim() || undefined,
+    file:        document.getElementById('prov-doc')?.files[0] || null,
   };
 }
 
+function _buildProviderBody(fields) {
+  const { file, ...rest } = fields;
+  if (!file) return rest;
+  const fd = new FormData();
+  Object.entries(rest).forEach(([k, v]) => { if (v !== undefined) fd.append(k, v); });
+  fd.append('document', file);
+  return fd;
+}
+
 export async function saveNewProvider() {
-  const data = _providerFields();
-  if (!data.name || !data.serviceType) return toast('Nombre y tipo son obligatorios.', 'warning');
+  const fields = _providerFields();
+  if (!fields.name || !fields.serviceType) return toast('Nombre y tipo son obligatorios.', 'warning');
 
   const btn = document.getElementById('btn-save-provider');
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
-    await api.providers.create(data);
+    await api.providers.create(_buildProviderBody(fields));
     closeModal('modal-new-provider');
     toast('Proveedor creado.', 'success');
     await renderAdminProviders();
@@ -157,13 +176,13 @@ export async function saveNewProvider() {
 }
 
 export async function updateProvider(id) {
-  const data = _providerFields();
-  if (!data.name || !data.serviceType) return toast('Nombre y tipo son obligatorios.', 'warning');
+  const fields = _providerFields();
+  if (!fields.name || !fields.serviceType) return toast('Nombre y tipo son obligatorios.', 'warning');
 
   const btn = document.getElementById('btn-upd-provider');
   btn.disabled = true; btn.textContent = 'Guardando…';
   try {
-    await api.providers.update(id, data);
+    await api.providers.update(id, _buildProviderBody(fields));
     closeModal('modal-edit-provider');
     toast('Proveedor actualizado.', 'success');
     await renderAdminProviders();

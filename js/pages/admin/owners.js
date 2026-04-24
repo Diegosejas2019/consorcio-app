@@ -60,6 +60,7 @@ export function _renderOwnersView() {
       <div class="flex between">
         <h1>Propietarios</h1>
         <div class="flex gap-1">
+          <button class="btn btn-ghost btn-sm" onclick="downloadOwnersExcel()">Exportar Excel</button>
           <button class="btn btn-ghost btn-sm" onclick="openBulkOwnerModal()">Carga masiva</button>
           <button class="btn btn-primary btn-sm" onclick="openNewOwnerModal()">+ Agregar</button>
         </div>
@@ -731,6 +732,27 @@ export function sendWelcomeWhatsApp(phone) {
   closeModal();
 }
 
+// ── Exportar listado a Excel ──────────────────────────────────
+export function downloadOwnersExcel() {
+  const owners = ownersListState.all;
+  if (!owners.length) return toast('No hay propietarios para exportar.', 'warning');
+
+  const rows = owners.map(o => ({
+    Nombre:         o.name,
+    Email:          o.email || '',
+    Unidades:       (o.units || []).map(u => u.name).join(', ') || o.unit || '',
+    Teléfono:       o.phone || '',
+    Estado:         o.isDebtor ? 'Moroso' : 'Al día',
+    Saldo:          o.balance || 0,
+    'Último pago':  o.lastPayment?.month || '',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Propietarios');
+  XLSX.writeFile(wb, 'propietarios.xlsx');
+}
+
 window.renderOwnersList       = renderOwnersList;
 window._renderOwnersView      = _renderOwnersView;
 window.ownersListState        = ownersListState;
@@ -765,3 +787,4 @@ window.openWhatsAppOwnerModal  = openWhatsAppOwnerModal;
 window.sendWhatsAppOwner       = sendWhatsAppOwner;
 window.openWelcomeWhatsAppModal = openWelcomeWhatsAppModal;
 window.sendWelcomeWhatsApp     = sendWelcomeWhatsApp;
+window.downloadOwnersExcel     = downloadOwnersExcel;
