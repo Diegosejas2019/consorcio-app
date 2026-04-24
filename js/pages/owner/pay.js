@@ -25,14 +25,17 @@ export async function renderUploadPage() {
 
     _monthlyFee      = cfg.monthlyFee || 0;
     const feeLabel   = _monthlyFee > 0 ? ` — $${_monthlyFee.toLocaleString('es-AR')}` : '';
-    const months     = cfg.paymentPeriods?.length
+    const allMonths  = cfg.paymentPeriods?.length
       ? cfg.paymentPeriods.map(v => ({ value: v, label: `${formatPeriodLabel(v)}${feeLabel}` }))
       : getRecentMonths(6).map(m => ({ ...m, label: `${m.label}${feeLabel}` }));
 
-    // Períodos ya pagados o con comprobante manual en revisión
-    const approvedPeriods      = new Set(payments.filter(p => p.status === 'approved').map(p => p.month));
-    const manualPendingPeriods = new Set(payments.filter(p => p.status === 'pending' && p.paymentMethod !== 'mercadopago').map(p => p.month));
-    const unpaidPeriods        = (cfg.paymentPeriods || []).filter(p => !approvedPeriods.has(p) && !manualPendingPeriods.has(p));
+    // Períodos con pago activo (aprobado o pendiente por cualquier canal)
+    const approvedPeriods = new Set(payments.filter(p => p.status === 'approved').map(p => p.month));
+    const pendingPeriods  = new Set(payments.filter(p => p.status === 'pending').map(p => p.month));
+    const activePeriods   = new Set([...approvedPeriods, ...pendingPeriods]);
+    const unpaidPeriods   = (cfg.paymentPeriods || []).filter(p => !activePeriods.has(p));
+    // Dropdown solo muestra períodos sin pago activo
+    const months          = allMonths.filter(m => !activePeriods.has(m.value));
 
     const isDebtor = owner?.isDebtor || (owner?.balance || 0) < 0;
     const hasDebt  = isDebtor && unpaidPeriods.length > 0;
@@ -85,6 +88,9 @@ export async function renderUploadPage() {
 
         <div class="card oh-entry" style="--delay:${hasDebt ? 100 : 60}ms">
           <div class="card-body flex col gap-2">
+            ${months.length === 0 ? `
+            <p class="text-sm text-muted" style="text-align:center;padding:.5rem 0">No hay períodos disponibles para subir comprobante.</p>
+            ` : `
             <div class="op-form-grid">
               <div class="form-group">
                 <label>Período</label>
@@ -115,6 +121,7 @@ export async function renderUploadPage() {
             <button class="btn btn-primary w-full" id="btn-submit-receipt" data-requires-network onclick="submitReceipt()">
               ${SVG.upload} Enviar Comprobante
             </button>
+            `}
           </div>
         </div>
 
@@ -227,10 +234,9 @@ export async function submitReceipt() {
   try {
     await api.payments.create(formData);
     toast('Comprobante enviado. Pendiente de revisión.', 'success');
-    clearFile();
-    document.getElementById('pay-amount').value = '';
-    document.getElementById('pay-note').value   = '';
+    selectedFile = null;
     cache.del('owner_home');
+    await renderUploadPage();
   } catch (err) {
     toast(err.message, 'error');
   } finally {
