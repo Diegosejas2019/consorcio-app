@@ -7,6 +7,7 @@ import { cache, state } from '../../core/state.js';
 
 let selectedFile = null;
 let _monthlyFee  = 0;
+let _ownerFee    = 0;
 const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 export async function renderUploadPage() {
@@ -14,17 +15,23 @@ export async function renderUploadPage() {
   el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
 
   try {
-    const [cfgRes, payRes] = await Promise.all([
+    const [cfgRes, payRes, unitsRes] = await Promise.all([
       api.config.get(),
       api.payments.getAll({ limit: 50 }),
+      api.units.getAll(),
     ]);
 
     const cfg      = cfgRes.data.config;
     const payments = payRes.data.payments;
     const owner    = state.user;
+    const units    = unitsRes.data.units || [];
 
-    _monthlyFee      = cfg.monthlyFee || 0;
-    const feeLabel      = _monthlyFee > 0 ? ` — $${_monthlyFee.toLocaleString('es-AR')}` : '';
+    _monthlyFee = cfg.monthlyFee || 0;
+    _ownerFee   = units.length > 0
+      ? units.reduce((sum, u) => sum + (u.finalFee ?? _monthlyFee), 0)
+      : _monthlyFee;
+
+    const feeLabel = _ownerFee > 0 ? ` — $${_ownerFee.toLocaleString('es-AR')}` : '';
     const startBilling  = owner?.startBillingPeriod;
     const allMonths     = cfg.paymentPeriods?.length
       ? cfg.paymentPeriods
@@ -53,7 +60,7 @@ export async function renderUploadPage() {
         <label class="op-debt-period-row">
           <input type="checkbox" class="op-debt-check" value="${p}" checked onchange="updateDebtTotal()">
           <span style="flex:1">${formatPeriodLabel(p)}</span>
-          <span style="font-size:.88rem;opacity:.7">$${_monthlyFee.toLocaleString('es-AR')}</span>
+          <span style="font-size:.88rem;opacity:.7">$${_ownerFee.toLocaleString('es-AR')}</span>
         </label>`).join('');
 
       debtHtml = `
@@ -69,7 +76,7 @@ export async function renderUploadPage() {
             </div>
             <div class="flex between" style="align-items:center;padding:.55rem .75rem;background:rgba(255,255,255,.06);border-radius:8px;margin-top:.1rem">
               <span class="text-sm text-muted">Total a pagar</span>
-              <strong id="debt-total" style="font-size:1.05rem">$${(_monthlyFee * unpaidPeriods.length).toLocaleString('es-AR')}</strong>
+              <strong id="debt-total" style="font-size:1.05rem">$${(_ownerFee * unpaidPeriods.length).toLocaleString('es-AR')}</strong>
             </div>
             <button class="op-mp-btn" id="btn-pay-debt" onclick="payDebtWithMP()" data-requires-network>
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -106,7 +113,7 @@ export async function renderUploadPage() {
               </div>
               <div class="form-group">
                 <label>Importe ($)</label>
-                <input class="input" type="number" id="pay-amount" value="${_monthlyFee || ''}" placeholder="${_monthlyFee || cfg.expenseAmount || ''}" min="1">
+                <input class="input" type="number" id="pay-amount" value="${_ownerFee || ''}" placeholder="${_ownerFee || cfg.expenseAmount || ''}" min="1">
               </div>
             </div>
             <div class="form-group">
@@ -145,7 +152,7 @@ export async function renderUploadPage() {
             </svg>
           </div>
           <div class="op-mp-card__amount-row">
-            <span class="op-mp-card__amount">$${(_monthlyFee || cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
+            <span class="op-mp-card__amount">$${(_ownerFee || cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
             <span class="op-mp-card__period">· ${cfg.expenseMonth || ''}</span>
           </div>
           <button class="op-mp-btn" onclick="initMercadoPago()" data-requires-network>
@@ -168,7 +175,7 @@ export async function renderUploadPage() {
 
 export function updateDebtTotal() {
   const checks  = document.querySelectorAll('.op-debt-check:checked');
-  const total   = checks.length * _monthlyFee;
+  const total   = checks.length * _ownerFee;
   const totalEl = document.getElementById('debt-total');
   if (totalEl) totalEl.textContent = `$${total.toLocaleString('es-AR')}`;
   const btn = document.getElementById('btn-pay-debt');
