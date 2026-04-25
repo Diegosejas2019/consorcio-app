@@ -18,6 +18,17 @@ export function renderAdminView() {
   window.PAGE_RENDERERS[page]?.();
 }
 
+function greetingLabel() {
+  const h = new Date().getHours();
+  const greeting = h < 12 ? 'BUENOS DÍAS' : h < 20 ? 'BUENAS TARDES' : 'BUENAS NOCHES';
+  const fecha = new Date().toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+  return `${greeting} · ${fecha}`;
+}
+
+function initials(name = '') {
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+}
+
 export async function renderAdminHome() {
   const el = document.getElementById('page-admin-home');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
@@ -34,93 +45,166 @@ export async function renderAdminHome() {
     const cfg        = cfgRes.data.config;
     const openClaims = claimsRes.data.claims;
 
+    const firstName     = (state.user?.name || '').split(' ')[0] || 'Admin';
+    const compRate      = stats.complianceRate || 0;
+    const unpaiedCount  = Math.max(0, (stats.totalOwners || 0) - (stats.upToDate || 0));
+    const pendingCount  = stats.pendingPayments || 0;
+    const debtorCount   = stats.debtors || 0;
+    const claimCount    = openClaims.length;
+    const periodLabel   = (cfg.expenseMonth || '').toUpperCase();
+
     el.innerHTML = `
       <div class="flex col gap-3">
-        <div>
-          <p class="text-muted text-sm">Panel de</p>
-          <h1>Administración</h1>
-          <small>${cfg.consortiumName || 'Consorcio'} · ${cfg.expenseMonth || ''}</small>
-        </div>
 
-        <div class="stats-grid">
-          <div class="stat-card stat-card-clickable" onclick="openStatDetail('pending')">
-            <span class="stat-label">Pendientes</span>
-            <span class="stat-value" style="color:var(--warning)">${stats.pendingPayments || 0}</span>
-            <span class="stat-sub">por revisar ›</span>
-          </div>
-          <div class="stat-card stat-card-clickable" onclick="openStatDetail('compliance')">
-            <span class="stat-label">Cumplimiento</span>
-            <span class="stat-value" style="color:var(--success)">${stats.complianceRate || 0}%</span>
-            <span class="stat-sub">${stats.upToDate || 0} de ${stats.totalOwners || 0} ›</span>
-          </div>
-          <div class="stat-card stat-card-clickable" onclick="openStatDetail('debtors')">
-            <span class="stat-label">Morosos</span>
-            <span class="stat-value" style="color:var(--danger)">${stats.debtors || 0}</span>
-            <span class="stat-sub">propietarios ›</span>
-          </div>
-          <div class="stat-card stat-card-clickable" onclick="openStatDetail('collected')">
-            <span class="stat-label">Recaudado</span>
-            <span class="stat-value" style="color:var(--accent);font-size:1.3rem">$${((stats.totalCollected || 0) / 1000).toFixed(0)}k</span>
-            <span class="stat-sub">histórico ›</span>
+        <!-- Greeting -->
+        <div class="home-greeting">
+          <div class="hello">${greetingLabel()}</div>
+          <h1>Hola, <em>${firstName}</em> 👋</h1>
+          <div class="org-line">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            ${cfg.consortiumName || 'Consorcio'}
+            <span style="color:var(--border-md)">·</span>
+            ${stats.totalOwners || 0} propietarios
           </div>
         </div>
 
-        <div class="card" style="background:var(--accent-lt);border:1px solid rgba(0,214,143,0.25)">
-          <div class="card-body flex between" style="padding:.85rem 1rem;align-items:center;gap:1rem">
-            <div>
-              <p class="bold text-sm">Recordatorios de vencimiento</p>
-              <small style="color:var(--muted)">Envía push a propietarios sin pago aprobado este mes</small>
+        <!-- Hero estado -->
+        <div class="hero-status">
+          <div class="hero-top">
+            <div class="hero-label"><span class="pulse"></span> ESTADO DEL CONSORCIO</div>
+            ${periodLabel ? `<div class="hero-period">${periodLabel}</div>` : ''}
+          </div>
+          <div class="hero-main">
+            <div class="hero-percent">${compRate}<span class="pct">%</span></div>
+            <div class="hero-desc"><strong>${stats.upToDate || 0} de ${stats.totalOwners || 0}</strong> propietarios al día este mes</div>
+          </div>
+          <div class="hero-bar"><div class="fill" style="width:${compRate}%"></div></div>
+          <div class="hero-chips">
+            <div class="hero-chip warn" onclick="openStatDetail('pending')" title="Ver pagos pendientes">
+              <span class="chip-num">${pendingCount}</span>
+              <span class="chip-lbl">Por revisar</span>
             </div>
-            <button class="btn btn-primary btn-sm" data-requires-network onclick="triggerReminders()" style="flex-shrink:0">
-              Enviar ahora
+            <div class="hero-chip alert" onclick="openStatDetail('debtors')" title="Ver morosos">
+              <span class="chip-num">${debtorCount}</span>
+              <span class="chip-lbl">Morosos</span>
+            </div>
+            <div class="hero-chip" onclick="showPage('page-admin-claims');renderAdminClaims()" title="Ver reclamos">
+              <span class="chip-num">${claimCount}</span>
+              <span class="chip-lbl">Reclamos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Acciones rápidas -->
+        <div>
+          <div class="section-label">
+            <h2>Acciones rápidas</h2>
+            ${pendingCount + debtorCount > 0 ? `<span class="caption">${pendingCount + debtorCount} PENDIENTES</span>` : ''}
+          </div>
+          <div class="quick-actions">
+            <button class="quick-action warn" onclick="openStatDetail('pending')">
+              ${pendingCount > 0 ? `<span class="qa-badge">${pendingCount}</span>` : ''}
+              <div class="qa-ico">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg>
+              </div>
+              <div class="qa-title">Comprobantes por revisar</div>
+              <div class="qa-sub">Aprobá o rechazá pagos</div>
+            </button>
+            <button class="quick-action alert" onclick="openStatDetail('debtors')">
+              ${debtorCount > 0 ? `<span class="qa-badge">${debtorCount}</span>` : ''}
+              <div class="qa-ico">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div class="qa-title">Gestionar morosos</div>
+              <div class="qa-sub">Seguimiento y acuerdos</div>
+            </button>
+            <button class="quick-action wide" onclick="showPage('page-admin-notices');renderAdminNotices()">
+              <div class="qa-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              </div>
+              <div class="qa-body">
+                <div class="qa-title">Nuevo aviso o comunicado</div>
+                <div class="qa-sub">Crear aviso de corte, evento o noticia</div>
+              </div>
+              <svg class="qa-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-header flex between">
-            <h3>Comprobantes Pendientes</h3>
-            ${pending.length > 0 ? `<span class="badge badge-warning">${pending.length}</span>` : ''}
-          </div>
-          <div class="card-body flex col gap-2">
-            ${pending.length === 0
-              ? '<p class="text-muted text-sm">No hay comprobantes pendientes.</p>'
-              : pending.map(p => `
-                <div class="flex between" style="padding:.6rem 0;border-bottom:1px solid var(--border)">
-                  <div>
-                    <p class="bold text-sm">${p.owner?.name || '—'}</p>
-                    <small>${p.owner?.unit || ''} · ${formatMonth(p.month)} · $${p.amount.toLocaleString('es-AR')}</small>
-                    ${p.receipt?.url ? `<br><button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" style="font-size:.72rem;color:var(--accent);padding:0;background:none;border:none;cursor:pointer;text-decoration:underline">Ver comprobante ↗</button>` : ''}
-                  </div>
-                  <div class="flex gap-1">
-                    <button class="btn btn-success btn-sm" data-requires-network onclick="approvePayment('${p._id}')">${SVG.check}</button>
-                    <button class="btn btn-danger  btn-sm" data-requires-network onclick="openRejectModal('${p._id}')">${SVG.x}</button>
-                  </div>
-                </div>`).join('')}
-          </div>
+        <!-- Recordatorio push -->
+        <div class="reminder-card">
+          <span class="reminder-tag">RECORDATORIO PUSH</span>
+          <div class="big"><em>${unpaiedCount} propietario${unpaiedCount !== 1 ? 's' : ''}</em> sin pago<br>aprobado este mes</div>
+          <p>Enviá un recordatorio automático a quienes todavía no subieron comprobante.</p>
+          <button class="reminder-btn" data-requires-network onclick="triggerReminders()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Enviar recordatorios ahora
+          </button>
         </div>
 
+        <!-- Comprobantes pendientes -->
+        ${pending.length > 0 ? `
+        <div>
+          <div class="section-label">
+            <h2>Comprobantes por revisar</h2>
+          </div>
+          <div class="pending-section">
+            <div class="pending-section-head">
+              <h3>${pending.length} esperando aprobación <span class="badge-new">NUEVOS</span></h3>
+              <span class="pending-view-all" onclick="openStatDetail('pending')">Ver todos →</span>
+            </div>
+            ${pending.slice(0, 5).map(p => `
+              <div class="pending-row" ${p.receipt?.url ? `onclick="downloadReceipt('${p._id}')" style="cursor:pointer"` : ''}>
+                <div class="pending-ava">${initials(p.owner?.name)}</div>
+                <div class="pending-info">
+                  <div class="pending-name">${p.owner?.name || '—'}</div>
+                  <div class="pending-meta">
+                    <span>${p.owner?.unit || ''}</span>
+                    <span>·</span>
+                    <span>${formatMonth(p.month)}</span>
+                    <span>·</span>
+                    <span class="amt">$${p.amount.toLocaleString('es-AR')}</span>
+                  </div>
+                </div>
+                <div class="pending-actions" onclick="event.stopPropagation()">
+                  <button class="pa-btn ok" data-requires-network onclick="approvePayment('${p._id}')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button class="pa-btn no" data-requires-network onclick="openRejectModal('${p._id}')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Reclamos abiertos (solo si existen) -->
+        ${openClaims.length > 0 ? `
         <div class="card">
           <div class="card-header flex between">
             <h3>Reclamos Abiertos</h3>
             <div class="flex gap-1" style="align-items:center">
-              ${openClaims.length > 0 ? `<span class="badge badge-warning">${openClaims.length}</span>` : ''}
+              <span class="badge badge-warning">${openClaims.length}</span>
               <button class="btn btn-ghost btn-sm" onclick="showPage('page-admin-claims');renderAdminClaims()">Ver todos</button>
             </div>
           </div>
           <div class="card-body flex col gap-2">
-            ${openClaims.length === 0
-              ? '<p class="text-muted text-sm">No hay reclamos abiertos.</p>'
-              : openClaims.map(c => `
-                <div style="padding:.5rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.5rem">
-                  <div style="flex:1;min-width:0">
-                    <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.title}</p>
-                    <small style="color:var(--muted)">${c.owner?.name || '—'} · ${c.owner?.unit || ''} · ${CLAIM_CATEGORIES[c.category] || c.category}</small>
-                  </div>
-                  <button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">Resolver</button>
-                </div>`).join('')}
+            ${openClaims.map(c => `
+              <div style="padding:.5rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+                <div style="flex:1;min-width:0">
+                  <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.title}</p>
+                  <small style="color:var(--muted)">${c.owner?.name || '—'} · ${c.owner?.unit || ''} · ${CLAIM_CATEGORIES[c.category] || c.category}</small>
+                </div>
+                <button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">Resolver</button>
+              </div>`).join('')}
           </div>
+        </div>` : ''}
+
+        <div class="last-updated">
+          <span class="tick"></span>
+          Actualizado hace instantes
         </div>
+
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderAdminHome()');
