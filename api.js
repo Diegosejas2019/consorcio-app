@@ -26,10 +26,44 @@ const clearToken = ()              => {
   sessionStorage.removeItem(TOKEN_KEY);
 };
 
+// ── Cache key ─────────────────────────────────────────────────
+function buildCacheKey(method, endpoint) {
+  return `${method}:${endpoint}`;
+}
+
 // ── Función base de fetch ─────────────────────────────────────
 async function request(endpoint, options = {}) {
-  const token = getToken();
+  const method   = (options.method || 'GET').toUpperCase();
+  const isWrite  = method !== 'GET';
+  const cacheKey = buildCacheKey(method, endpoint);
+  const token    = getToken();
 
+  // ── Offline path ─────────────────────────────────────────────
+  if (!navigator.onLine) {
+    if (isWrite) {
+      if (options.body instanceof FormData) {
+        throw new Error('Esta acción requiere conexión a internet.');
+      }
+      if (window.offlineQueue) {
+        await window.offlineQueue.enqueue({
+          url:       endpoint,
+          method,
+          body:      options.body ?? null,
+          headers:   options.headers ?? null,
+          createdAt: Date.now(),
+        });
+      }
+      return { success: true, offline: true };
+    }
+    // GET offline → try IDB cache
+    if (window.idbService) {
+      const cached = await window.idbService.get('cache', cacheKey);
+      if (cached) return cached.value;
+    }
+    throw new Error('Sin conexión y sin datos cacheados.');
+  }
+
+  // ── Online path ──────────────────────────────────────────────
   const headers = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
@@ -44,6 +78,11 @@ async function request(endpoint, options = {}) {
   try {
     response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
   } catch (networkErr) {
+    // Network failure while nominally online → try IDB cache for GETs
+    if (!isWrite && window.idbService) {
+      const cached = await window.idbService.get('cache', cacheKey);
+      if (cached) return cached.value;
+    }
     throw new Error('Sin conexión con el servidor. Verificá tu internet.');
   }
 
@@ -64,6 +103,11 @@ async function request(endpoint, options = {}) {
       window.dispatchEvent(new CustomEvent('auth:expired'));
     }
     throw err;
+  }
+
+  // Cache successful GET responses in IDB (fire-and-forget)
+  if (!isWrite && window.idbService) {
+    window.idbService.set('cache', cacheKey, { value: data, cachedAt: Date.now() });
   }
 
   return data;

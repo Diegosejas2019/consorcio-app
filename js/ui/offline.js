@@ -8,5 +8,13 @@ export function updateOnlineStatus() {
   });
 }
 
-window.addEventListener('online',  updateOnlineStatus);
-window.addEventListener('offline', updateOnlineStatus);
+window.addEventListener('offline', () => {
+  updateOnlineStatus();
+  window.toast?.('Sin conexión. Los cambios se guardarán localmente.', 'warning');
+});
+
+window.addEventListener('online', async () => {
+  updateOnlineStatus();
+  window.toast?.('Conexión restablecida. Sincronizando...', 'default');
+  await window.offlineQueue?.flushQueue();
+});

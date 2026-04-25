@@ -16,6 +16,8 @@ import './js/ui/offline.js';
 import './js/ui/pwa.js';
 
 // ── Services ──────────────────────────────────────────────────
+import './js/services/indexedDbService.js';
+import './js/services/offlineQueue.js';
 import './js/services/featureService.js';
 import './js/services/authService.js';
 import './js/services/pushService.js';
