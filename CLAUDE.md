@@ -9,6 +9,7 @@ PWA multi-tenant para la gestión de organizaciones (consorcios, gimnasios, cole
 - **Frontend**: PWA vanilla — HTML + CSS + JS (ES modules, sin frameworks ni bundler)
 - **Backend**: API REST en Railway → `https://consorcio-api-production.up.railway.app/api`
 - **Auth**: JWT en `localStorage` (recordarme) o `sessionStorage` (sesión) bajo la clave `consorcio_token`
+- **Offline**: IndexedDB (`gestionar-db`) para caché de GETs + cola de mutaciones offline
 - **Push**: Firebase FCM (firebase-app-compat + firebase-messaging-compat v10.12.2)
 - **Excel**: SheetJS (xlsx-0.20.3) para exportar reportes desde el dashboard
 - **Tests**: Jest + jsdom (`npm test` en raíz del proyecto)
@@ -44,31 +45,40 @@ consorcio-app/
 │   │   ├── helpers.js       # Utilidades UI compartidas
 │   │   └── onboarding.js    # Hints de primera visita (guardados en localStorage)
 │   ├── services/
-│   │   ├── authService.js   # Login, logout, enterApp, restore sesión, forgot/reset password
-│   │   ├── pushService.js   # setupPushNotifications(), checkMonthlyReminder()
+│   │   ├── authService.js       # Login, logout, enterApp, restore sesión, forgot/reset password
+│   │   ├── pushService.js       # setupPushNotifications(), checkMonthlyReminder()
 │   │   ├── mercadopagoService.js # Flujo Checkout Pro
 │   │   ├── paymentsService.js   # Lógica de pagos del owner
-│   │   └── configService.js     # renderAdminSettings()
+│   │   ├── configService.js     # renderAdminSettings()
+│   │   ├── featureService.js    # isFeatureEnabled(key) — feature flags por org
+│   │   ├── indexedDbService.js  # idbService: caché offline en IndexedDB
+│   │   └── offlineQueue.js      # offlineQueue: cola de mutaciones offline
 │   └── pages/
 │       ├── admin/
-│       │   ├── home.js      # renderAdminHome()
-│       │   ├── dashboard.js # renderAdminDashboard()
-│       │   ├── owners.js    # renderOwnersList()
-│       │   ├── notices.js   # renderAdminNotices()
-│       │   ├── claims.js    # renderAdminClaims()
-│       │   ├── expenses.js  # renderAdminExpenses()
-│       │   ├── providers.js # renderAdminProviders()
-│       │   ├── report.js    # renderAdminReport()
-│       │   └── votes.js     # renderAdminVotes()
+│       │   ├── home.js          # renderAdminHome()
+│       │   ├── dashboard.js     # renderAdminDashboard()
+│       │   ├── owners.js        # renderOwnersList()
+│       │   ├── notices.js       # renderAdminNotices()
+│       │   ├── claims.js        # renderAdminClaims()
+│       │   ├── expenses.js      # renderAdminExpenses()
+│       │   ├── providers.js     # renderAdminProviders()
+│       │   ├── report.js        # renderAdminReport()
+│       │   ├── votes.js         # renderAdminVotes()
+│       │   ├── visits.js        # renderAdminVisits()
+│       │   ├── spaces.js        # renderAdminSpaces()
+│       │   └── reservations.js  # renderAdminReservations()
 │       └── owner/
-│           ├── home.js      # renderOwnerHome()
-│           ├── pay.js       # renderUploadPage()
-│           ├── history.js   # renderOwnerHistory()
-│           ├── notices.js   # renderOwnerNotices()
-│           ├── claims.js    # renderOwnerClaims()
-│           ├── expenses.js  # renderOwnerExpenses()
-│           ├── votes.js     # renderOwnerVotes()
-│           └── profile.js   # renderOwnerProfile()
+│           ├── home.js          # renderOwnerHome()
+│           ├── pay.js           # renderUploadPage()
+│           ├── history.js       # renderOwnerHistory()
+│           ├── notices.js       # renderOwnerNotices()
+│           ├── claims.js        # renderOwnerClaims()
+│           ├── expenses.js      # renderOwnerExpenses()
+│           ├── votes.js         # renderOwnerVotes()
+│           ├── profile.js       # renderOwnerProfile()
+│           ├── visits.js        # renderOwnerVisits()
+│           ├── reservations.js  # renderOwnerReservations()
+│           └── pago-resultado.js # renderPagoResultado() — resultado del pago MP
 └── tests/
     ├── globals.js           # Mocks globales para Jest
     ├── setup/               # Configuración de entorno de test
@@ -92,6 +102,9 @@ consorcio-app/
 | `page-owner-expenses` | Ver gastos compartidos de la organización (solo lectura) |
 | `page-owner-votes` | Participar en votaciones abiertas |
 | `page-owner-profile` | Editar nombre, email y cambiar contraseña |
+| `page-owner-visits` | Registrar visitantes autorizados para ingreso al complejo |
+| `page-owner-reservations` | Reservar espacios comunes disponibles |
+| `page-owner-pago-resultado` | Resultado del pago tras redirect de MercadoPago |
 
 ### Admin
 | id | Contenido |
@@ -104,15 +117,20 @@ consorcio-app/
 | `page-admin-expenses` | Registro de gastos por categoría/proveedor, marcar como pagado, filtrar y exportar |
 | `page-admin-providers` | ABM de proveedores de servicio (limpieza, seguridad, mantenimiento, etc.) |
 | `page-admin-report` | Resumen financiero mensual (ingresos, egresos por categoría, saldo) |
-| `page-admin-settings` | Configuración: monto, período, recargo, datos de contacto, credenciales MercadoPago |
+| `page-admin-settings` | Configuración: monto, período, recargo, datos de contacto, credenciales MercadoPago, features |
 | `page-admin-votes` | Crear y gestionar votaciones, cerrarlas y ver resultados |
+| `page-admin-visits` | Ver y gestionar todas las visitas registradas (aprobar, rechazar, marcar estado) |
+| `page-admin-spaces` | ABM de espacios comunes reservables (nombre, capacidad, requiere aprobación) |
+| `page-admin-reservations` | Ver y gestionar todas las reservas de espacios (aprobar, rechazar) |
 
 ## Estado global (js/core/state.js)
 
 ```js
-export const state = { role: null, user: null };
+export const state = { role: null, user: null, features: {} };
 export function setState(updates) { Object.assign(state, updates); }
 ```
+
+`state.features` es un objeto `{ [featureKey]: boolean }` cargado desde `GET /api/organizations/:id/features`. Controla qué módulos están visibles en la navegación.
 
 ## Cache liviano (js/core/state.js)
 
@@ -124,6 +142,32 @@ cache.clear()
 ```
 TTL por defecto: 30 s. Evita requests redundantes en navegación frecuente.
 
+## Offline (IndexedDB + cola de mutaciones)
+
+**`indexedDbService`** (`js/services/indexedDbService.js`): wrapper sobre IndexedDB (`gestionar-db`).
+- Object stores: `cache` (GETs cacheados), `offlineQueue` (mutaciones pendientes), `metadata`.
+- API: `idbService.get(store, key)`, `idbService.set(store, key, value)`, `idbService.getAll(store)`, `idbService.del(store, key)`, `idbService.clear(store)`.
+- Expuesto en `window.idbService`.
+
+**`offlineQueue`** (`js/services/offlineQueue.js`): encola mutaciones (POST/PATCH/DELETE) cuando no hay conexión. Al recuperar conexión, las procesa en orden.
+- Expuesto en `window.offlineQueue`.
+
+Comportamiento de `api.js`:
+- **Sin conexión + GET**: intenta IDB cache; si no hay, lanza error.
+- **Sin conexión + mutación con FormData**: lanza error (requiere internet).
+- **Sin conexión + mutación JSON**: encola en offlineQueue, retorna `{ success: true, offline: true }`.
+- **Con conexión + GET exitoso**: guarda respuesta en IDB (fire-and-forget).
+
+## Feature flags (js/services/featureService.js)
+
+```js
+import { isFeatureEnabled } from './featureService.js';
+isFeatureEnabled('visits')       // true si habilitado (default true si no configurado)
+```
+
+Feature keys disponibles: `visits`, `reservations`, `votes`, `expenses`, `providers`.
+Mapa `PAGE_FEATURE_MAP` vincula cada pageId a su feature key; el router oculta la entrada de nav si la feature está deshabilitada.
+
 ## Funciones y módulos clave
 
 | Función / Módulo | Ubicación | Descripción |
@@ -134,10 +178,11 @@ TTL por defecto: 30 s. Evita requests redundantes en navegación frecuente.
 | `showLoading(bool)` | `js/ui/loading.js` | Activa / desactiva overlay de carga |
 | `skeleton(lines)` | `js/ui/skeleton.js` | Genera HTML de skeleton loader con clase `.skeleton` (CSS shimmer) |
 | `openModal(html)` / `closeModal()` | `js/ui/modal.js` | Modal genérico |
-| `enterApp()` | `js/services/authService.js` | Post-login: configura nav, top bar y renderiza la vista según rol |
+| `enterApp()` | `js/services/authService.js` | Post-login: carga features, configura nav, top bar y renderiza la vista según rol |
 | `logout()` | `js/services/authService.js` | Limpia token, cache y estado; vuelve al login |
 | `setupPushNotifications()` | `js/services/pushService.js` | Inicializa FCM y registra/actualiza fcmToken del owner |
 | `checkMonthlyReminder()` | `js/services/pushService.js` | Muestra recordatorio si hay expensa pendiente del período actual |
+| `isFeatureEnabled(key)` | `js/services/featureService.js` | Retorna si una feature está habilitada para la org actual |
 | `PAGE_RENDERERS` | `js/core/router.js` | Mapa `pageId → renderFn`, poblado en `app.js` |
 
 ## Autenticación — recordarme
@@ -195,6 +240,8 @@ api.notices.getOne(id)
 api.notices.create(data)
 api.notices.update(id, data)
 api.notices.delete(id)
+api.notices.markRead(id)
+api.notices.markUnread(id)
 
 api.claims.getAll(params?)
 api.claims.create(data)
@@ -207,22 +254,51 @@ api.expenses.create(data)              // FormData con archivo receipt opcional
 api.expenses.update(id, data)
 api.expenses.markAsPaid(id, data?)
 api.expenses.delete(id)
+api.expenses.getAttachmentUrl(id, index)
+api.expenses.deleteAttachment(id, index)
 
 api.providers.getAll(params?)
 api.providers.create(data)
 api.providers.update(id, data)
 api.providers.delete(id)
+api.providers.getDocumentUrl(id, index)
+api.providers.deleteDocument(id, index)
 
-api.reports.getMonthlySummary(month)  // month: 'YYYY-MM'
+api.reports.getMonthlySummary(month)   // month: 'YYYY-MM'
+api.reports.downloadExpensasPdf(month) // retorna Blob del PDF
 
 api.config.get()
 api.config.update(data)
 
-api.mercadopago.createPreference()
+api.mercadopago.createPreference(periods?)  // periods: array de 'YYYY-MM' opcionales
 api.mercadopago.getPaymentStatus(mpPaymentId)
 
 api.organizations.getTemplates()
 api.organizations.create(data)
+api.organizations.getFeatures(orgId)
+api.organizations.updateFeatures(orgId, features)   // features: { [key]: boolean }
+
+api.units.getAll(params?)
+api.units.create(data)
+api.units.update(id, data)
+api.units.delete(id)
+
+api.visits.getAll(params?)
+api.visits.getMy()
+api.visits.create(data)               // { name, type, expectedDate, note? }
+api.visits.updateStatus(id, status)   // admin: approved | rejected | inside | exited
+api.visits.delete(id)
+
+api.spaces.getAll()
+api.spaces.create(data)               // admin: { name, description?, capacity?, requiresApproval? }
+api.spaces.update(id, data)
+api.spaces.delete(id)
+
+api.reservations.getAll(params?)
+api.reservations.getMine()
+api.reservations.create(data)         // { space, date, startTime, endTime, note? }
+api.reservations.updateStatus(id, status)  // admin: approved | rejected | cancelled
+api.reservations.delete(id)
 
 api.votes.getAll(params?)
 api.votes.getOne(id)
@@ -267,6 +343,7 @@ Tests ubicados en `tests/`. Usan Jest + jsdom. `tests/globals.js` configura los 
 - El frontend solicita preferencia al backend → recibe `init_point` → abre en nueva pestaña.
 - Las credenciales MP se configuran desde Settings admin (se guardan en DB, nunca en código).
 - El botón usa SVG inline para evitar dependencia de imagen externa.
+- Tras el redirect, `page-owner-pago-resultado` muestra el estado del pago consultando la API.
 
 ## Credenciales demo
 
