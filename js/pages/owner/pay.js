@@ -78,10 +78,11 @@ export async function renderUploadPage() {
               <span class="text-sm text-muted">Total a pagar</span>
               <strong id="debt-total" style="font-size:1.05rem">$${(_ownerFee * unpaidPeriods.length).toLocaleString('es-AR')}</strong>
             </div>
+            ${cfg.hasMercadoPago ? `
             <button class="op-mp-btn" id="btn-pay-debt" onclick="payDebtWithMP()" data-requires-network>
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
               Pagar con MercadoPago
-            </button>
+            </button>` : ''}
           </div>
         </div>`;
     }
@@ -138,7 +139,7 @@ export async function renderUploadPage() {
           </div>
         </div>
 
-        ${!hasDebt ? `
+        ${!hasDebt && cfg.hasMercadoPago ? `
         <div class="op-divider oh-entry" style="--delay:100ms">
           <span>o pagá online</span>
         </div>
