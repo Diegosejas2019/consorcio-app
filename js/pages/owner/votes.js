@@ -19,13 +19,17 @@ function optionBar(label, votes, total, idx, myVote) {
     </div>`;
 }
 
+const PAGE_SIZE = 10;
+
 // ── Render principal ──────────────────────────────────────────
-export async function renderOwnerVotes() {
+export async function renderOwnerVotes(page = 1) {
   const el = document.getElementById('page-owner-votes');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
   try {
-    const res   = await api.votes.getAll({ limit: 50 });
-    const votes = res.data.votes;
+    const res        = await api.votes.getAll({ limit: PAGE_SIZE, page });
+    const votes      = res.data.votes;
+    const pagination = res.pagination || {};
+    const totalPages = pagination.pages || 1;
 
     el.innerHTML = `
       <div class="oh-wrap">
@@ -41,10 +45,26 @@ export async function renderOwnerVotes() {
                <p class="oc-empty__msg">No hay votaciones activas.</p>
              </div>`
           : votes.map((v, i) => _voteCard(v, i)).join('')}
+        ${totalPages > 1 ? _pagination(page, totalPages) : ''}
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerVotes()');
   }
+}
+
+function _pagination(current, total) {
+  const prev = current > 1
+    ? `<button class="btn btn-secondary" onclick="renderOwnerVotes(${current - 1})">← Anterior</button>`
+    : `<button class="btn btn-secondary" disabled>← Anterior</button>`;
+  const next = current < total
+    ? `<button class="btn btn-secondary" onclick="renderOwnerVotes(${current + 1})">Siguiente →</button>`
+    : `<button class="btn btn-secondary" disabled>Siguiente →</button>`;
+  return `
+    <div class="flex between" style="margin-top:1rem;align-items:center">
+      ${prev}
+      <span class="text-sm text-muted">${current} / ${total}</span>
+      ${next}
+    </div>`;
 }
 
 function _voteCard(v, i) {
