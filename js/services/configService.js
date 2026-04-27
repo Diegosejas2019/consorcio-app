@@ -57,7 +57,7 @@ async function _renderFeaturesCard() {
   }).join('');
 
   return `
-    <div class="card">
+    <div class="card" style="display:none">
       <div class="card-header"><h3>Módulos habilitados</h3></div>
       <div class="card-body flex col gap-1">
         <p class="text-sm text-muted">Activá o desactivá módulos para todos los miembros del consorcio.</p>
@@ -135,7 +135,7 @@ export async function renderAdminSettings() {
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" style="display:none">
           <div class="card-header"><h3>Concepto Extraordinario</h3></div>
           <div class="card-body flex col gap-2">
             <div class="form-group">
