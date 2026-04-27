@@ -14,12 +14,6 @@ let _newOwnerCfg    = null;
 let _ownerDetailCfg = null;
 let _newOwnerUnits  = [];
 
-function _calcDebt(months, cfg) {
-  if (!cfg || months <= 0) return { total: 0, surcharge: 0 };
-  const fee       = cfg.monthlyFee || cfg.expenseAmount || 0;
-  const surcharge = cfg.isOverdue ? (cfg.surcharge || 0) : 0;
-  return { total: months * fee + surcharge, surcharge };
-}
 
 export async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
@@ -212,7 +206,7 @@ export async function viewOwnerDetail(ownerId) {
           </table></div>`}
       <div class="flex gap-1 mt-3" style="flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
-        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}', '${owner.startBillingPeriod || ''}')">Editar</button>
+        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}', '${owner.startBillingPeriod || ''}', ${owner.balance || 0})">Editar</button>
         <button class="btn btn-ghost" onclick="openNotifyOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Notificar</button>
         ${owner.phone ? `<button class="btn btn-ghost" style="color:#25D366" onclick="openWhatsAppOwnerModal('${owner.name.replace(/'/g, "\\'")}','${owner.phone}')">💬 WhatsApp</button>` : ''}
         <button class="btn btn-primary" onclick="openRegisterPaymentModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Registrar pago</button>
@@ -371,7 +365,7 @@ export async function sendOwnerNotification(id) {
 }
 
 // ── Editar propietario ────────────────────────────────────────
-export function openEditOwnerModal(id, name, phone, startBillingPeriod = '') {
+export function openEditOwnerModal(id, name, phone, startBillingPeriod = '', balance = 0) {
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <div class="modal-handle"></div>
@@ -383,6 +377,13 @@ export function openEditOwnerModal(id, name, phone, startBillingPeriod = '') {
         <label>Inicio de cobro (YYYY-MM)</label>
         <input class="input" id="eo-start-billing" value="${startBillingPeriod}" placeholder="Ej: 2026-04">
         <small class="text-muted" style="display:block;margin-top:.25rem">Período desde el que el propietario puede registrar pagos.</small>
+      </div>
+      <div class="form-group">
+        <label>Saldo anterior / deuda inicial ($)</label>
+        <input class="input" type="number" id="eo-balance" value="${Math.abs(balance)}" min="0" placeholder="0">
+        <small class="text-muted" style="display:block;margin-top:.25rem">
+          ${balance < 0 ? `Deuda actual: $${Math.abs(balance).toLocaleString('es-AR')}. ` : ''}Ingresá el monto de deuda pendiente (0 = sin deuda).
+        </small>
       </div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${id}')">Cancelar</button>
@@ -396,12 +397,13 @@ export async function saveEditOwner(id) {
   const name               = document.getElementById('eo-name')?.value.trim();
   const phone              = document.getElementById('eo-phone')?.value.trim();
   const startBillingPeriod = document.getElementById('eo-start-billing')?.value.trim();
+  const debtInput          = Number(document.getElementById('eo-balance')?.value || 0);
   if (!name) { toast('El nombre es obligatorio', 'error'); return; }
   if (startBillingPeriod && !/^\d{4}-\d{2}$/.test(startBillingPeriod)) {
     toast('El inicio de cobro debe tener formato YYYY-MM (ej: 2026-04)', 'error');
     return;
   }
-  const update = { name, phone };
+  const update = { name, phone, balance: debtInput > 0 ? -debtInput : 0, isDebtor: debtInput > 0 };
   if (startBillingPeriod) update.startBillingPeriod = startBillingPeriod;
   try {
     await api.owners.update(id, update);
@@ -469,9 +471,9 @@ export async function openNewOwnerModal() {
       </div>
       <div class="form-group"><label>Teléfono</label><input class="input" id="no-phone" placeholder="1122334455"></div>
       <div class="form-group">
-        <label>Meses sin pagar</label>
-        <input class="input" type="number" id="no-months" value="0" min="0" oninput="updateNewOwnerDebtPreview()">
-        <p id="no-debt-preview" style="display:none;margin:.4rem 0 0;font-size:.82rem;color:var(--danger);font-weight:600"></p>
+        <label>Deuda inicial / saldo anterior ($)</label>
+        <input class="input" type="number" id="no-initial-debt" value="0" min="0" placeholder="0">
+        <small class="text-muted" style="display:block;margin-top:.25rem">Usá este campo si el propietario ingresa con deuda previa.</small>
       </div>
       <div class="form-group">
         <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;font-weight:500">
@@ -491,36 +493,23 @@ export async function openNewOwnerModal() {
   _renderNewOwnerUnits();
 }
 
-export function updateNewOwnerDebtPreview() {
-  const months  = Number(document.getElementById('no-months')?.value || 0);
-  const preview = document.getElementById('no-debt-preview');
-  if (!preview) return;
-  if (months <= 0 || !_newOwnerCfg) { preview.style.display = 'none'; return; }
-
-  const { total, surcharge } = _calcDebt(months, _newOwnerCfg);
-  preview.style.display = '';
-  preview.textContent   = `Deuda inicial: $${total.toLocaleString('es-AR')}${surcharge > 0 ? ` (incluye recargo $${surcharge.toLocaleString('es-AR')})` : ''}`;
-}
 
 export async function saveNewOwner() {
   const name   = document.getElementById('no-name')?.value.trim();
   const email  = document.getElementById('no-email')?.value.trim();
   const pass   = document.getElementById('no-pass')?.value.trim();
   const phone  = document.getElementById('no-phone')?.value.trim();
-  const months = Number(document.getElementById('no-months')?.value || 0);
+  const initialDebtAmount = Number(document.getElementById('no-initial-debt')?.value || 0);
   if (!name || !email || !pass) { toast('Nombre, email y contraseña son obligatorios', 'error'); return; }
 
   const pendingInput = document.getElementById('no-unit-input');
   const pendingName  = pendingInput?.value.trim();
   if (pendingName) _newOwnerUnits.push({ name: pendingName });
 
-  const { total: debtTotal } = _calcDebt(months, _newOwnerCfg);
-  const balance            = -debtTotal;
-  const isDebtor           = debtTotal > 0;
   const chargeCurrentMonth = document.getElementById('no-charge-current')?.checked !== false;
 
   try {
-    const res     = await api.owners.create({ name, email, password: pass, phone, balance, isDebtor, chargeCurrentMonth });
+    const res     = await api.owners.create({ name, email, password: pass, phone, initialDebtAmount, chargeCurrentMonth });
     const ownerId = res.data?.owner?._id;
 
     if (ownerId && _newOwnerUnits.length > 0) {
@@ -802,7 +791,6 @@ window.openEditOwnerModal     = openEditOwnerModal;
 window.saveEditOwner          = saveEditOwner;
 window.openNewOwnerModal           = openNewOwnerModal;
 window.saveNewOwner                = saveNewOwner;
-window.updateNewOwnerDebtPreview   = updateNewOwnerDebtPreview;
 window.openRegisterPaymentModal    = openRegisterPaymentModal;
 window.submitRegisterPayment       = submitRegisterPayment;
 window.downloadBulkTemplate        = downloadBulkTemplate;
