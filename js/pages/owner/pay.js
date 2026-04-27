@@ -96,8 +96,8 @@ export async function renderUploadPage() {
 
     // ── Sección extraordinarios ──────────────────────────────────
     const extrasHtml = extras.length > 0 ? `
-      <div style="margin-top:.5rem">
-        <p class="text-sm" style="font-weight:600;margin-bottom:.4rem">⚡ Extraordinarios</p>
+      <div style="margin-top:.5rem;display:none">
+        <p class="text-sm" style="font-weight:600;margin-bottom:.4rem"> Concepto extraordinario</p>
         <div class="flex col" style="gap:.35rem">
           ${extras.map(e => `
             <label class="op-debt-period-row">
@@ -131,7 +131,7 @@ export async function renderUploadPage() {
             ` : `
             ${months.length > 0 ? `
             <div>
-              <p class="text-sm" style="font-weight:600;margin-bottom:.4rem">💰 Períodos</p>
+              <p class="text-sm" style="font-weight:600;margin-bottom:.4rem">Períodos</p>
               <div class="op-form-grid">
                 <div class="form-group">
                   <label>Período</label>
