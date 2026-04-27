@@ -101,7 +101,11 @@ function _renderExpensesView() {
                   <div>${e.description}</div>
                   ${e.attachments?.length ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:.25rem">${_attachmentButtons(e._id, e.attachments)}</div>` : ''}
                 </td>
-                <td><span class="badge badge-info">${CAT_LABELS[e.category] || e.category}</span></td>
+                <td>
+                  <span class="badge badge-info">${CAT_LABELS[e.category] || e.category}</span>
+                  ${e.expenseType === 'extraordinary' ? `<span class="badge badge-warning" style="margin-left:.25rem">Extraordinario</span>` : ''}
+                  ${e.isChargeable ? `<span class="badge badge-success" style="margin-left:.25rem">Cobrable</span>` : ''}
+                </td>
                 <td>${e.provider ? e.provider.name : '<span class="text-muted">—</span>'}</td>
                 <td style="font-weight:600">$${e.amount.toLocaleString('es-AR')}</td>
                 <td>${e.status === 'paid'
@@ -195,6 +199,19 @@ export async function openNewExpenseModal() {
         </select>
       </div>
       <div>
+        <label class="label">Tipo de gasto</label>
+        <select id="exp-type" class="input" onchange="toggleExpChargeable('exp')">
+          <option value="ordinary">Ordinario</option>
+          <option value="extraordinary">Extraordinario</option>
+        </select>
+      </div>
+      <div id="exp-chargeable-wrap" class="hidden">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" id="exp-chargeable">
+          <span class="text-sm">Cobrable a propietarios (aparece en pantalla de pago)</span>
+        </label>
+      </div>
+      <div>
         <label class="label">Comprobantes (PDF o imagen)</label>
         <input id="exp-receipt" class="input" type="file" accept=".pdf,image/*" multiple>
         <p class="text-muted text-sm" style="margin-top:.2rem">Podés adjuntar varios archivos. Máx. 5 por vez, 10 MB c/u.</p>
@@ -208,13 +225,15 @@ export async function openNewExpenseModal() {
 }
 
 export async function saveNewExpense() {
-  const desc     = document.getElementById('exp-desc')?.value.trim();
-  const cat      = document.getElementById('exp-cat')?.value;
-  const amount   = parseFloat(document.getElementById('exp-amount')?.value);
-  const date     = document.getElementById('exp-date')?.value;
-  const provider = document.getElementById('exp-provider')?.value;
-  const method   = document.getElementById('exp-method')?.value;
-  const files    = document.getElementById('exp-receipt')?.files;
+  const desc        = document.getElementById('exp-desc')?.value.trim();
+  const cat         = document.getElementById('exp-cat')?.value;
+  const amount      = parseFloat(document.getElementById('exp-amount')?.value);
+  const date        = document.getElementById('exp-date')?.value;
+  const provider    = document.getElementById('exp-provider')?.value;
+  const method      = document.getElementById('exp-method')?.value;
+  const expType     = document.getElementById('exp-type')?.value || 'ordinary';
+  const isChargeable = expType === 'extraordinary' && document.getElementById('exp-chargeable')?.checked;
+  const files       = document.getElementById('exp-receipt')?.files;
 
   if (!desc || !cat || !amount || !date) {
     return toast('Completá los campos obligatorios.', 'warning');
@@ -233,10 +252,12 @@ export async function saveNewExpense() {
       fd.append('date', date);
       if (provider) fd.append('provider', provider);
       if (method)   fd.append('paymentMethod', method);
+      fd.append('expenseType', expType);
+      fd.append('isChargeable', isChargeable);
       Array.from(files).forEach(f => fd.append('attachments', f));
       body = fd;
     } else {
-      body = { description: desc, category: cat, amount, date,
+      body = { description: desc, category: cat, amount, date, expenseType: expType, isChargeable,
                ...(provider && { provider }), ...(method && { paymentMethod: method }) };
     }
 
@@ -382,6 +403,19 @@ export async function openEditExpenseModal(id) {
         </select>
       </div>
       <div>
+        <label class="label">Tipo de gasto</label>
+        <select id="ee-type" class="input" onchange="toggleExpChargeable('ee')">
+          <option value="ordinary" ${expense.expenseType !== 'extraordinary' ? 'selected' : ''}>Ordinario</option>
+          <option value="extraordinary" ${expense.expenseType === 'extraordinary' ? 'selected' : ''}>Extraordinario</option>
+        </select>
+      </div>
+      <div id="ee-chargeable-wrap" ${expense.expenseType !== 'extraordinary' ? 'class="hidden"' : ''}>
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+          <input type="checkbox" id="ee-chargeable" ${expense.isChargeable ? 'checked' : ''}>
+          <span class="text-sm">Cobrable a propietarios (aparece en pantalla de pago)</span>
+        </label>
+      </div>
+      <div>
         <label class="label">Agregar comprobantes</label>
         ${existingAttachments}
         <input id="ee-receipt" class="input" type="file" accept=".pdf,image/*" multiple>
@@ -396,13 +430,15 @@ export async function openEditExpenseModal(id) {
 }
 
 export async function saveEditExpense(id) {
-  const desc     = document.getElementById('ee-desc')?.value.trim();
-  const cat      = document.getElementById('ee-cat')?.value;
-  const amount   = parseFloat(document.getElementById('ee-amount')?.value);
-  const date     = document.getElementById('ee-date')?.value;
-  const provider = document.getElementById('ee-provider')?.value;
-  const method   = document.getElementById('ee-method')?.value;
-  const files    = document.getElementById('ee-receipt')?.files;
+  const desc        = document.getElementById('ee-desc')?.value.trim();
+  const cat         = document.getElementById('ee-cat')?.value;
+  const amount      = parseFloat(document.getElementById('ee-amount')?.value);
+  const date        = document.getElementById('ee-date')?.value;
+  const provider    = document.getElementById('ee-provider')?.value;
+  const method      = document.getElementById('ee-method')?.value;
+  const expType     = document.getElementById('ee-type')?.value || 'ordinary';
+  const isChargeable = expType === 'extraordinary' && document.getElementById('ee-chargeable')?.checked;
+  const files       = document.getElementById('ee-receipt')?.files;
 
   if (!desc || !cat || !amount || !date) {
     return toast('Completá los campos obligatorios.', 'warning');
@@ -421,10 +457,12 @@ export async function saveEditExpense(id) {
       fd.append('date', date);
       if (provider) fd.append('provider', provider);
       if (method)   fd.append('paymentMethod', method);
+      fd.append('expenseType', expType);
+      fd.append('isChargeable', isChargeable);
       Array.from(files).forEach(f => fd.append('attachments', f));
       body = fd;
     } else {
-      body = { description: desc, category: cat, amount, date,
+      body = { description: desc, category: cat, amount, date, expenseType: expType, isChargeable,
                ...(provider && { provider }), ...(method && { paymentMethod: method }) };
     }
 
@@ -438,8 +476,16 @@ export async function saveEditExpense(id) {
   }
 }
 
+// ── Toggle cobrable (show/hide según tipo) ────────────────────
+export function toggleExpChargeable(prefix) {
+  const type = document.getElementById(`${prefix}-type`)?.value;
+  document.getElementById(`${prefix}-chargeable-wrap`)
+    ?.classList.toggle('hidden', type !== 'extraordinary');
+}
+
 // ── Exponer globalmente ───────────────────────────────────────
 window.renderAdminExpenses        = renderAdminExpenses;
+window.toggleExpChargeable        = toggleExpChargeable;
 window.openNewExpenseModal        = openNewExpenseModal;
 window.saveNewExpense             = saveNewExpense;
 window.markExpensePaid            = markExpensePaid;
