@@ -41,7 +41,8 @@ function _applyOwnersFilter() {
   const unit = ownersListState.filterUnit.toLowerCase().trim();
   return ownersListState.all.filter(o => {
     const matchName = !q    || o.name.toLowerCase().includes(q);
-    const matchUnit = !unit || (o.unit || '').toLowerCase().includes(unit);
+    const unitStr   = o.units?.length ? o.units.join(', ') : (o.unit || '');
+    const matchUnit = !unit || unitStr.toLowerCase().includes(unit);
     return matchName && matchUnit;
   });
 }
@@ -102,7 +103,7 @@ export function _renderOwnersView() {
                 <div class="owner-avatar">${o.name.split(' ').slice(0, 2).map(w => w[0]).join('')}</div>
                 <div class="owner-info">
                   <p class="name">${_highlightMatch(o.name, ownersListState.filterName)}</p>
-                  <p class="unit">${_highlightMatch(o.unit || '—', ownersListState.filterUnit)}${o.phone ? ` · ${o.phone}` : ''}</p>
+                  <p class="unit">${_highlightMatch((o.units?.length ? o.units.join(', ') : o.unit) || '—', ownersListState.filterUnit)}${o.phone ? ` · ${o.phone}` : ''}</p>
                 </div>
                 <div class="flex col" style="align-items:flex-end;gap:.25rem">
                   <span class="badge ${o.isDebtor ? 'badge-danger' : 'badge-success'}">${o.isDebtor ? 'Deuda' : 'Al día'}</span>
@@ -508,6 +509,10 @@ export async function saveNewOwner() {
   const phone  = document.getElementById('no-phone')?.value.trim();
   const months = Number(document.getElementById('no-months')?.value || 0);
   if (!name || !email || !pass) { toast('Nombre, email y contraseña son obligatorios', 'error'); return; }
+
+  const pendingInput = document.getElementById('no-unit-input');
+  const pendingName  = pendingInput?.value.trim();
+  if (pendingName) _newOwnerUnits.push({ name: pendingName });
 
   const { total: debtTotal } = _calcDebt(months, _newOwnerCfg);
   const balance            = -debtTotal;
