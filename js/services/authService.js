@@ -420,7 +420,7 @@ export function setupNav() {
       <button class="nav-item"        data-page="page-owner-pay"     onclick="showPage('page-owner-pay');renderUploadPage()">${SVG.upload}<span>Pagar</span></button>
       <button class="nav-item"        data-page="page-owner-history" onclick="showPage('page-owner-history');renderOwnerHistory()">${SVG.list}<span>Historial</span></button>
       <button class="nav-item" data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations" onclick="navToggleGroup('comunidad')">${SVG.bell}<span>Comunidad</span></button>
-      <button class="nav-item" data-pages="page-owner-profile" onclick="navToggleGroup('cuenta')">${SVG_PROFILE}<span>Perfil</span></button>`;
+      <button class="nav-item" data-page="page-owner-profile" onclick="showPage('page-owner-profile');renderOwnerProfile()">${SVG_PROFILE}<span>Perfil</span></button>`;
   }
 }
 
