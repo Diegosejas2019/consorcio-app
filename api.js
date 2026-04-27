@@ -238,10 +238,10 @@ const api = {
     getOne: (id) => request(`/notices/${id}`),
 
     create: (data) =>
-      request('/notices', { method: 'POST', body: JSON.stringify(data) }),
+      request('/notices', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
 
     update: (id, data) =>
-      request(`/notices/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      request(`/notices/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
 
     delete: (id) =>
       request(`/notices/${id}`, { method: 'DELETE' }),
@@ -251,18 +251,21 @@ const api = {
 
     markUnread: (id) =>
       request(`/notices/${id}/unread`, { method: 'PATCH' }),
+
+    getAttachmentUrl: (id, index) => `${API_BASE}/notices/${id}/attachment/${index}`,
   },
 
   // ── Reclamos ─────────────────────────────────────────────────
   claims: {
     getAll: (params = {}) => request(`/claims?${new URLSearchParams(params)}`),
-    create: (data) => request('/claims', { method: 'POST', body: JSON.stringify(data) }),
+    create: (data) => request('/claims', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
     updateStatus: (id, status, adminNote) =>
       request(`/claims/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status, adminNote }),
       }),
     delete: (id) => request(`/claims/${id}`, { method: 'DELETE' }),
+    getAttachmentUrl: (id, index) => `${API_BASE}/claims/${id}/attachment/${index}`,
   },
 
   // ── Configuración ─────────────────────────────────────────────

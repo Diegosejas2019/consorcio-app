@@ -1,9 +1,10 @@
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { formatDate, errorState, buildWhatsAppLink } from '../../ui/helpers.js';
+import { formatDate, errorState, buildWhatsAppLink, downloadAttachment } from '../../ui/helpers.js';
 
-let _notices = [];
+let _notices      = [];
+let _noticeFiles  = [];
 
 const TAG_ICON  = { info: '📢', warning: '⚠️', urgent: '🔴' };
 const TAG_LABEL = { info: 'Informativo', warning: 'Advertencia', urgent: 'Urgente' };
@@ -74,6 +75,14 @@ export function openAdminNotice(id) {
     ? `<span class="badge badge-success" style="font-size:.7rem">Email enviado</span>`
     : `<span class="badge" style="font-size:.7rem;background:var(--surface-3)">Sin email</span>`;
 
+  const attachmentsHtml = notice.attachments?.length
+    ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:.5rem">${notice.attachments.map((a, i) =>
+        `<button class="btn btn-sm btn-ghost" style="font-size:.75rem"
+          onclick="downloadNoticeAttachment('${notice._id}',${i},'${(a.filename || 'adjunto').replace(/'/g, "\\'")}')">
+          ${a.mimetype?.startsWith('image/') ? '🖼️' : '📄'} ${a.filename ? a.filename.slice(0, 22) : `Archivo ${i + 1}`}
+        </button>`).join('')}</div>`
+    : '';
+
   document.getElementById('modal').innerHTML = `
     <div class="modal-handle"></div>
     <div class="ni-detail">
@@ -87,6 +96,7 @@ export function openAdminNotice(id) {
         <span>Fecha: ${formatDate(notice.createdAt)}</span>
       </div>
       <div class="ni-detail-body">${_escapeHtml(notice.body)}</div>
+      ${attachmentsHtml}
       <div class="ni-detail-actions">
         <button class="btn btn-danger btn-sm" onclick="deleteNotice(null, '${notice._id}', true)">Eliminar</button>
         <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cerrar</button>
@@ -96,6 +106,7 @@ export function openAdminNotice(id) {
 }
 
 export function openNewNoticeModal() {
+  _noticeFiles = [];
   document.getElementById('modal').innerHTML = `
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:1rem">Nuevo Aviso</h2>
@@ -116,6 +127,13 @@ export function openNewNoticeModal() {
           <option value="urgent">🔴 Urgente</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Adjuntos <span class="text-muted" style="font-size:.8rem">(opcional · máx. 3 · 10 MB c/u)</span></label>
+        <input type="file" id="n-files" accept="image/*,.pdf" multiple style="display:none"
+          onchange="onNoticeFilesChange(this.files)">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('n-files').click()">📎 Adjuntar archivos</button>
+        <div id="n-files-preview"></div>
+      </div>
       <div class="flex col gap-1" style="padding:.25rem 0">
         <label style="font-size:.85rem;display:flex;align-items:center;gap:.5rem;cursor:pointer">
           <input type="checkbox" id="n-push" checked> Enviar notificación push a propietarios
@@ -135,16 +153,64 @@ export function openNewNoticeModal() {
   openModal();
 }
 
+function _noticeFilePreviewHtml(files) {
+  return files.map((f, i) => {
+    const isImg = f.type.startsWith('image/');
+    const size  = f.size < 1024 * 1024 ? `${(f.size / 1024).toFixed(0)} KB` : `${(f.size / 1024 / 1024).toFixed(1)} MB`;
+    return `<div style="display:inline-flex;align-items:center;gap:.3rem;background:var(--surface-2);border-radius:6px;padding:.2rem .5rem;font-size:.75rem;margin:.1rem">
+      ${isImg ? '🖼️' : '📄'}
+      <span>${f.name.length > 20 ? f.name.slice(0, 19) + '…' : f.name}</span>
+      <span style="color:var(--muted)">${size}</span>
+      <button type="button" onclick="removeNoticeFile(${i})" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:0;line-height:1">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function _renderNoticeFilePreview() {
+  const el = document.getElementById('n-files-preview');
+  if (!el) return;
+  el.innerHTML = _noticeFiles.length
+    ? `<div style="flex-wrap:wrap;margin-top:.3rem;display:flex">${_noticeFilePreviewHtml(_noticeFiles)}</div>`
+    : '';
+}
+
+export function onNoticeFilesChange(fileList) {
+  const incoming  = Array.from(fileList);
+  const remaining = 3 - _noticeFiles.length;
+  if (remaining <= 0) { toast('Máximo 3 archivos permitidos.', 'warning'); return; }
+  _noticeFiles = _noticeFiles.concat(incoming.slice(0, remaining));
+  if (incoming.length > remaining) toast('Se agregaron solo los primeros archivos hasta completar 3.', 'warning');
+  document.getElementById('n-files').value = '';
+  _renderNoticeFilePreview();
+}
+
+export function removeNoticeFile(index) {
+  _noticeFiles.splice(index, 1);
+  _renderNoticeFilePreview();
+}
+
 export async function saveNotice() {
-  const title       = document.getElementById('n-title')?.value.trim();
-  const body        = document.getElementById('n-body')?.value.trim();
-  const tag         = document.getElementById('n-tag')?.value;
-  const sendPush    = document.getElementById('n-push')?.checked;
-  const sendEmail   = document.getElementById('n-email')?.checked;
+  const title        = document.getElementById('n-title')?.value.trim();
+  const body         = document.getElementById('n-body')?.value.trim();
+  const tag          = document.getElementById('n-tag')?.value;
+  const sendPush     = document.getElementById('n-push')?.checked;
+  const sendEmail    = document.getElementById('n-email')?.checked;
   const sendWhatsApp = document.getElementById('n-whatsapp')?.checked;
   if (!title || !body) { toast('Completá todos los campos', 'error'); return; }
   try {
-    await api.notices.create({ title, body, tag, sendPush, sendEmail });
+    let payload;
+    if (_noticeFiles.length > 0) {
+      payload = new FormData();
+      payload.append('title', title);
+      payload.append('body', body);
+      payload.append('tag', tag);
+      payload.append('sendPush', sendPush);
+      payload.append('sendEmail', sendEmail);
+      _noticeFiles.forEach(f => payload.append('attachments', f));
+    } else {
+      payload = { title, body, tag, sendPush, sendEmail };
+    }
+    await api.notices.create(payload);
     if (sendWhatsApp) {
       await _openNoticeWhatsAppModal(title, body);
     } else {
@@ -226,9 +292,16 @@ function _escapeHtml(str) {
     .replace(/\n/g, '<br>');
 }
 
-window.renderAdminNotices  = renderAdminNotices;
-window.openAdminNotice     = openAdminNotice;
-window.openNewNoticeModal  = openNewNoticeModal;
-window.saveNotice          = saveNotice;
-window.deleteNotice        = deleteNotice;
-window.sendNoticeWhatsApp  = sendNoticeWhatsApp;
+export async function downloadNoticeAttachment(noticeId, index, filename) {
+  await downloadAttachment(api.notices.getAttachmentUrl(noticeId, index), filename);
+}
+
+window.renderAdminNotices         = renderAdminNotices;
+window.openAdminNotice            = openAdminNotice;
+window.openNewNoticeModal         = openNewNoticeModal;
+window.saveNotice                 = saveNotice;
+window.deleteNotice               = deleteNotice;
+window.sendNoticeWhatsApp         = sendNoticeWhatsApp;
+window.onNoticeFilesChange        = onNoticeFilesChange;
+window.removeNoticeFile           = removeNoticeFile;
+window.downloadNoticeAttachment   = downloadNoticeAttachment;

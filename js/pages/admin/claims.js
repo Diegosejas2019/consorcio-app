@@ -2,7 +2,7 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
-import { formatDate, errorState } from '../../ui/helpers.js';
+import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
 
 export const CLAIM_CATEGORIES = {
   infrastructure: 'Infraestructura',
@@ -54,6 +54,11 @@ export async function renderAdminClaims() {
         </div>
         <p style="font-size:.83rem;color:var(--text);line-height:1.4">${c.body}</p>
         ${c.adminNote ? `<p style="font-size:.78rem;color:var(--muted);font-style:italic">Nota: ${c.adminNote}</p>` : ''}
+        ${c.attachments?.length ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-bottom:.25rem">${c.attachments.map((a, i) =>
+          `<button class="btn btn-sm btn-ghost" style="font-size:.72rem;padding:.2rem .45rem"
+            onclick="downloadClaimAttachment('${c._id}',${i},'${(a.filename || 'adjunto').replace(/'/g, "\\'")}')">
+            ${a.mimetype?.startsWith('image/') ? '🖼️' : '📄'} ${a.filename ? a.filename.slice(0, 18) : `Archivo ${i + 1}`}
+          </button>`).join('')}</div>` : ''}
         <div class="flex gap-1" style="flex-wrap:wrap">
           ${c.status !== 'in_progress' && c.status !== 'resolved' ? `<button class="btn btn-secondary btn-sm" onclick="updateClaimStatus('${c._id}','in_progress')">En proceso</button>` : ''}
           ${c.status !== 'resolved' ? `<button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">Resolver</button>` : ''}
@@ -126,8 +131,13 @@ export async function confirmResolveClaim(id) {
   await updateClaimStatus(id, 'resolved', note);
 }
 
-window.renderAdminClaims    = renderAdminClaims;
-window.updateClaimStatus    = updateClaimStatus;
-window.openResolveClaimModal = openResolveClaimModal;
-window.confirmResolveClaim  = confirmResolveClaim;
-window.deleteClaim          = deleteClaim;
+export async function downloadClaimAttachment(claimId, index, filename) {
+  await downloadAttachment(api.claims.getAttachmentUrl(claimId, index), filename);
+}
+
+window.renderAdminClaims       = renderAdminClaims;
+window.updateClaimStatus       = updateClaimStatus;
+window.openResolveClaimModal   = openResolveClaimModal;
+window.confirmResolveClaim     = confirmResolveClaim;
+window.deleteClaim             = deleteClaim;
+window.downloadClaimAttachment = downloadClaimAttachment;

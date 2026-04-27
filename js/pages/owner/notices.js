@@ -1,7 +1,7 @@
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { formatDate, errorState } from '../../ui/helpers.js';
+import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
 
 let _notices = [];
 
@@ -96,6 +96,11 @@ export async function openOwnerNotice(id) {
         <span>Fecha: ${formatDate(notice.createdAt)}</span>
       </div>
       <div class="ni-detail-body">${_escapeHtml(notice.body)}</div>
+      ${notice.attachments?.length ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:.5rem">${notice.attachments.map((a, i) =>
+        `<button class="btn btn-sm btn-ghost" style="font-size:.75rem"
+          onclick="downloadOwnerNoticeAttachment('${notice._id}',${i},'${(a.filename || 'adjunto').replace(/'/g, "\\'")}')">
+          ${a.mimetype?.startsWith('image/') ? '🖼️' : '📄'} ${a.filename ? a.filename.slice(0, 22) : `Archivo ${i + 1}`}
+        </button>`).join('')}</div>` : ''}
       <div class="ni-detail-actions">
         <button class="btn btn-ghost btn-sm" id="ni-toggle-btn"
                 onclick="toggleOwnerNoticeRead('${id}')">
@@ -148,6 +153,11 @@ function _escapeHtml(str) {
     .replace(/\n/g, '<br>');
 }
 
-window.renderOwnerNotices     = renderOwnerNotices;
-window.openOwnerNotice        = openOwnerNotice;
-window.toggleOwnerNoticeRead  = toggleOwnerNoticeRead;
+export async function downloadOwnerNoticeAttachment(noticeId, index, filename) {
+  await downloadAttachment(api.notices.getAttachmentUrl(noticeId, index), filename);
+}
+
+window.renderOwnerNotices             = renderOwnerNotices;
+window.openOwnerNotice                = openOwnerNotice;
+window.toggleOwnerNoticeRead          = toggleOwnerNoticeRead;
+window.downloadOwnerNoticeAttachment  = downloadOwnerNoticeAttachment;
