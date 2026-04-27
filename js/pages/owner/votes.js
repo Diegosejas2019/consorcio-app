@@ -49,13 +49,16 @@ export async function renderOwnerVotes() {
 
 function _voteCard(v, i) {
   const delay      = Math.min(i * 40 + 40, 220);
-  const isClosed   = v.status === 'closed';
+  const isExpired  = v.endsAt && new Date() > new Date(v.endsAt);
+  const isClosed   = v.status === 'closed' || isExpired;
   const hasVoted   = v.myVote !== null && v.myVote !== undefined;
   const showResult = hasVoted || isClosed;
   const total      = showResult ? v.options.reduce((s, o) => s + (o.votes ?? 0), 0) : 0;
-  const statusBadge = isClosed
+  const statusBadge = v.status === 'closed'
     ? '<span class="badge badge-default">⚫ Cerrada</span>'
-    : '<span class="badge badge-success">🟢 Abierta</span>';
+    : isExpired
+      ? '<span class="badge badge-warning">🔴 Vencida</span>'
+      : '<span class="badge badge-success">🟢 Abierta</span>';
 
   let body;
   if (showResult) {
