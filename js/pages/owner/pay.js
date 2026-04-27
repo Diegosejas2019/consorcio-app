@@ -61,7 +61,8 @@ export async function renderUploadPage() {
 
     const isDebtor = owner?.isDebtor || (owner?.balance || 0) < 0;
     const hasDebt  = isDebtor && unpaidPeriods.length > 0;
-    const hasBalanceDebt = (owner?.balance || 0) < 0;
+    const hasPendingBalancePayment = payments.some(p => p.type === 'balance' && p.status === 'pending');
+    const hasBalanceDebt = (owner?.balance || 0) < 0 && !hasPendingBalancePayment;
 
     // ── Sección de saldo anterior ────────────────────────────────
     let balanceDebtHtml = '';
