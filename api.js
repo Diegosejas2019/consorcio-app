@@ -228,6 +228,8 @@ const api = {
     getReceiptUrl: (id) => `${API_BASE}/payments/${id}/receipt`,
 
     sendReminders: () => request('/payments/send-reminders', { method: 'POST' }),
+
+    getAvailableItems: () => request('/payments/available-items'),
   },
 
   // ── Avisos ───────────────────────────────────────────────────

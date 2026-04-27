@@ -5,23 +5,29 @@ import { errorState } from '../../ui/helpers.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { cache, state } from '../../core/state.js';
 
-let selectedFile = null;
-let _monthlyFee  = 0;
-let _ownerFee    = 0;
+let selectedFile  = null;
+let _monthlyFee   = 0;
+let _ownerFee     = 0;
+let _selectedExtras = new Set();
+let _extraAmounts   = {};
 const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 export async function renderUploadPage() {
   const el = document.getElementById('page-owner-pay');
   el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
+  _selectedExtras = new Set();
+  _extraAmounts   = {};
 
   try {
-    const [cfgRes, payRes, unitsRes] = await Promise.all([
+    const [cfgRes, availRes, payRes, unitsRes] = await Promise.all([
       api.config.get(),
+      api.payments.getAvailableItems(),
       api.payments.getAll({ limit: 50 }),
       api.units.getAll(),
     ]);
 
     const cfg      = cfgRes.data.config;
+    const available = availRes.data;
     const payments = payRes.data.payments;
     const owner    = state.user;
     const units    = unitsRes.data.units || [];
@@ -32,23 +38,24 @@ export async function renderUploadPage() {
       : _monthlyFee;
 
     const feeLabel = _ownerFee > 0 ? ` — $${_ownerFee.toLocaleString('es-AR')}` : '';
-    const startBilling  = owner?.startBillingPeriod;
-    const allMonths     = cfg.paymentPeriods?.length
-      ? cfg.paymentPeriods
-          .filter(v => !startBilling || v >= startBilling)
-          .map(v => ({ value: v, label: `${formatPeriodLabel(v)}${feeLabel}` }))
-      : getRecentMonths(6)
-          .filter(m => !startBilling || m.value >= startBilling)
-          .map(m => ({ ...m, label: `${m.label}${feeLabel}` }));
 
-    // Períodos con pago activo (aprobado o pendiente por cualquier canal)
+    // Usar períodos del endpoint available-items (ya filtrados por el backend)
+    const months = (available.periods || []).map(v => ({
+      value: v,
+      label: `${formatPeriodLabel(v)}${feeLabel}`,
+    }));
+
+    // Extraordinarios disponibles
+    const extras = available.extraordinary || [];
+    extras.forEach(e => { _extraAmounts[e.id] = e.amount; });
+
+    // Períodos con pago activo para deuda
     const approvedPeriods = new Set(payments.filter(p => p.status === 'approved').map(p => p.month));
     const pendingPeriods  = new Set(payments.filter(p => p.status === 'pending').map(p => p.month));
     const activePeriods   = new Set([...approvedPeriods, ...pendingPeriods]);
+    const startBilling    = owner?.startBillingPeriod;
     const unpaidPeriods   = (cfg.paymentPeriods || [])
       .filter(p => !activePeriods.has(p) && (!startBilling || p >= startBilling));
-    // Dropdown solo muestra períodos sin pago activo
-    const months          = allMonths.filter(m => !activePeriods.has(m.value));
 
     const isDebtor = owner?.isDebtor || (owner?.balance || 0) < 0;
     const hasDebt  = isDebtor && unpaidPeriods.length > 0;
@@ -87,6 +94,23 @@ export async function renderUploadPage() {
         </div>`;
     }
 
+    // ── Sección extraordinarios ──────────────────────────────────
+    const extrasHtml = extras.length > 0 ? `
+      <div style="margin-top:.5rem">
+        <p class="text-sm" style="font-weight:600;margin-bottom:.4rem">⚡ Extraordinarios</p>
+        <div class="flex col" style="gap:.35rem">
+          ${extras.map(e => `
+            <label class="op-debt-period-row">
+              <input type="checkbox" class="op-extra-check" value="${e.id}" data-amount="${e.amount}" onchange="toggleExtra(this)">
+              <span style="flex:1">${e.title}</span>
+              <span class="badge badge-warning" style="font-size:.75rem;margin-right:.35rem">Extraordinario</span>
+              <span style="font-size:.88rem;opacity:.7">$${e.amount.toLocaleString('es-AR')}</span>
+            </label>`).join('')}
+        </div>
+      </div>` : '';
+
+    const hasForm = months.length > 0 || extras.length > 0;
+
     el.innerHTML = `
       <div class="oh-wrap">
 
@@ -102,20 +126,30 @@ export async function renderUploadPage() {
 
         <div class="card oh-entry" style="--delay:${hasDebt ? 100 : 60}ms">
           <div class="card-body flex col gap-2">
-            ${months.length === 0 ? `
-            <p class="text-sm text-muted" style="text-align:center;padding:.5rem 0">No hay períodos disponibles para subir comprobante.</p>
+            ${!hasForm ? `
+            <p class="text-sm text-muted" style="text-align:center;padding:.5rem 0">No hay períodos ni conceptos disponibles para pagar.</p>
             ` : `
-            <div class="op-form-grid">
-              <div class="form-group">
-                <label>Período</label>
-                <select class="select" id="pay-month">
-                  ${months.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
-                </select>
+            ${months.length > 0 ? `
+            <div>
+              <p class="text-sm" style="font-weight:600;margin-bottom:.4rem">💰 Períodos</p>
+              <div class="op-form-grid">
+                <div class="form-group">
+                  <label>Período</label>
+                  <select class="select" id="pay-month" onchange="updatePayTotal()">
+                    <option value="">(ninguno)</option>
+                    ${months.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Importe ($)</label>
+                  <input class="input" type="number" id="pay-amount" value="${_ownerFee || ''}" placeholder="${_ownerFee || cfg.expenseAmount || ''}" min="1" oninput="updatePayTotal()">
+                </div>
               </div>
-              <div class="form-group">
-                <label>Importe ($)</label>
-                <input class="input" type="number" id="pay-amount" value="${_ownerFee || ''}" placeholder="${_ownerFee || cfg.expenseAmount || ''}" min="1">
-              </div>
+            </div>` : ''}
+            ${extrasHtml}
+            <div class="flex between" style="align-items:center;padding:.55rem .75rem;background:rgba(255,255,255,.06);border-radius:8px;margin-top:.25rem">
+              <span class="text-sm text-muted">Total</span>
+              <strong id="pay-total" style="font-size:1.05rem">$${(_ownerFee || 0).toLocaleString('es-AR')}</strong>
             </div>
             <div class="form-group">
               <label>Comprobante (PDF o imagen)</label>
@@ -166,12 +200,32 @@ export async function renderUploadPage() {
       </div>`;
 
     const zone = document.getElementById('upload-zone');
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
-    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFileDrop(e.dataTransfer.files[0]); });
+    if (zone) {
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+      zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); handleFileDrop(e.dataTransfer.files[0]); });
+    }
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderUploadPage()');
   }
+}
+
+export function toggleExtra(checkbox) {
+  if (checkbox.checked) {
+    _selectedExtras.add(checkbox.value);
+  } else {
+    _selectedExtras.delete(checkbox.value);
+  }
+  updatePayTotal();
+}
+
+export function updatePayTotal() {
+  const periodAmt  = Number(document.getElementById('pay-amount')?.value || 0);
+  const hasPeriod  = !!document.getElementById('pay-month')?.value;
+  const extrasAmt  = [..._selectedExtras].reduce((s, id) => s + (_extraAmounts[id] || 0), 0);
+  const total      = (hasPeriod ? periodAmt : 0) + extrasAmt;
+  const el         = document.getElementById('pay-total');
+  if (el) el.textContent = `$${total.toLocaleString('es-AR')}`;
 }
 
 export function updateDebtTotal() {
@@ -231,15 +285,17 @@ export async function submitReceipt() {
   const month  = document.getElementById('pay-month')?.value;
   const amount = document.getElementById('pay-amount')?.value;
   const note   = document.getElementById('pay-note')?.value?.trim();
+  const extras = [..._selectedExtras];
 
-  if (!month)               { toast('Seleccioná el período', 'error'); return; }
-  if (!amount || amount < 1) { toast('Ingresá un importe válido', 'error'); return; }
-  if (!selectedFile)         { toast('Adjuntá el comprobante (PDF o imagen)', 'error'); return; }
+  if (!month && extras.length === 0) { toast('Seleccioná un período o al menos un concepto extraordinario', 'error'); return; }
+  if (month && (!amount || amount < 1)) { toast('Ingresá un importe válido', 'error'); return; }
+  if (!selectedFile)                    { toast('Adjuntá el comprobante (PDF o imagen)', 'error'); return; }
 
   const formData = new FormData();
-  formData.append('month', month);
-  formData.append('amount', amount);
-  if (note) formData.append('ownerNote', note);
+  if (month) formData.append('month', month);
+  if (month) formData.append('amount', amount);
+  if (note)  formData.append('ownerNote', note);
+  extras.forEach(id => formData.append('extraordinaryIds', id));
   formData.append('receipt', selectedFile);
 
   const btn = document.getElementById('btn-submit-receipt');
@@ -265,3 +321,5 @@ window.clearFile         = clearFile;
 window.submitReceipt     = submitReceipt;
 window.updateDebtTotal   = updateDebtTotal;
 window.payDebtWithMP     = payDebtWithMP;
+window.toggleExtra       = toggleExtra;
+window.updatePayTotal    = updatePayTotal;
