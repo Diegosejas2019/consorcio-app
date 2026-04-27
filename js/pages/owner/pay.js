@@ -6,6 +6,7 @@ import { setBtnLoading } from '../../ui/loading.js';
 import { cache, state } from '../../core/state.js';
 
 let selectedFile  = null;
+let _selectedBalanceFile = null;
 let _monthlyFee   = 0;
 let _ownerFee     = 0;
 let _selectedExtras = new Set();
@@ -59,6 +60,44 @@ export async function renderUploadPage() {
 
     const isDebtor = owner?.isDebtor || (owner?.balance || 0) < 0;
     const hasDebt  = isDebtor && unpaidPeriods.length > 0;
+    const hasBalanceDebt = (owner?.balance || 0) < 0;
+
+    // ── Sección de saldo anterior ────────────────────────────────
+    let balanceDebtHtml = '';
+    if (hasBalanceDebt) {
+      balanceDebtHtml = `
+        <div class="card oh-entry op-debt-card" style="--delay:30ms">
+          <div class="card-body flex col gap-2">
+            <div class="flex between" style="align-items:center">
+              <h2 style="font-size:1rem;font-weight:700">Saldo anterior pendiente</h2>
+              <span class="badge badge-danger">Deuda</span>
+            </div>
+            <div class="flex between" style="align-items:center;padding:.55rem .75rem;background:rgba(255,255,255,.06);border-radius:8px">
+              <span class="text-sm text-muted">Saldo pendiente</span>
+              <strong style="color:#f87171">-$${Math.abs(owner.balance).toLocaleString('es-AR')}</strong>
+            </div>
+            <div class="form-group">
+              <label>Importe a pagar ($)</label>
+              <input class="input" type="number" id="balance-amount" value="${Math.abs(owner.balance)}" min="1" placeholder="Ingresá el importe">
+            </div>
+            <div class="form-group">
+              <label>Comprobante (PDF o imagen)</label>
+              <div class="upload-zone" id="balance-upload-zone" onclick="document.getElementById('balance-file-input').click()">
+                <div class="upload-icon-wrap">${SVG.upload}</div>
+                <p class="upload-title">Arrastrá tu archivo aquí</p>
+                <p class="upload-desc">o hacé clic para seleccionar</p>
+                <span class="upload-badge">PDF o imagen · máx. 10 MB</span>
+              </div>
+              <input type="file" id="balance-file-input" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic" class="hidden" onchange="handleBalanceFileSelect(event)">
+              <div id="balance-file-preview" class="hidden"></div>
+            </div>
+            <p class="text-sm text-muted" style="text-align:center;font-style:italic">Pago a cuenta de deuda anterior</p>
+            <button class="btn btn-primary w-full" id="btn-submit-balance" data-requires-network onclick="submitBalancePayment()">
+              ${SVG.upload} Enviar comprobante de deuda
+            </button>
+          </div>
+        </div>`;
+    }
 
     // ── Sección de deuda ─────────────────────────────────────────
     let debtHtml = '';
@@ -122,9 +161,11 @@ export async function renderUploadPage() {
           <span class="op-header-icon">${SVG.upload}</span>
         </div>
 
+        ${balanceDebtHtml}
+
         ${debtHtml}
 
-        <div class="card oh-entry" style="--delay:${hasDebt ? 100 : 60}ms">
+        <div class="card oh-entry" style="--delay:${hasBalanceDebt || hasDebt ? 120 : 60}ms">
           <div class="card-body flex col gap-2">
             ${!hasForm ? `
             <p class="text-sm text-muted" style="text-align:center;padding:.5rem 0">No hay períodos ni conceptos disponibles para pagar.</p>
@@ -314,12 +355,79 @@ export async function submitReceipt() {
   }
 }
 
-window.renderUploadPage  = renderUploadPage;
-window.handleFileSelect  = handleFileSelect;
-window.handleFileDrop    = handleFileDrop;
-window.clearFile         = clearFile;
-window.submitReceipt     = submitReceipt;
-window.updateDebtTotal   = updateDebtTotal;
-window.payDebtWithMP     = payDebtWithMP;
-window.toggleExtra       = toggleExtra;
-window.updatePayTotal    = updatePayTotal;
+export function handleBalanceFileSelect(e) {
+  _selectedBalanceFile = e.target.files[0];
+  showBalanceFilePreview(_selectedBalanceFile);
+}
+
+function showBalanceFilePreview(file) {
+  if (!file) return;
+  if (!ALLOWED_TYPES.has(file.type)) {
+    toast('Solo se aceptan PDF o imágenes (JPG, PNG, WebP, HEIC).', 'error');
+    clearBalanceFile();
+    return;
+  }
+  document.getElementById('balance-upload-zone').classList.add('hidden');
+  const preview  = document.getElementById('balance-file-preview');
+  const isImage  = file.type.startsWith('image/');
+  const iconOrThumb = isImage
+    ? `<img src="${URL.createObjectURL(file)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">`
+    : `<div class="upload-preview-icon">${SVG.pdf}</div>`;
+  preview.classList.remove('hidden');
+  preview.innerHTML = `
+    <div class="upload-preview">
+      ${iconOrThumb}
+      <div style="flex:1;min-width:0">
+        <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${file.name}</p>
+        <small class="text-muted">${(file.size / 1024).toFixed(1)} KB</small>
+      </div>
+      <button class="btn-icon" onclick="clearBalanceFile()" title="Quitar">✕</button>
+    </div>`;
+}
+
+export function clearBalanceFile() {
+  _selectedBalanceFile = null;
+  const preview = document.getElementById('balance-file-preview');
+  if (preview) preview.classList.add('hidden');
+  const zone = document.getElementById('balance-upload-zone');
+  if (zone) zone.classList.remove('hidden');
+  const input = document.getElementById('balance-file-input');
+  if (input) input.value = '';
+}
+
+export async function submitBalancePayment() {
+  const amount = document.getElementById('balance-amount')?.value;
+  if (!amount || Number(amount) < 1) { toast('Ingresá un importe válido', 'error'); return; }
+  if (!_selectedBalanceFile)         { toast('Adjuntá el comprobante (PDF o imagen)', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('amount', amount);
+  formData.append('receipt', _selectedBalanceFile);
+
+  const btn = document.getElementById('btn-submit-balance');
+  setBtnLoading(btn, true);
+  try {
+    await api.payments.create(formData);
+    toast('Comprobante enviado. Pendiente de revisión.', 'success');
+    _selectedBalanceFile = null;
+    cache.del('owner_home');
+    await renderUploadPage();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+window.renderUploadPage       = renderUploadPage;
+window.handleFileSelect       = handleFileSelect;
+window.handleFileDrop         = handleFileDrop;
+window.clearFile              = clearFile;
+window.submitReceipt          = submitReceipt;
+window.updateDebtTotal        = updateDebtTotal;
+window.payDebtWithMP          = payDebtWithMP;
+window.toggleExtra            = toggleExtra;
+window.updatePayTotal         = updatePayTotal;
+window.handleBalanceFileSelect = handleBalanceFileSelect;
+window.clearBalanceFile        = clearBalanceFile;
+window.submitBalancePayment    = submitBalancePayment;
