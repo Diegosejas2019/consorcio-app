@@ -55,7 +55,7 @@ export async function renderUploadPage() {
     const pendingPeriods  = new Set(payments.filter(p => p.status === 'pending').map(p => p.month));
     const activePeriods   = new Set([...approvedPeriods, ...pendingPeriods]);
     const startBilling    = owner?.startBillingPeriod;
-    const currentPeriod   = cfg.feePeriodCode;
+    const currentPeriod   = cfg.expenseMonthCode;
     const unpaidPeriods   = (cfg.paymentPeriods || [])
       .filter(p => !activePeriods.has(p) && (!startBilling || p >= startBilling) && (!currentPeriod || p <= currentPeriod));
 
