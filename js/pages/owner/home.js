@@ -25,7 +25,7 @@ function deriveStatus(payments, cfg, owner) {
 
 function computeStreak(payments) {
   const approved = payments
-    .filter(p => p.status === 'approved')
+    .filter(p => p.status === 'approved' && p.month)
     .sort((a, b) => b.month.localeCompare(a.month));
   let streak = 0, prev = null;
   for (const p of approved) {

@@ -19,7 +19,7 @@ export async function renderOwnerHistory() {
              <div class="ohi-item oh-entry" style="--delay:${Math.min(i * 35 + 40, 220)}ms">
                <div class="ohi-status-dot ohi-dot-${p.status}"></div>
                <div class="ohi-item__info">
-                 <p class="ohi-item__period">${formatMonth(p.month)}</p>
+                 <p class="ohi-item__period">${p.monthFormatted || formatMonth(p.month)}</p>
                  <p class="ohi-item__channel">${p.paymentMethod === 'mercadopago' ? '💳 MercadoPago' : '📄 Manual'}</p>
                  ${p.breakdown?.length > 1 ? `
                    <div class="ohi-breakdown">
