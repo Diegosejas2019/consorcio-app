@@ -184,8 +184,8 @@ export async function renderUploadPage() {
                 <div class="form-group">
                   <label>Período</label>
                   <select class="select" id="pay-month" onchange="updatePayTotal()">
-                    <option value="">(ninguno)</option>
-                    ${months.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
+                    <option value=""></option>
+                    ${months.map((m, i) => `<option value="${m.value}"${i === 0 ? ' selected' : ''}>${m.label}</option>`).join('')}
                   </select>
                 </div>
                 <div class="form-group">
@@ -246,6 +246,8 @@ export async function renderUploadPage() {
         </div>` : ''}
 
       </div>`;
+
+    updatePayTotal();
 
     const zone = document.getElementById('upload-zone');
     if (zone) {
