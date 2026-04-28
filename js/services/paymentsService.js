@@ -5,6 +5,10 @@ import { apiCall } from '../core/apiWrapper.js';
 export async function triggerReminders() {
   try {
     const res = await apiCall(() => api.payments.sendReminders());
+    if (res.data.skipped) {
+      toast('El período de cobro actual no está configurado en los ajustes de la organización.', 'warning');
+      return;
+    }
     toast(`Recordatorios enviados: ${res.data.sent} push, ${res.data.noToken} sin token`, 'success');
   } catch {
     // el error ya lo muestra apiCall
