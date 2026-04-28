@@ -30,7 +30,7 @@ export async function renderUploadPage() {
     const cfg      = cfgRes.data.config;
     const available = availRes.data;
     const payments = payRes.data.payments;
-    const owner    = state.user;
+    const owner    = { ...state.user, ...(state.membership || {}) };
     const units    = unitsRes.data.units || [];
 
     _monthlyFee = cfg.monthlyFee || 0;

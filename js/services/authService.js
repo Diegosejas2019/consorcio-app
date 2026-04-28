@@ -8,9 +8,15 @@ import { setupPushNotifications, checkMonthlyReminder } from './pushService.js';
 import { runOnboarding } from '../ui/onboarding.js';
 import { isFeatureEnabled, PAGE_FEATURE_MAP } from './featureService.js';
 
+// Devuelve el orgId desde state.organization (membership) con fallback a state.user.organization (legacy)
+export function getOrgId() {
+  const o = state.organization;
+  return o?._id || o || state.user?.organization || null;
+}
+
 // ── Carga de feature flags ────────────────────────────────────
 async function loadFeatures() {
-  const orgId = state.user?.organization;
+  const orgId = getOrgId();
   if (!orgId) return;
   try {
     const res = await api.organizations.getFeatures(orgId);
@@ -75,7 +81,9 @@ async function selectOrg(membershipId) {
     const res = await api.auth.selectOrganization(membershipId, _pendingSelectionToken);
     _pendingSelectionToken = null;
     setToken(res.token, _rememberMe);
-    setState({ role: res.data.user.role, user: res.data.user });
+    setState({ role: res.data.user.role, user: res.data.user,
+               membership: res.data.membership || null,
+               organization: res.data.membership?.organization || null });
     await loadFeatures();
     cache.clear();
     enterApp();
@@ -113,7 +121,9 @@ export async function submitResetPassword() {
     showLoading(true);
     const res = await api.auth.resetPassword(_resetToken, newPassword);
     setToken(res.token);
-    setState({ role: res.data.user.role, user: res.data.user });
+    setState({ role: res.data.user.role, user: res.data.user,
+               membership: res.data.membership || null,
+               organization: res.data.membership?.organization || null });
     await loadFeatures();
     window.history.replaceState({}, '', window.location.pathname);
     document.getElementById('reset-screen').style.display = 'none';
@@ -144,7 +154,9 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     }
 
     setToken(res.token, _rememberMe);
-    setState({ role: res.data.user.role, user: res.data.user });
+    setState({ role: res.data.user.role, user: res.data.user,
+               membership: res.data.membership || null,
+               organization: res.data.membership?.organization || null });
     await loadFeatures();
     cache.clear();
     enterApp();
@@ -246,7 +258,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   try {
     showLoading(true);
     const res = await api.auth.getMe();
-    setState({ role: res.data.user.role, user: res.data.user });
+    setState({ role: res.data.user.role, user: res.data.user,
+               membership: res.data.membership || null,
+               organization: res.data.membership?.organization || null });
     await loadFeatures();
     cache.clear();
     enterApp();

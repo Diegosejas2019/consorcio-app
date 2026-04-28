@@ -1,4 +1,5 @@
 import { state } from '../../core/state.js';
+import { getOrgId } from '../../services/authService.js';
 import { showPage } from '../../core/router.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
@@ -7,7 +8,7 @@ import { CLAIM_CATEGORIES } from './claims.js';
 
 export function renderAdminView() {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  if (!state.user?.organization) {
+  if (!getOrgId()) {
     showPage('page-admin-settings');
     window.renderAdminSettings();
     return;

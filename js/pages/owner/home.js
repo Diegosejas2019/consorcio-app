@@ -123,7 +123,7 @@ export async function renderOwnerHome() {
 
     const cfg      = cfgRes.data.config;
     const payments = payRes.data.payments;
-    const owner    = state.user;
+    const owner    = { ...state.user, ...(state.membership || {}) };
     const units    = unitsRes.data?.units || [];
 
     let notices = [];

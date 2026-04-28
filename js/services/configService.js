@@ -4,7 +4,7 @@ import { showLoading, setBtnLoading } from '../ui/loading.js';
 import { skeleton } from '../ui/skeleton.js';
 import { errorState } from '../ui/helpers.js';
 import { SVG } from '../ui/icons.js';
-import { setupTopBar } from './authService.js';
+import { setupTopBar, getOrgId } from './authService.js';
 import { openModal, closeModal } from '../ui/modal.js';
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -35,7 +35,7 @@ const FEATURE_LABELS = {
 };
 
 async function _renderFeaturesCard() {
-  const orgId = state.user?.organization;
+  const orgId = getOrgId();
   if (!orgId) return '';
 
   let features = {};
@@ -71,7 +71,7 @@ export async function saveFeatureSettings() {
   const btn = document.getElementById('btn-save-features');
   setBtnLoading(btn, true);
   try {
-    const orgId = state.user?.organization;
+    const orgId = getOrgId();
     if (!orgId) { toast('No tenés una organización asignada', 'error'); return; }
 
     const features = {};
