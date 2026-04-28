@@ -98,7 +98,7 @@ async function request(endpoint, options = {}) {
     const err = new Error(data.message || `Error ${response.status}`);
     err.status = response.status;
     // Token expirado o inválido fuera del login → desloguear
-    if (response.status === 401 && endpoint !== '/auth/login') {
+    if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/select-organization') {
       clearToken();
       window.dispatchEvent(new CustomEvent('auth:expired'));
     }
@@ -170,6 +170,13 @@ const api = {
       request(`/auth/reset-password/${token}`, {
         method: 'POST',
         body: JSON.stringify({ newPassword }),
+      }),
+
+    selectOrganization: (membershipId, selectionToken) =>
+      request('/auth/select-organization', {
+        method:  'POST',
+        body:    JSON.stringify({ membershipId }),
+        headers: { Authorization: `Bearer ${selectionToken}` },
       }),
   },
 

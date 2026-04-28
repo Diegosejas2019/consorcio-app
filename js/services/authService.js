@@ -30,7 +30,9 @@ export function togglePassword(inputId, btn) {
 }
 
 // ── Login / Forgot Password / Reset Password ──────────────────
-let _resetToken = null;
+let _resetToken           = null;
+let _pendingSelectionToken = null;
+let _rememberMe            = true;
 
 export function showForgotView() {
   document.getElementById('login-fields').classList.add('hidden');
@@ -45,7 +47,46 @@ export function showLoginView() {
   document.getElementById('btn-login').classList.remove('hidden');
   document.getElementById('forgot-link').classList.remove('hidden');
   document.getElementById('forgot-view').classList.add('hidden');
+  document.getElementById('org-selection-view').classList.add('hidden');
+  _pendingSelectionToken = null;
 }
+
+function showOrgSelectionView(organizations) {
+  document.getElementById('login-fields').classList.add('hidden');
+  document.getElementById('btn-login').classList.add('hidden');
+  document.getElementById('forgot-link').classList.add('hidden');
+  document.getElementById('forgot-view').classList.add('hidden');
+
+  const roleLabel = (role) => role === 'admin' ? 'Administrador' : 'Propietario';
+
+  document.getElementById('org-list').innerHTML = organizations.map(org =>
+    `<button class="btn btn-secondary w-full" onclick="window._selectOrg('${org.membershipId}')" style="text-align:left;padding:.75rem 1rem">
+      <strong>${org.organizationName}</strong>
+      <span style="display:block;font-size:.8rem;color:var(--text-muted)">${roleLabel(org.role)}</span>
+    </button>`
+  ).join('');
+
+  document.getElementById('org-selection-view').classList.remove('hidden');
+}
+
+async function selectOrg(membershipId) {
+  try {
+    showLoading(true);
+    const res = await api.auth.selectOrganization(membershipId, _pendingSelectionToken);
+    _pendingSelectionToken = null;
+    setToken(res.token, _rememberMe);
+    setState({ role: res.data.user.role, user: res.data.user });
+    await loadFeatures();
+    cache.clear();
+    enterApp();
+  } catch (err) {
+    toast(err.message || 'No se pudo seleccionar la organización', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+window._selectOrg = selectOrg;
 
 export async function submitForgotPassword() {
   const email = document.getElementById('forgot-email').value.trim();
@@ -91,13 +132,19 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-pass').value.trim();
   if (!email || !password) { toast('Completá email y contraseña', 'error'); return; }
-  const remember = document.getElementById('remember-me')?.checked ?? true;
+  _rememberMe = document.getElementById('remember-me')?.checked ?? true;
   try {
     showLoading(true);
     const res = await api.auth.login(email, password);
-    setToken(res.token, remember);
-    const meRes = await api.auth.getMe();
-    setState({ role: meRes.data.user.role, user: meRes.data.user });
+
+    if (res.requiresOrganizationSelection) {
+      _pendingSelectionToken = res.selectionToken;
+      showOrgSelectionView(res.organizations);
+      return;
+    }
+
+    setToken(res.token, _rememberMe);
+    setState({ role: res.data.user.role, user: res.data.user });
     await loadFeatures();
     cache.clear();
     enterApp();
