@@ -47,7 +47,12 @@ export async function renderUploadPage() {
     }));
 
     // Extraordinarios disponibles
-    const extras = available.extraordinary || [];
+    const extras = (available.extraordinary || []).map(e => ({
+      ...e,
+      id:     e.id || e._id,
+      title:  e.title || e.description || 'Concepto extraordinario',
+      amount: Number(e.amount || 0),
+    }));
     extras.forEach(e => { _extraAmounts[e.id] = e.amount; });
 
     // Períodos con pago activo para deuda
@@ -137,8 +142,8 @@ export async function renderUploadPage() {
 
     // ── Sección extraordinarios ──────────────────────────────────
     const extrasHtml = extras.length > 0 ? `
-      <div style="margin-top:.5rem;display:none">
-        <p class="text-sm" style="font-weight:600;margin-bottom:.4rem"> Concepto extraordinario</p>
+      <div style="margin-top:.5rem">
+        <p class="text-sm" style="font-weight:600;margin-bottom:.4rem">Conceptos extraordinarios</p>
         <div class="flex col" style="gap:.35rem">
           ${extras.map(e => `
             <label class="op-debt-period-row">
