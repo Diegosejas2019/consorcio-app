@@ -464,7 +464,11 @@ export async function openNewOwnerModal() {
     <div class="flex col gap-2">
       <div class="form-group"><label>Nombre completo</label><input class="input" id="no-name" placeholder="María García"></div>
       <div class="form-group"><label>Email</label><input class="input" type="email" id="no-email" placeholder="propietario@mail.com"></div>
-      <div class="form-group"><label>Contraseña temporal</label><input class="input" id="no-pass" placeholder="Mín. 6 caracteres"></div>
+      <div class="form-group">
+        <label>Contraseña temporal</label>
+        <input class="input" id="no-pass" placeholder="Mín. 6 caracteres">
+        <small class="text-muted" style="display:block;margin-top:.25rem">Si el usuario ya existe en el sistema, se usará su contraseña actual.</small>
+      </div>
       <div class="form-group">
         <label>Unidades</label>
         <div id="no-units-container"></div>
@@ -500,7 +504,7 @@ export async function saveNewOwner() {
   const pass   = document.getElementById('no-pass')?.value.trim();
   const phone  = document.getElementById('no-phone')?.value.trim();
   const initialDebtAmount = Number(document.getElementById('no-initial-debt')?.value || 0);
-  if (!name || !email || !pass) { toast('Nombre, email y contraseña son obligatorios', 'error'); return; }
+  if (!name || !email) { toast('Nombre y email son obligatorios', 'error'); return; }
 
   const pendingInput = document.getElementById('no-unit-input');
   const pendingName  = pendingInput?.value.trim();
