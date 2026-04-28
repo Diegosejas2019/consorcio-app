@@ -50,9 +50,10 @@ export async function renderAdminDashboard(year) {
       return y === String(_dashYear);
     });
     _allOwners   = ownersRes.data.owners || [];
-    _allPayments = (paymentsRes.data.payments || []).filter(p =>
-      p.month && p.month.startsWith(String(_dashYear))
-    );
+    _allPayments = (paymentsRes.data.payments || []).filter(p => {
+      if (p.month) return p.month.startsWith(String(_dashYear));
+      return (p.createdAt || '').startsWith(String(_dashYear));
+    });
     _buildAndRender();
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderAdminDashboard()');
@@ -517,7 +518,7 @@ export async function openStatDetail(type, arg) {
 
     else if (type === 'monthDetail') {
       const month    = arg;
-      const res      = await api.payments.getAll({ month, limit: 100 });
+      const res      = await api.payments.getAll({ effectiveMonth: month, limit: 100 });
       const payments = res.data.payments || [];
       const approved = payments.filter(p => p.status === 'approved');
       const pending  = payments.filter(p => p.status === 'pending');
@@ -545,7 +546,7 @@ export async function openStatDetail(type, arg) {
             <div class="flex between" style="padding:.6rem .75rem;background:var(--bg);border-radius:8px;font-size:.84rem;align-items:center">
               <div>
                 <p style="font-weight:600">${p.owner?.name || '—'}</p>
-                <p style="font-size:.75rem;color:var(--muted)">${p.owner?.unit || ''} · $${(p.amount || 0).toLocaleString('es-AR')}</p>
+                <p style="font-size:.75rem;color:var(--muted)">${p.owner?.unit || ''} · ${p.type === 'balance' ? 'Saldo anterior' : p.type === 'extraordinary' ? 'Extraordinario' : formatMonth(p.month)} · $${(p.amount || 0).toLocaleString('es-AR')}</p>
               </div>
               <div class="flex gap-1" style="align-items:center">
                 ${statusBadge(p.status)}
@@ -571,7 +572,7 @@ export async function exportDashboardExcel() {
   try {
     const res         = await api.payments.getAll({ limit: 500 });
     const allPayments = (res.data.payments || []).filter(p => {
-      const year = p.month ? p.month.slice(0, 4) : '';
+      const year = p.month ? p.month.slice(0, 4) : (p.createdAt || '').slice(0, 4);
       return year === String(_dashYear);
     });
 
@@ -594,7 +595,7 @@ export async function exportDashboardExcel() {
       ...allPayments.map(p => [
         p.owner?.name || '—',
         p.owner?.unit || '—',
-        p.month || '—',
+        p.month ? formatMonth(p.month) : (p.type === 'balance' ? 'Saldo anterior' : 'Extraordinario'),
         p.amount || 0,
         p.status === 'approved' ? 'Aprobado' : p.status === 'pending' ? 'Pendiente' : 'Rechazado',
         p.paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Manual',
