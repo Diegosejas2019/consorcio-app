@@ -13,6 +13,8 @@ export const _debouncedOwnerFilter = debounce(() => { ownersListState.page = 1; 
 let _newOwnerCfg    = null;
 let _ownerDetailCfg = null;
 let _newOwnerUnits  = [];
+let _lastCheckedEmail = '';
+let _emailCheckResult = null;
 
 
 export async function renderOwnersList() {
@@ -456,18 +458,24 @@ export async function openNewOwnerModal() {
     } catch { _newOwnerCfg = null; }
   }
 
-  _newOwnerUnits = [];
+  _newOwnerUnits    = [];
+  _lastCheckedEmail = '';
+  _emailCheckResult = null;
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:1rem">Nuevo Propietario</h2>
     <div class="flex col gap-2">
       <div class="form-group"><label>Nombre completo</label><input class="input" id="no-name" placeholder="María García"></div>
-      <div class="form-group"><label>Email</label><input class="input" type="email" id="no-email" placeholder="propietario@mail.com"></div>
       <div class="form-group">
+        <label>Email</label>
+        <input class="input" type="email" id="no-email" placeholder="propietario@mail.com"
+          onblur="checkNewOwnerEmail()">
+        <small id="no-email-hint" style="display:none;margin-top:.25rem"></small>
+      </div>
+      <div class="form-group" id="no-pass-group">
         <label>Contraseña temporal</label>
         <input class="input" id="no-pass" placeholder="Mín. 6 caracteres">
-        <small class="text-muted" style="display:block;margin-top:.25rem">Si el usuario ya existe en el sistema, se usará su contraseña actual.</small>
       </div>
       <div class="form-group">
         <label>Unidades</label>
@@ -490,11 +498,60 @@ export async function openNewOwnerModal() {
       </div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-primary w-full" data-requires-network onclick="saveNewOwner()">Crear</button>
+        <button class="btn btn-primary w-full" id="no-submit-btn" data-requires-network onclick="saveNewOwner()">Crear</button>
       </div>
     </div>`;
   openModal();
   _renderNewOwnerUnits();
+}
+
+export async function checkNewOwnerEmail() {
+  const emailInput = document.getElementById('no-email');
+  const hint       = document.getElementById('no-email-hint');
+  const passGroup  = document.getElementById('no-pass-group');
+  const passInput  = document.getElementById('no-pass');
+  const submitBtn  = document.getElementById('no-submit-btn');
+  const email      = emailInput?.value.trim();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+  if (email === _lastCheckedEmail) return;
+
+  hint.style.display = '';
+  hint.style.color   = 'var(--text-muted)';
+  hint.textContent   = 'Verificando…';
+
+  try {
+    const res         = await api.owners.checkEmail(email);
+    _lastCheckedEmail = email;
+    _emailCheckResult = res;
+
+    hint.textContent = res.message;
+
+    if (!res.canAddToCurrentOrganization) {
+      // Ya pertenece a la org — bloquear
+      hint.style.color    = 'var(--danger)';
+      submitBtn.disabled  = true;
+      passGroup.style.display = '';
+      passInput.required  = false;
+    } else if (res.exists) {
+      // Existe en otra org — ocultar contraseña
+      hint.style.color        = 'var(--success,#16a34a)';
+      passGroup.style.display = 'none';
+      passInput.value         = '';
+      passInput.required      = false;
+      submitBtn.disabled      = false;
+    } else {
+      // Nuevo usuario — pedir contraseña
+      hint.style.color        = 'var(--text-muted)';
+      passGroup.style.display = '';
+      passInput.required      = true;
+      submitBtn.disabled      = false;
+    }
+  } catch {
+    hint.textContent   = '';
+    hint.style.display = 'none';
+    _emailCheckResult  = null;
+  }
 }
 
 
@@ -505,6 +562,21 @@ export async function saveNewOwner() {
   const phone  = document.getElementById('no-phone')?.value.trim();
   const initialDebtAmount = Number(document.getElementById('no-initial-debt')?.value || 0);
   if (!name || !email) { toast('Nombre y email son obligatorios', 'error'); return; }
+
+  // Si el email cambió después del último check, re-verificar
+  if (email !== _lastCheckedEmail) {
+    await checkNewOwnerEmail();
+  }
+  if (_emailCheckResult && !_emailCheckResult.canAddToCurrentOrganization) {
+    toast('Este usuario ya pertenece a esta organización.', 'error');
+    return;
+  }
+  // Si es usuario nuevo, la contraseña es obligatoria
+  const isNewUser = !_emailCheckResult || !_emailCheckResult.exists;
+  if (isNewUser && !pass) {
+    toast('La contraseña es obligatoria para nuevos propietarios.', 'error');
+    return;
+  }
 
   const pendingInput = document.getElementById('no-unit-input');
   const pendingName  = pendingInput?.value.trim();
@@ -794,6 +866,7 @@ window.sendOwnerNotification  = sendOwnerNotification;
 window.openEditOwnerModal     = openEditOwnerModal;
 window.saveEditOwner          = saveEditOwner;
 window.openNewOwnerModal           = openNewOwnerModal;
+window.checkNewOwnerEmail          = checkNewOwnerEmail;
 window.saveNewOwner                = saveNewOwner;
 window.openRegisterPaymentModal    = openRegisterPaymentModal;
 window.submitRegisterPayment       = submitRegisterPayment;

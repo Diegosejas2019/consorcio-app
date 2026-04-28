@@ -204,6 +204,9 @@ const api = {
     bulkCreate: (formData) =>
       request('/owners/bulk', { method: 'POST', body: formData }),
 
+    checkEmail: (email) =>
+      request(`/owners/check-email?${new URLSearchParams({ email })}`),
+
     downloadTemplate: () => `${API_BASE}/owners/bulk/template`,
   },
 
