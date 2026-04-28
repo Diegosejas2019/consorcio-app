@@ -30,18 +30,6 @@ export async function setupPushNotifications() {
     _messaging.onMessage((payload) => {
       const { title = '', body = '' } = payload.data || {};
       if (title || body) toast(`${title}${title && body ? ': ' : ''}${body}`, 'default');
-      if (title && Notification.permission === 'granted') {
-        navigator.serviceWorker.ready.then(reg => {
-          reg.showNotification(title, {
-            body,
-            icon:  '/icons/icon-192.png',
-            badge: '/icons/icon-192.png',
-            tag:   payload.data?.type || 'consorcio',
-            data:  payload.data || {},
-            requireInteraction: payload.data?.type === 'urgent',
-          });
-        });
-      }
     });
 
     const permission = Notification.permission === 'default'
