@@ -14,8 +14,9 @@ export async function renderOwnerProfile() {
   el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
 
   try {
-    const res  = await api.auth.getMe();
-    const user = res.data.user;
+    const res   = await api.auth.getMe();
+    const user  = res.data.user;
+    const units = res.data.units ?? [];
     setState({ user });
 
     el.innerHTML = `
@@ -69,8 +70,27 @@ export async function renderOwnerProfile() {
           </div>
         </div>
 
-        <!-- Cambiar contraseña -->
+        ${units.length > 0 ? `
+        <!-- Unidades funcionales -->
         <div class="card oh-entry" style="--delay:120ms">
+          <div class="card-header" style="padding:.9rem 1.1rem">
+            <span style="font-size:.85rem;font-weight:600;letter-spacing:.03em;color:var(--muted)">MIS UNIDADES</span>
+          </div>
+          <div class="card-body" style="padding:0">
+            ${units.map((u, i) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;${i < units.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
+              <span style="font-weight:500">${escapeHtml(u.name)}</span>
+              <span style="font-size:.82rem;color:var(--muted)">
+                ${u.customFee != null
+                  ? `$${u.customFee.toLocaleString('es-AR')}`
+                  : `Coef. ${u.coefficient}`}
+              </span>
+            </div>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Cambiar contraseña -->
+        <div class="card oh-entry" style="--delay:180ms">
           <div class="card-header" style="padding:.9rem 1.1rem">
             <span style="font-size:.85rem;font-weight:600;letter-spacing:.03em;color:var(--muted)">CAMBIAR CONTRASEÑA</span>
           </div>
