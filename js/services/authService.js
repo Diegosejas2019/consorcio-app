@@ -337,6 +337,7 @@ const SVG_S_VOTE   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"
 const SVG_S_VISIT  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/></svg>`;
 const SVG_S_RESV   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>`;
 const SVG_S_SPACE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+const SVG_S_SUPPORT = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M18 10a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><path d="M9.5 9a2.5 2.5 0 115 0c0 1.5-1 2-2.5 3v1"/></svg>`;
 const SVG_S_PROF   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
 // Nav-bar sized profile icon (22px)
 const SVG_PROFILE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" width="22" height="22"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
@@ -367,9 +368,10 @@ const ADMIN_NAV_GROUPS = {
   },
   mas: {
     label: 'Más',
-    pages: ['page-admin-providers', 'page-admin-settings'],
+    pages: ['page-admin-providers', 'page-admin-support', 'page-admin-settings'],
     items: [
       { page: 'page-admin-providers', label: 'Proveedores',   fn: 'renderAdminProviders', icon: SVG_S_PROV },
+      { page: 'page-admin-support',   label: 'Soporte',       fn: 'renderAdminSupport',   icon: SVG_S_SUPPORT },
       { page: 'page-admin-settings',  label: 'Configuración', fn: 'renderAdminSettings',  icon: SVG_S_SETT },
     ],
   },
@@ -473,7 +475,7 @@ export function setupNav() {
       <button class="nav-item active" data-page="page-admin-home" onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
       <button class="nav-item" data-pages="page-admin-dashboard,page-admin-expenses" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
       <button class="nav-item" data-pages="page-admin-owners,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
-      <button class="nav-item" data-pages="page-admin-providers,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
+      <button class="nav-item" data-pages="page-admin-providers,page-admin-support,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
   } else {
     _navCurrentGroups = OWNER_NAV_GROUPS;
     nav.innerHTML = `

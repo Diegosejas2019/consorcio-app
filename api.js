@@ -280,6 +280,15 @@ const api = {
     getAttachmentUrl: (id, index) => `${API_BASE}/claims/${id}/attachment/${index}`,
   },
 
+  // Soporte tecnico
+  supportTickets: {
+    create: (data) => request('/support-tickets', { method: 'POST', body: JSON.stringify(data) }),
+    getAll: (params = {}) => request(`/support-tickets?${new URLSearchParams(params)}`),
+    getMy: () => request('/support-tickets/my'),
+    update: (id, data) => request(`/support-tickets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id) => request(`/support-tickets/${id}`, { method: 'DELETE' }),
+  },
+
   // ── Configuración ─────────────────────────────────────────────
   config: {
     get: () => request('/config'),

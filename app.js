@@ -14,6 +14,7 @@ import './js/ui/loading.js';
 import './js/ui/skeleton.js';
 import './js/ui/offline.js';
 import './js/ui/pwa.js';
+import './js/ui/supportReport.js';
 
 // ── Services ──────────────────────────────────────────────────
 import './js/services/indexedDbService.js';
@@ -39,6 +40,7 @@ import { renderAdminVotes }        from './js/pages/admin/votes.js';
 import { renderAdminVisits }       from './js/pages/admin/visits.js';
 import { renderAdminReservations } from './js/pages/admin/reservations.js';
 import { renderAdminSpaces }       from './js/pages/admin/spaces.js';
+import { renderAdminSupport }      from './js/pages/admin/support.js';
 
 // ── Owner pages ───────────────────────────────────────────────
 import { renderOwnerHome }         from './js/pages/owner/home.js';
@@ -67,6 +69,7 @@ PAGE_RENDERERS['page-admin-votes']     = () => renderAdminVotes();
 PAGE_RENDERERS['page-admin-visits']        = () => renderAdminVisits();
 PAGE_RENDERERS['page-admin-reservations']  = () => renderAdminReservations();
 PAGE_RENDERERS['page-admin-spaces']        = () => renderAdminSpaces();
+PAGE_RENDERERS['page-admin-support']       = () => renderAdminSupport();
 PAGE_RENDERERS['page-owner-home']          = () => renderOwnerHome();
 PAGE_RENDERERS['page-owner-pay']       = () => renderUploadPage();
 PAGE_RENDERERS['page-owner-history']   = () => renderOwnerHistory();
