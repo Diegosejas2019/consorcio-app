@@ -336,6 +336,25 @@ Tests ubicados en `tests/`. Usan Jest + jsdom. `tests/globals.js` configura los 
 - Al login del owner se solicita permiso y se registra el token con `api.auth.updateFcmToken`.
 - Los mensajes son **data-only** (sin campo `notification`); el SW los procesa manualmente.
 - Icono: `/icons/icon-192.png` (logo GestionAr); badge: mismo ícono para Android.
+- `setupPushNotifications()` solo se llama para owners; los admins no reciben push.
+
+**Proyecto Firebase:** `consorcio-app-15e78`. SDK Web v10.12.2 (compat). La config está hardcodeada en `pushService.js` y en `firebase-messaging-sw.js` — ambos deben tener los mismos valores. VAPID key: requerida para obtener el token de suscripción web.
+
+**Foreground (`onMessage` en `pushService.js`):**
+- Muestra `toast` con `title: body` en la app.
+- Si Notification está granted, también muestra `showNotification` via SW (para que sea visible si el usuario está en otra pestaña del mismo origen).
+- `requireInteraction: true` cuando `payload.data.type === 'urgent'`.
+- `tag` = `payload.data.type || 'consorcio'` (clave de deduplicación del navegador).
+
+**Background (`onBackgroundMessage` en `firebase-messaging-sw.js`):**
+- Muestra `showNotification` con los mismos campos (title, body, icon, badge, tag, requireInteraction).
+- Click en la notificación → abre/enfoca la ventana de la app en `/`.
+
+**`checkMonthlyReminder()`:**
+- Solo corre los primeros 5 días del mes (`today > 5` → no hace nada).
+- Requiere `Notification.permission === 'granted'`.
+- Consulta `api.config.get()` para obtener `expenseMonthCode` y `dueDayOfMonth`, luego `api.payments.getAll({ month })` para ver si hay pago aprobado.
+- Si no hay pago aprobado, muestra una `Notification` nativa y guarda `notif_sent_{userId}_{month}` en `localStorage` para no repetirla en el mismo período.
 
 ## MercadoPago
 
