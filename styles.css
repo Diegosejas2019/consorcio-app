@@ -943,47 +943,84 @@ body.is-offline #app-shell { padding-top: 36px; }
 .ohi-empty__msg  { font-size: .9rem; color: var(--muted); }
 
 /* ══════════════════════════════════════
-   Notice Inbox (ni-)  — owner & admin
+   Comunicados Inbox (ni-)  — owner & admin
 ══════════════════════════════════════ */
+
+/* Header */
+.ni-inbox-header { margin-bottom: .75rem; }
+.ni-inbox-title-row {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+}
+.ni-inbox-title {
+  font-size: 1.45rem; font-weight: 700; letter-spacing: -.03em;
+  color: var(--text-bright); line-height: 1;
+}
+.ni-unread-chip {
+  font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+  background: var(--accent-lt); color: var(--accent);
+  border: 1px solid rgba(156,242,123,.25);
+  padding: .22rem .6rem; border-radius: 99px; white-space: nowrap;
+}
+
+/* Inbox container */
 .ni-inbox {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden;
+  border-radius: 14px; overflow: hidden;
 }
+
+/* Row */
 .ni-row {
-  display: flex; align-items: center; gap: .85rem;
-  padding: .85rem 1.1rem;
+  display: flex; align-items: center; gap: .75rem;
+  padding: .9rem 1rem .9rem .65rem;
   border-bottom: 1px solid var(--border);
   cursor: pointer; transition: background .12s;
+  position: relative;
 }
 .ni-row:last-child { border-bottom: none; }
-.ni-row:hover { background: var(--surface-2); }
-.ni-row--unread { background: var(--surface-2); }
-.ni-icon {
-  flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .9rem; line-height: 1;
+.ni-row:hover { background: rgba(255,255,255,.03); }
+.ni-row--unread { background: rgba(156,242,123,.03); }
+
+/* Unread dot */
+.ni-dot {
+  flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); visibility: hidden;
+  box-shadow: 0 0 6px rgba(156,242,123,.5);
 }
-.ni-icon--info    { background: var(--accent-lt);   color: var(--accent); }
-.ni-icon--warning { background: var(--warning-lt);  color: var(--warning); }
-.ni-icon--urgent  { background: var(--danger-lt);   color: var(--danger); }
-.ni-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .18rem; }
+.ni-dot--visible { visibility: visible; }
+
+/* Avatar */
+.ni-avatar {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; line-height: 1;
+}
+.ni-avatar--info    { background: var(--accent-lt);  border: 1px solid rgba(156,242,123,.2); }
+.ni-avatar--warning { background: var(--warning-lt); border: 1px solid rgba(234,179,8,.2); }
+.ni-avatar--urgent  { background: var(--danger-lt);  border: 1px solid rgba(248,113,113,.2); }
+
+/* Content block */
+.ni-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .12rem; }
 .ni-content-top {
   display: flex; align-items: baseline;
   justify-content: space-between; gap: .5rem;
 }
-.ni-title {
-  font-size: .875rem; font-weight: 500; color: var(--text);
-  line-height: 1.3; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; flex: 1;
+.ni-sender {
+  font-size: .72rem; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .04em;
 }
-.ni-row--unread .ni-title  { font-weight: 700; color: var(--text-bright); }
-.ni-date { font-size: .72rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.ni-date { font-size: .7rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.ni-subject {
+  font-size: .875rem; font-weight: 500; color: var(--text);
+  line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ni-row--unread .ni-subject { font-weight: 700; color: var(--text-bright); }
 .ni-preview {
-  font-size: .78rem; color: var(--muted);
+  font-size: .75rem; color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ni-row--unread .ni-preview { color: var(--text); }
-.ni-empty { padding: 1.5rem; text-align: center; font-size: .875rem; color: var(--muted); }
+.ni-empty { padding: 2rem 1.5rem; text-align: center; font-size: .875rem; color: var(--muted); }
+
 /* Delete button (admin only) */
 .ni-delete-btn {
   flex-shrink: 0; background: none; border: none; cursor: pointer;
@@ -992,34 +1029,43 @@ body.is-offline #app-shell { padding-top: 36px; }
 }
 .ni-row:hover .ni-delete-btn { opacity: 1; }
 .ni-delete-btn:hover { color: var(--danger); background: var(--danger-lt); }
-/* Detail inside modal */
+
+/* Detail modal */
 .ni-detail { display: flex; flex-direction: column; }
-.ni-detail-tag-row {
-  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
-  margin-bottom: .85rem;
-}
-.ni-detail-subject {
-  font-size: 1.1rem; font-weight: 700; color: var(--text-bright);
-  line-height: 1.35; margin-bottom: .65rem;
-}
-.ni-detail-meta {
-  display: flex; flex-direction: column; gap: .2rem;
-  font-size: .78rem; color: var(--muted);
+.ni-detail-top {
+  display: flex; align-items: flex-start; gap: .75rem;
   margin-bottom: 1rem; padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
 }
+.ni-detail-sender {
+  font-size: .8rem; font-weight: 700; color: var(--text-bright); line-height: 1.3;
+}
+.ni-detail-date { font-size: .72rem; color: var(--muted); margin-top: .1rem; }
+.ni-detail-subject {
+  font-size: 1.05rem; font-weight: 700; color: var(--text-bright);
+  line-height: 1.4; margin-bottom: .85rem;
+}
 .ni-detail-body {
-  font-size: .88rem; line-height: 1.72; color: var(--text);
-  word-break: break-word; max-height: 46vh; overflow-y: auto;
-  padding-bottom: .25rem;
+  font-size: .875rem; line-height: 1.75; color: var(--text);
+  word-break: break-word; max-height: 44vh; overflow-y: auto;
 }
 .ni-detail-actions {
   display: flex; gap: .6rem; flex-wrap: wrap;
-  margin-top: 1.2rem; padding-top: .9rem;
+  margin-top: 1.25rem; padding-top: .9rem;
   border-top: 1px solid var(--border);
 }
 .ni-detail-actions .btn { flex: 1; min-width: 120px; }
-/* Keep old on-card__tag for reuse inside detail modal */
+
+/* Tag pills */
+.ni-tag-pill {
+  font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  padding: .2rem .55rem; border-radius: 99px; white-space: nowrap; flex-shrink: 0;
+}
+.ni-tag-pill--info    { background: var(--accent-lt);  color: var(--accent); }
+.ni-tag-pill--warning { background: var(--warning-lt); color: var(--warning); }
+.ni-tag-pill--urgent  { background: var(--danger-lt);  color: var(--danger); }
+
+/* Keep old on-card__tag for backward compat */
 .on-card__tag {
   font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
   padding: .16rem .55rem; border-radius: 99px; width: fit-content;

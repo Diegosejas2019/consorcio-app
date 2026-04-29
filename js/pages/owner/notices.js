@@ -22,16 +22,18 @@ function formatInboxDate(d) {
 function noticeRow(n, i) {
   const unread = !n.isRead;
   return `
-    <div class="ni-row${unread ? ' ni-row--unread' : ''} ni-tag-${n.tag} oh-entry"
+    <div class="ni-row${unread ? ' ni-row--unread' : ''} oh-entry"
          style="--delay:${Math.min(i * 30 + 40, 200)}ms"
          onclick="openOwnerNotice('${n._id}')">
-      <div class="ni-icon ni-icon--${n.tag}">${TAG_ICON[n.tag] || '📢'}</div>
+      <div class="ni-dot${unread ? ' ni-dot--visible' : ''}"></div>
+      <div class="ni-avatar ni-avatar--${n.tag}">${TAG_ICON[n.tag] || '📢'}</div>
       <div class="ni-content">
         <div class="ni-content-top">
-          <span class="ni-title">${n.title}</span>
+          <span class="ni-sender">Administración</span>
           <span class="ni-date">${formatInboxDate(n.createdAt)}</span>
         </div>
-        <span class="ni-preview">${n.body.slice(0, 90)}${n.body.length > 90 ? '…' : ''}</span>
+        <div class="ni-subject">${n.title}</div>
+        <div class="ni-preview">${n.body.slice(0, 80)}${n.body.length > 80 ? '…' : ''}</div>
       </div>
     </div>`;
 }
@@ -54,16 +56,15 @@ function _renderInbox() {
 
   el.innerHTML = `
     <div class="oh-wrap">
-      <div class="oh-greeting oh-entry" style="--delay:0ms">
-        <div>
-          <p class="oh-greeting-sub">Comunicados</p>
-          <h1 class="oh-greeting-name">Avisos</h1>
+      <div class="ni-inbox-header oh-entry" style="--delay:0ms">
+        <div class="ni-inbox-title-row">
+          <h1 class="ni-inbox-title">Comunicados</h1>
+          ${unread > 0 ? `<span class="ni-unread-chip">${unread} nuevo${unread > 1 ? 's' : ''}</span>` : ''}
         </div>
-        ${unread > 0 ? `<span class="oh-unit-chip">${unread} nuevo${unread > 1 ? 's' : ''}</span>` : ''}
       </div>
       <div class="ni-inbox oh-entry" style="--delay:60ms">
         ${_notices.length === 0
-          ? '<p class="ni-empty">Sin avisos por el momento.</p>'
+          ? '<p class="ni-empty">Sin comunicados por el momento.</p>'
           : _notices.map((n, i) => noticeRow(n, i)).join('')}
       </div>
     </div>`;
@@ -87,16 +88,17 @@ export async function openOwnerNotice(id) {
   document.getElementById('modal').innerHTML = `
     <div class="modal-handle"></div>
     <div class="ni-detail">
-      <div class="ni-detail-tag-row">
-        <span class="on-card__tag tag-${notice.tag}">${TAG_ICON[notice.tag]} ${TAG_LABEL[notice.tag] || notice.tag}</span>
+      <div class="ni-detail-top">
+        <div class="ni-avatar ni-avatar--${notice.tag}" style="width:42px;height:42px;font-size:1.15rem;flex-shrink:0">${TAG_ICON[notice.tag] || '📢'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="ni-detail-sender">Administración</div>
+          <div class="ni-detail-date">${formatDate(notice.createdAt)}</div>
+        </div>
+        <span class="ni-tag-pill ni-tag-pill--${notice.tag}">${TAG_LABEL[notice.tag] || notice.tag}</span>
       </div>
       <div class="ni-detail-subject">${notice.title}</div>
-      <div class="ni-detail-meta">
-        <span>De: Administración</span>
-        <span>Fecha: ${formatDate(notice.createdAt)}</span>
-      </div>
       <div class="ni-detail-body">${_escapeHtml(notice.body)}</div>
-      ${notice.attachments?.length ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:.5rem">${notice.attachments.map((a, i) =>
+      ${notice.attachments?.length ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:.75rem">${notice.attachments.map((a, i) =>
         `<button class="btn btn-sm btn-ghost" style="font-size:.75rem"
           onclick="downloadOwnerNoticeAttachment('${notice._id}',${i},'${(a.filename || 'adjunto').replace(/'/g, "\\'")}')">
           ${a.mimetype?.startsWith('image/') ? '🖼️' : '📄'} ${a.filename ? a.filename.slice(0, 22) : `Archivo ${i + 1}`}
@@ -138,7 +140,7 @@ export async function toggleOwnerNoticeRead(id) {
 
 function _updateUnreadChip() {
   const unread = _notices.filter(n => !n.isRead).length;
-  const chip   = document.querySelector('#page-owner-notices .oh-unit-chip');
+  const chip   = document.querySelector('#page-owner-notices .ni-unread-chip');
   if (chip) {
     chip.textContent = unread > 0 ? `${unread} nuevo${unread > 1 ? 's' : ''}` : '';
     chip.style.display = unread > 0 ? '' : 'none';

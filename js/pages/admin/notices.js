@@ -22,15 +22,17 @@ function formatInboxDate(d) {
 
 function noticeRow(n, i) {
   return `
-    <div class="ni-row ni-tag-${n.tag} oh-entry" style="--delay:${Math.min(i * 30 + 40, 200)}ms"
+    <div class="ni-row oh-entry" style="--delay:${Math.min(i * 30 + 40, 200)}ms"
          onclick="openAdminNotice('${n._id}')">
-      <div class="ni-icon ni-icon--${n.tag}">${TAG_ICON[n.tag] || '📢'}</div>
+      <div class="ni-dot" style="visibility:hidden"></div>
+      <div class="ni-avatar ni-avatar--${n.tag}">${TAG_ICON[n.tag] || '📢'}</div>
       <div class="ni-content">
         <div class="ni-content-top">
-          <span class="ni-title">${n.title}</span>
+          <span class="ni-sender">Administración</span>
           <span class="ni-date">${formatInboxDate(n.createdAt)}</span>
         </div>
-        <span class="ni-preview">${n.body.slice(0, 90)}${n.body.length > 90 ? '…' : ''}</span>
+        <div class="ni-subject">${n.title}</div>
+        <div class="ni-preview">${n.body.slice(0, 80)}${n.body.length > 80 ? '…' : ''}</div>
       </div>
       <button class="ni-delete-btn" title="Eliminar" onclick="deleteNotice(event, '${n._id}')">✕</button>
     </div>`;
@@ -52,13 +54,15 @@ function _renderInbox() {
   const el = document.getElementById('page-admin-notices');
   el.innerHTML = `
     <div class="flex col gap-3">
-      <div class="flex between">
-        <h1>Avisos</h1>
-        <button class="btn btn-primary btn-sm" onclick="openNewNoticeModal()">+ Nuevo</button>
+      <div class="ni-inbox-header">
+        <div class="ni-inbox-title-row">
+          <h1 class="ni-inbox-title">Comunicados</h1>
+          <button class="btn btn-primary btn-sm" onclick="openNewNoticeModal()">+ Nuevo</button>
+        </div>
       </div>
       <div class="ni-inbox">
         ${_notices.length === 0
-          ? '<p class="ni-empty">Sin avisos publicados.</p>'
+          ? '<p class="ni-empty">Sin comunicados publicados.</p>'
           : _notices.map((n, i) => noticeRow(n, i)).join('')}
       </div>
     </div>`;
@@ -86,15 +90,18 @@ export function openAdminNotice(id) {
   document.getElementById('modal').innerHTML = `
     <div class="modal-handle"></div>
     <div class="ni-detail">
-      <div class="ni-detail-tag-row">
-        <span class="on-card__tag tag-${notice.tag}">${TAG_ICON[notice.tag]} ${TAG_LABEL[notice.tag] || notice.tag}</span>
-        <div style="display:flex;gap:.4rem;flex-wrap:wrap">${pushStatus}${emailStatus}</div>
+      <div class="ni-detail-top">
+        <div class="ni-avatar ni-avatar--${notice.tag}" style="width:42px;height:42px;font-size:1.15rem;flex-shrink:0">${TAG_ICON[notice.tag] || '📢'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="ni-detail-sender">${notice.author?.name || 'Administración'}</div>
+          <div class="ni-detail-date">${formatDate(notice.createdAt)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem">
+          <span class="ni-tag-pill ni-tag-pill--${notice.tag}">${TAG_LABEL[notice.tag] || notice.tag}</span>
+          <div style="display:flex;gap:.3rem">${pushStatus}${emailStatus}</div>
+        </div>
       </div>
       <div class="ni-detail-subject">${notice.title}</div>
-      <div class="ni-detail-meta">
-        <span>Autor: ${notice.author?.name || 'Admin'}</span>
-        <span>Fecha: ${formatDate(notice.createdAt)}</span>
-      </div>
       <div class="ni-detail-body">${_escapeHtml(notice.body)}</div>
       ${attachmentsHtml}
       <div class="ni-detail-actions">
@@ -109,7 +116,7 @@ export function openNewNoticeModal() {
   _noticeFiles = [];
   document.getElementById('modal').innerHTML = `
     <div class="modal-handle"></div>
-    <h2 style="margin-bottom:1rem">Nuevo Aviso</h2>
+    <h2 style="margin-bottom:1rem">Nuevo Comunicado</h2>
     <div class="flex col gap-2">
       <div class="form-group">
         <label>Título</label>
@@ -215,7 +222,7 @@ export async function saveNotice() {
       await _openNoticeWhatsAppModal(title, body);
     } else {
       closeModal();
-      toast('Aviso publicado', 'success');
+      toast('Comunicado publicado', 'success');
       renderAdminNotices();
     }
   } catch (err) {
@@ -229,7 +236,7 @@ export async function deleteNotice(event, id, fromModal = false) {
   try {
     await api.notices.delete(id);
     if (fromModal) closeModal();
-    toast('Aviso eliminado');
+    toast('Comunicado eliminado');
     renderAdminNotices();
   } catch (err) {
     toast(err.message, 'error');
@@ -239,7 +246,7 @@ export async function deleteNotice(event, id, fromModal = false) {
 // ── WhatsApp ──────────────────────────────────────────────────
 async function _openNoticeWhatsAppModal(title, body) {
   const appUrl = window.location.origin;
-  const defaultMsg = `📢 Nuevo aviso\n\n${title}\n\n${body}\n\nAbrí la app:\n${appUrl}`;
+  const defaultMsg = `📢 Nuevo comunicado\n\n${title}\n\n${body}\n\nAbrí la app:\n${appUrl}`;
 
   let owners = [];
   try {
@@ -247,7 +254,7 @@ async function _openNoticeWhatsAppModal(title, body) {
     owners = (res.data.owners || []).filter(o => o.phone);
   } catch { /* silent — mostrar igual el modal */ }
 
-  toast('Aviso publicado', 'success');
+  toast('Comunicado publicado', 'success');
   renderAdminNotices();
 
   if (owners.length === 0) {
@@ -258,7 +265,7 @@ async function _openNoticeWhatsAppModal(title, body) {
 
   document.getElementById('modal').innerHTML = `
     <div class="modal-handle"></div>
-    <h2 style="margin-bottom:.25rem">Enviar aviso por WhatsApp</h2>
+    <h2 style="margin-bottom:.25rem">Enviar comunicado por WhatsApp</h2>
     <p class="text-sm text-muted" style="margin-bottom:1rem">${owners.length} propietario${owners.length !== 1 ? 's' : ''} con teléfono</p>
     <div class="form-group" style="margin-bottom:.75rem">
       <label>Mensaje (editable)</label>

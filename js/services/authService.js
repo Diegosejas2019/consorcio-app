@@ -357,7 +357,7 @@ const ADMIN_NAV_GROUPS = {
     pages: ['page-admin-owners', 'page-admin-notices', 'page-admin-claims', 'page-admin-votes', 'page-admin-visits', 'page-admin-reservations', 'page-admin-spaces'],
     items: [
       { page: 'page-admin-owners',        label: 'Propietarios', fn: 'renderOwnersList',        icon: SVG_S_USERS },
-      { page: 'page-admin-notices',       label: 'Avisos',       fn: 'renderAdminNotices',       icon: SVG_S_BELL  },
+      { page: 'page-admin-notices',       label: 'Comunicados',  fn: 'renderAdminNotices',       icon: SVG_S_BELL  },
       { page: 'page-admin-claims',        label: 'Reclamos',     fn: 'renderAdminClaims',        icon: SVG_S_CLAIM },
       { page: 'page-admin-votes',         label: 'Votaciones',   fn: 'renderAdminVotes',         icon: SVG_S_VOTE  },
       { page: 'page-admin-visits',        label: 'Visitas',      fn: 'renderAdminVisits',        icon: SVG_S_VISIT },
@@ -381,7 +381,7 @@ const OWNER_NAV_GROUPS = {
     pages: ['page-owner-notices', 'page-owner-claims', 'page-owner-expenses', 'page-owner-votes', 'page-owner-visits', 'page-owner-reservations'],
     items: [
       { page: 'page-owner-expenses',     label: 'Gastos',      fn: 'renderOwnerExpenses',     icon: SVG_S_EXP   },
-      { page: 'page-owner-notices',      label: 'Avisos',      fn: 'renderOwnerNotices',      icon: SVG_S_BELL  },
+      { page: 'page-owner-notices',      label: 'Comunicados', fn: 'renderOwnerNotices',      icon: SVG_S_BELL  },
       { page: 'page-owner-claims',       label: 'Reclamos',    fn: 'renderOwnerClaims',       icon: SVG_S_CLAIM },
       { page: 'page-owner-votes',        label: 'Votaciones',  fn: 'renderOwnerVotes',        icon: SVG_S_VOTE  },
       { page: 'page-owner-visits',       label: 'Visitas',     fn: 'renderOwnerVisits',       icon: SVG_S_VISIT },
