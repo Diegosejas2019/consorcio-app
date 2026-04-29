@@ -18,6 +18,12 @@ const PAY_LABELS = {
   mercadopago: 'MercadoPago',
 };
 
+const BILLING_LABELS = {
+  fixed_total:    'Total fijo',
+  per_unit:       'Por unidad',
+  by_coefficient: 'Por coeficiente',
+};
+
 const expensesState = { all: [], page: 1, perPage: 15, filterMonth: '', filterCategory: '' };
 
 // ── Render principal ──────────────────────────────────────────
@@ -104,7 +110,7 @@ function _renderExpensesView() {
                 <td>
                   <span class="badge badge-info">${CAT_LABELS[e.category] || e.category}</span>
                   ${e.expenseType === 'extraordinary' ? `<span class="badge badge-warning" style="margin-left:.25rem">Extraordinario</span>` : ''}
-                  ${e.isChargeable ? `<span class="badge badge-success" style="margin-left:.25rem">Cobrable</span>` : ''}
+                  ${e.isChargeable ? `<span class="badge badge-success" style="margin-left:.25rem">Cobrable</span>${e.extraordinaryBillingMode && e.extraordinaryBillingMode !== 'fixed_total' ? `<span class="badge badge-info" style="margin-left:.25rem">${BILLING_LABELS[e.extraordinaryBillingMode] || ''}</span>` : ''}` : ''}
                 </td>
                 <td>${e.provider ? e.provider.name : '<span class="text-muted">—</span>'}</td>
                 <td style="font-weight:600">$${e.amount.toLocaleString('es-AR')}</td>
@@ -178,7 +184,7 @@ export async function openNewExpenseModal() {
         </div>
         <div style="flex:1">
           <label class="label">Importe *</label>
-          <input id="exp-amount" class="input" type="number" min="0.01" step="0.01" placeholder="0.00">
+          <input id="exp-amount" class="input" type="number" min="0" step="0.01" placeholder="0.00">
         </div>
       </div>
       <div class="flex gap-2">
@@ -207,9 +213,23 @@ export async function openNewExpenseModal() {
       </div>
       <div id="exp-chargeable-wrap" class="hidden">
         <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-          <input type="checkbox" id="exp-chargeable">
+          <input type="checkbox" id="exp-chargeable" onchange="syncExpBillingWrap('exp')">
           <span class="text-sm">Cobrable a propietarios (aparece en pantalla de pago)</span>
         </label>
+      </div>
+      <div id="exp-billing-wrap" class="hidden flex col gap-2">
+        <div>
+          <label class="label">Forma de cobro</label>
+          <select id="exp-billing-mode" class="input" onchange="toggleBillingMode('exp')">
+            <option value="fixed_total">Monto total a repartir</option>
+            <option value="per_unit">Monto por lote/unidad</option>
+            <option value="by_coefficient">Según coeficiente</option>
+          </select>
+        </div>
+        <div id="exp-unit-amount-wrap" class="hidden">
+          <label class="label">Monto por unidad *</label>
+          <input id="exp-unit-amount" class="input" type="number" min="0.01" step="0.01" placeholder="0.00">
+        </div>
       </div>
       <div>
         <label class="label">Comprobantes (PDF o imagen)</label>
@@ -232,12 +252,15 @@ export async function saveNewExpense() {
   const provider    = document.getElementById('exp-provider')?.value;
   const method      = document.getElementById('exp-method')?.value;
   const expType     = document.getElementById('exp-type')?.value || 'ordinary';
-  const isChargeable = expType === 'extraordinary' && document.getElementById('exp-chargeable')?.checked;
-  const files       = document.getElementById('exp-receipt')?.files;
+  const isChargeable  = expType === 'extraordinary' && document.getElementById('exp-chargeable')?.checked;
+  const billingMode   = isChargeable ? (document.getElementById('exp-billing-mode')?.value || 'fixed_total') : 'fixed_total';
+  const isPerUnit     = isChargeable && billingMode === 'per_unit';
+  const unitAmountVal = isPerUnit ? parseFloat(document.getElementById('exp-unit-amount')?.value || 0) : 0;
+  const files         = document.getElementById('exp-receipt')?.files;
 
-  if (!desc || !cat || !amount || !date) {
-    return toast('Completá los campos obligatorios.', 'warning');
-  }
+  if (!desc || !cat || !date) return toast('Completá los campos obligatorios.', 'warning');
+  if (isPerUnit && !(unitAmountVal > 0)) return toast('El monto por unidad debe ser mayor a 0.', 'warning');
+  if (!isPerUnit && !(amount > 0)) return toast('El importe debe ser mayor a 0.', 'warning');
 
   const btn = document.getElementById('btn-save-expense');
   btn.disabled = true; btn.textContent = 'Guardando…';
@@ -248,17 +271,21 @@ export async function saveNewExpense() {
       const fd = new FormData();
       fd.append('description', desc);
       fd.append('category', cat);
-      fd.append('amount', amount);
+      fd.append('amount', isPerUnit ? 0 : amount);
       fd.append('date', date);
       if (provider) fd.append('provider', provider);
       if (method)   fd.append('paymentMethod', method);
       fd.append('expenseType', expType);
       fd.append('isChargeable', isChargeable);
+      if (isChargeable) fd.append('extraordinaryBillingMode', billingMode);
+      if (isPerUnit)    fd.append('unitAmount', unitAmountVal);
       Array.from(files).forEach(f => fd.append('attachments', f));
       body = fd;
     } else {
-      body = { description: desc, category: cat, amount, date, expenseType: expType, isChargeable,
-               ...(provider && { provider }), ...(method && { paymentMethod: method }) };
+      body = { description: desc, category: cat, amount: isPerUnit ? 0 : amount, date, expenseType: expType, isChargeable,
+               ...(provider && { provider }), ...(method && { paymentMethod: method }),
+               ...(isChargeable && { extraordinaryBillingMode: billingMode }),
+               ...(isPerUnit && { unitAmount: unitAmountVal }) };
     }
 
     await api.expenses.create(body);
@@ -382,7 +409,7 @@ export async function openEditExpenseModal(id) {
         </div>
         <div style="flex:1">
           <label class="label">Importe *</label>
-          <input id="ee-amount" class="input" type="number" min="0.01" step="0.01" value="${expense.amount}">
+          <input id="ee-amount" class="input" type="number" min="0" step="0.01" value="${expense.amount}">
         </div>
       </div>
       <div class="flex gap-2">
@@ -411,9 +438,23 @@ export async function openEditExpenseModal(id) {
       </div>
       <div id="ee-chargeable-wrap" ${expense.expenseType !== 'extraordinary' ? 'class="hidden"' : ''}>
         <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
-          <input type="checkbox" id="ee-chargeable" ${expense.isChargeable ? 'checked' : ''}>
+          <input type="checkbox" id="ee-chargeable" ${expense.isChargeable ? 'checked' : ''} onchange="syncExpBillingWrap('ee')">
           <span class="text-sm">Cobrable a propietarios (aparece en pantalla de pago)</span>
         </label>
+      </div>
+      <div id="ee-billing-wrap" ${!expense.isChargeable ? 'class="hidden"' : 'class="flex col gap-2"'}>
+        <div>
+          <label class="label">Forma de cobro</label>
+          <select id="ee-billing-mode" class="input" onchange="toggleBillingMode('ee')">
+            <option value="fixed_total" ${(expense.extraordinaryBillingMode || 'fixed_total') === 'fixed_total' ? 'selected' : ''}>Monto total a repartir</option>
+            <option value="per_unit" ${expense.extraordinaryBillingMode === 'per_unit' ? 'selected' : ''}>Monto por lote/unidad</option>
+            <option value="by_coefficient" ${expense.extraordinaryBillingMode === 'by_coefficient' ? 'selected' : ''}>Según coeficiente</option>
+          </select>
+        </div>
+        <div id="ee-unit-amount-wrap" ${expense.extraordinaryBillingMode !== 'per_unit' ? 'class="hidden"' : ''}>
+          <label class="label">Monto por unidad *</label>
+          <input id="ee-unit-amount" class="input" type="number" min="0.01" step="0.01" value="${expense.unitAmount || ''}" placeholder="0.00">
+        </div>
       </div>
       <div>
         <label class="label">Agregar comprobantes</label>
@@ -437,12 +478,15 @@ export async function saveEditExpense(id) {
   const provider    = document.getElementById('ee-provider')?.value;
   const method      = document.getElementById('ee-method')?.value;
   const expType     = document.getElementById('ee-type')?.value || 'ordinary';
-  const isChargeable = expType === 'extraordinary' && document.getElementById('ee-chargeable')?.checked;
-  const files       = document.getElementById('ee-receipt')?.files;
+  const isChargeable  = expType === 'extraordinary' && document.getElementById('ee-chargeable')?.checked;
+  const billingMode   = isChargeable ? (document.getElementById('ee-billing-mode')?.value || 'fixed_total') : 'fixed_total';
+  const isPerUnit     = isChargeable && billingMode === 'per_unit';
+  const unitAmountVal = isPerUnit ? parseFloat(document.getElementById('ee-unit-amount')?.value || 0) : 0;
+  const files         = document.getElementById('ee-receipt')?.files;
 
-  if (!desc || !cat || !amount || !date) {
-    return toast('Completá los campos obligatorios.', 'warning');
-  }
+  if (!desc || !cat || !date) return toast('Completá los campos obligatorios.', 'warning');
+  if (isPerUnit && !(unitAmountVal > 0)) return toast('El monto por unidad debe ser mayor a 0.', 'warning');
+  if (!isPerUnit && !(amount > 0)) return toast('El importe debe ser mayor a 0.', 'warning');
 
   const btn = document.getElementById('btn-update-expense');
   btn.disabled = true; btn.textContent = 'Guardando…';
@@ -453,17 +497,21 @@ export async function saveEditExpense(id) {
       const fd = new FormData();
       fd.append('description', desc);
       fd.append('category', cat);
-      fd.append('amount', amount);
+      fd.append('amount', isPerUnit ? 0 : amount);
       fd.append('date', date);
       if (provider) fd.append('provider', provider);
       if (method)   fd.append('paymentMethod', method);
       fd.append('expenseType', expType);
       fd.append('isChargeable', isChargeable);
+      if (isChargeable) fd.append('extraordinaryBillingMode', billingMode);
+      if (isPerUnit)    fd.append('unitAmount', unitAmountVal);
       Array.from(files).forEach(f => fd.append('attachments', f));
       body = fd;
     } else {
-      body = { description: desc, category: cat, amount, date, expenseType: expType, isChargeable,
-               ...(provider && { provider }), ...(method && { paymentMethod: method }) };
+      body = { description: desc, category: cat, amount: isPerUnit ? 0 : amount, date, expenseType: expType, isChargeable,
+               ...(provider && { provider }), ...(method && { paymentMethod: method }),
+               ...(isChargeable && { extraordinaryBillingMode: billingMode }),
+               ...(isPerUnit && { unitAmount: unitAmountVal }) };
     }
 
     await api.expenses.update(id, body);
@@ -476,16 +524,44 @@ export async function saveEditExpense(id) {
   }
 }
 
-// ── Toggle cobrable (show/hide según tipo) ────────────────────
+// ── Toggle cobrable / billing mode (show/hide según tipo y modo) ─
 export function toggleExpChargeable(prefix) {
   const type = document.getElementById(`${prefix}-type`)?.value;
+  const isExtraordinary = type === 'extraordinary';
   document.getElementById(`${prefix}-chargeable-wrap`)
-    ?.classList.toggle('hidden', type !== 'extraordinary');
+    ?.classList.toggle('hidden', !isExtraordinary);
+  if (!isExtraordinary) {
+    document.getElementById(`${prefix}-billing-wrap`)?.classList.add('hidden');
+  } else {
+    syncExpBillingWrap(prefix);
+  }
+}
+
+export function syncExpBillingWrap(prefix) {
+  const isChargeable = document.getElementById(`${prefix}-chargeable`)?.checked;
+  const wrap = document.getElementById(`${prefix}-billing-wrap`);
+  if (!wrap) return;
+  if (isChargeable) {
+    wrap.classList.remove('hidden');
+    wrap.classList.add('flex', 'col', 'gap-2');
+  } else {
+    wrap.classList.add('hidden');
+    wrap.classList.remove('flex', 'col', 'gap-2');
+  }
+  toggleBillingMode(prefix);
+}
+
+export function toggleBillingMode(prefix) {
+  const mode = document.getElementById(`${prefix}-billing-mode`)?.value;
+  document.getElementById(`${prefix}-unit-amount-wrap`)
+    ?.classList.toggle('hidden', mode !== 'per_unit');
 }
 
 // ── Exponer globalmente ───────────────────────────────────────
 window.renderAdminExpenses        = renderAdminExpenses;
 window.toggleExpChargeable        = toggleExpChargeable;
+window.syncExpBillingWrap         = syncExpBillingWrap;
+window.toggleBillingMode          = toggleBillingMode;
 window.openNewExpenseModal        = openNewExpenseModal;
 window.saveNewExpense             = saveNewExpense;
 window.markExpensePaid            = markExpensePaid;
