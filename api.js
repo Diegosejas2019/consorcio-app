@@ -347,6 +347,24 @@ const api = {
     deleteAttachment: (id, index) => request(`/expenses/${id}/attachment/${index}`, { method: 'DELETE' }),
   },
 
+  // ── Empleados ─────────────────────────────────────────────────
+  employees: {
+    getAll:  (params = {}) => request(`/employees?${new URLSearchParams(params)}`),
+    create:  (data)        => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
+    getOne:  (id)          => request(`/employees/${id}`),
+    update:  (id, data)    => request(`/employees/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete:  (id)          => request(`/employees/${id}`, { method: 'DELETE' }),
+  },
+
+  // ── Sueldos ───────────────────────────────────────────────────
+  salaries: {
+    getAll:  (params = {}) => request(`/salaries?${new URLSearchParams(params)}`),
+    create:  (data)        => request('/salaries', { method: 'POST', body: JSON.stringify(data) }),
+    getOne:  (id)          => request(`/salaries/${id}`),
+    update:  (id, data)    => request(`/salaries/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete:  (id)          => request(`/salaries/${id}`, { method: 'DELETE' }),
+  },
+
   // ── Reportes ──────────────────────────────────────────────────
   reports: {
     getMonthlySummary: (month) =>

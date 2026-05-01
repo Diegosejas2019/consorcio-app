@@ -339,6 +339,8 @@ const SVG_S_RESV   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"
 const SVG_S_SPACE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
 const SVG_S_SUPPORT = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M18 10a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><path d="M9.5 9a2.5 2.5 0 115 0c0 1.5-1 2-2.5 3v1"/></svg>`;
 const SVG_S_PROF   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
+const SVG_S_SALARY = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>`;
+const SVG_S_EMP    = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 // Nav-bar sized profile icon (22px)
 const SVG_PROFILE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" width="22" height="22"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
 
@@ -346,11 +348,13 @@ const SVG_PROFILE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"
 const ADMIN_NAV_GROUPS = {
   finanzas: {
     label: 'Finanzas',
-    pages: ['page-admin-dashboard', 'page-admin-expenses', 'page-admin-report'],
+    pages: ['page-admin-dashboard', 'page-admin-expenses', 'page-admin-report', 'page-admin-employees', 'page-admin-salaries'],
     items: [
       { page: 'page-admin-dashboard', label: 'Dashboard', fn: 'renderAdminDashboard', icon: SVG_S_DASH   },
       { page: 'page-admin-expenses',  label: 'Gastos',    fn: 'renderAdminExpenses',  icon: SVG_S_EXP    },
       { page: 'page-admin-report',    label: 'Informe',   fn: 'renderAdminReport',    icon: SVG_S_REPORT },
+      { page: 'page-admin-employees', label: 'Empleados', fn: 'renderAdminEmployees', icon: SVG_S_EMP    },
+      { page: 'page-admin-salaries',  label: 'Sueldos',   fn: 'renderAdminSalaries',  icon: SVG_S_SALARY },
     ],
   },
   comunidad: {
@@ -473,7 +477,7 @@ export function setupNav() {
     _navCurrentGroups = ADMIN_NAV_GROUPS;
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-admin-home" onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
-      <button class="nav-item" data-pages="page-admin-dashboard,page-admin-expenses" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
+      <button class="nav-item" data-pages="page-admin-dashboard,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
       <button class="nav-item" data-pages="page-admin-owners,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
       <button class="nav-item" data-pages="page-admin-providers,page-admin-support,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
   } else {
