@@ -134,12 +134,14 @@ window.toggleCustomRole = function() {
 };
 
 window.openNewEmployeeModal = function() {
-  openModal({
-    title: 'Nuevo empleado',
-    body:  _employeeForm(),
-    footer: `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-             <button class="btn btn-primary" id="btn-save-emp" onclick="saveNewEmployee()">Guardar</button>`,
-  });
+  openModal(`
+    <h2 style="margin-bottom:1rem">Nuevo empleado</h2>
+    ${_employeeForm()}
+    <div class="flex gap-2" style="margin-top:.5rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-emp" style="flex:1" onclick="saveNewEmployee()">Guardar</button>
+    </div>
+  `);
 };
 
 window.saveNewEmployee = async function() {
@@ -161,12 +163,14 @@ window.saveNewEmployee = async function() {
 window.openEditEmployeeModal = function(id) {
   const e = empState.all.find(x => x._id === id);
   if (!e) return;
-  openModal({
-    title: 'Editar empleado',
-    body:  _employeeForm(e),
-    footer: `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-             <button class="btn btn-primary" id="btn-save-emp" onclick="saveEditEmployee('${id}')">Guardar</button>`,
-  });
+  openModal(`
+    <h2 style="margin-bottom:1rem">Editar empleado</h2>
+    ${_employeeForm(e)}
+    <div class="flex gap-2" style="margin-top:.5rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-emp" style="flex:1" onclick="saveEditEmployee('${id}')">Guardar</button>
+    </div>
+  `);
 };
 
 window.saveEditEmployee = async function(id) {
@@ -186,12 +190,14 @@ window.saveEditEmployee = async function(id) {
 };
 
 window.confirmDeactivateEmployee = function(id, name) {
-  openModal({
-    title: 'Dar de baja empleado',
-    body:  `<p>¿Confirmás dar de baja a <strong>${name}</strong>? Esta acción se puede revertir editando el empleado.</p>`,
-    footer: `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-             <button class="btn btn-danger" id="btn-deact-emp" onclick="deactivateEmployee('${id}')">Dar de baja</button>`,
-  });
+  openModal(`
+    <h2 style="margin-bottom:1rem">Dar de baja empleado</h2>
+    <p>¿Confirmás dar de baja a <strong>${name}</strong>? Esta acción se puede revertir editando el empleado.</p>
+    <div class="flex gap-2" style="margin-top:.5rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-danger" id="btn-deact-emp" style="flex:1" onclick="deactivateEmployee('${id}')">Dar de baja</button>
+    </div>
+  `);
 };
 
 window.deactivateEmployee = async function(id) {

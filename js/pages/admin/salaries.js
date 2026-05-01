@@ -166,12 +166,14 @@ window.updateSalaryTotal = function() {
 };
 
 window.openNewSalaryModal = function() {
-  openModal({
-    title: 'Nueva liquidación',
-    body:  _salaryFormBody(),
-    footer: `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-             <button class="btn btn-primary" id="btn-save-sal" onclick="saveNewSalary()">Guardar</button>`,
-  });
+  openModal(`
+    <h2 style="margin-bottom:1rem">Nueva liquidación</h2>
+    ${_salaryFormBody()}
+    <div class="flex gap-2" style="margin-top:.5rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-sal" style="flex:1" onclick="saveNewSalary()">Guardar</button>
+    </div>
+  `);
 };
 
 window.saveNewSalary = async function() {
@@ -193,12 +195,14 @@ window.saveNewSalary = async function() {
 window.openEditSalaryModal = function(id) {
   const s = salState.all.find(x => x._id === id);
   if (!s) return;
-  openModal({
-    title: 'Editar liquidación',
-    body:  _salaryFormBody(s),
-    footer: `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-             <button class="btn btn-primary" id="btn-save-sal" onclick="saveEditSalary('${id}')">Guardar</button>`,
-  });
+  openModal(`
+    <h2 style="margin-bottom:1rem">Editar liquidación</h2>
+    ${_salaryFormBody(s)}
+    <div class="flex gap-2" style="margin-top:.5rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-sal" style="flex:1" onclick="saveEditSalary('${id}')">Guardar</button>
+    </div>
+  `);
 };
 
 window.saveEditSalary = async function(id) {
@@ -218,16 +222,18 @@ window.saveEditSalary = async function(id) {
 };
 
 window.confirmMarkSalaryPaid = function(id, name) {
-  openModal({
-    title: 'Marcar como pagado',
-    body:  `<p>¿Confirmás marcar el sueldo de <strong>${name}</strong> como pagado?</p>
-            <div class="form-group" style="margin-top:.75rem">
-              <label>Fecha de pago</label>
-              <input class="input" type="date" id="sal-pay-date" value="${new Date().toISOString().slice(0,10)}">
-            </div>`,
-    footer: `<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-             <button class="btn btn-primary" id="btn-pay-sal" onclick="markSalaryPaid('${id}')">Confirmar</button>`,
-  });
+  openModal(`
+    <h2 style="margin-bottom:1rem">Marcar como pagado</h2>
+    <p>¿Confirmás marcar el sueldo de <strong>${name}</strong> como pagado?</p>
+    <div class="form-group" style="margin-top:.75rem">
+      <label>Fecha de pago</label>
+      <input class="input" type="date" id="sal-pay-date" value="${new Date().toISOString().slice(0,10)}">
+    </div>
+    <div class="flex gap-2" style="margin-top:.5rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-pay-sal" style="flex:1" onclick="markSalaryPaid('${id}')">Confirmar</button>
+    </div>
+  `);
 };
 
 window.markSalaryPaid = async function(id) {
@@ -246,12 +252,14 @@ window.markSalaryPaid = async function(id) {
 };
 
 window.confirmCancelSalary = function(id, name, period) {
-  openModal({
-    title: 'Cancelar liquidación',
-    body:  `<p>¿Confirmás cancelar el sueldo de <strong>${name}</strong> (${period})? Esta acción no se puede deshacer.</p>`,
-    footer: `<button class="btn btn-ghost" onclick="closeModal()">No cancelar</button>
-             <button class="btn btn-danger" id="btn-cancel-sal" onclick="cancelSalary('${id}')">Sí, cancelar</button>`,
-  });
+  openModal(`
+    <h2 style="margin-bottom:1rem">Cancelar liquidación</h2>
+    <p>¿Confirmás cancelar el sueldo de <strong>${name}</strong> (${period})? Esta acción no se puede deshacer.</p>
+    <div class="flex gap-2" style="margin-top:.5rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">No cancelar</button>
+      <button class="btn btn-danger" id="btn-cancel-sal" style="flex:1" onclick="cancelSalary('${id}')">Sí, cancelar</button>
+    </div>
+  `);
 };
 
 window.cancelSalary = async function(id) {
