@@ -372,10 +372,9 @@ const ADMIN_NAV_GROUPS = {
   },
   mas: {
     label: 'Más',
-    pages: ['page-admin-providers', 'page-admin-support', 'page-admin-settings'],
+    pages: ['page-admin-providers', 'page-admin-settings'],
     items: [
       { page: 'page-admin-providers', label: 'Proveedores',   fn: 'renderAdminProviders', icon: SVG_S_PROV },
-      { page: 'page-admin-support',   label: 'Soporte',       fn: 'renderAdminSupport',   icon: SVG_S_SUPPORT },
       { page: 'page-admin-settings',  label: 'Configuración', fn: 'renderAdminSettings',  icon: SVG_S_SETT },
     ],
   },
@@ -479,7 +478,7 @@ export function setupNav() {
       <button class="nav-item active" data-page="page-admin-home" onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
       <button class="nav-item" data-pages="page-admin-dashboard,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
       <button class="nav-item" data-pages="page-admin-owners,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
-      <button class="nav-item" data-pages="page-admin-providers,page-admin-support,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
+      <button class="nav-item" data-pages="page-admin-providers,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
   } else {
     _navCurrentGroups = OWNER_NAV_GROUPS;
     nav.innerHTML = `
