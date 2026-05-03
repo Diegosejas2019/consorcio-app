@@ -1,4 +1,5 @@
 import { skeleton } from '../../ui/skeleton.js';
+import { svgIcon } from '../../ui/icons.js';
 import { errorState } from '../../ui/helpers.js';
 
 const CATEGORY_COLORS = {
@@ -10,8 +11,9 @@ const CATEGORY_COLORS = {
   other:          '#6B7280',
 };
 
-// Estado: mes seleccionado (formato YYYY-MM)
 let _currentMonth = new Date().toISOString().slice(0, 7);
+
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 function _prevMonth(ym) {
   const [y, m] = ym.split('-').map(Number);
@@ -25,124 +27,81 @@ function _nextMonth(ym) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function _formatMonthLabel(ym) {
+function _monthLabel(ym) {
   const [y, m] = ym.split('-').map(Number);
-  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  return `${months[m - 1]} ${y}`;
+  return `${MONTH_NAMES[m - 1]} ${y}`;
 }
 
-function _buildPieChart(categories, total) {
-  if (total === 0 || categories.length === 0) {
-    return `<div style="width:200px;height:200px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;margin:0 auto">
-      <span class="text-muted text-sm">Sin datos</span>
+function _categoryRow(cat, total) {
+  const color = CATEGORY_COLORS[cat.category] || '#6B7280';
+  const pct   = total > 0 ? Math.round((cat.amount / total) * 100) : 0;
+  return `
+    <div class="list-item" style="padding:12px 16px;align-items:flex-start">
+      <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;margin-top:5px"></div>
+      <div class="list-body">
+        <div class="row-between">
+          <span class="list-title">${cat.label}</span>
+          <span class="bright tnum">$${cat.amount.toLocaleString('es-AR')}</span>
+        </div>
+        <div style="margin-top:8px;background:var(--surface-3);border-radius:4px;height:5px;overflow:hidden">
+          <div style="width:${pct}%;background:${color};height:5px;border-radius:4px;transition:width .4s"></div>
+        </div>
+        <div class="muted" style="font:var(--t-xs);margin-top:4px">${pct}%</div>
+      </div>
     </div>`;
-  }
-
-  const R  = 80;
-  const cx = 100;
-  const cy = 100;
-  let paths = '';
-  let startAngle = -Math.PI / 2;
-
-  for (const cat of categories) {
-    if (cat.amount <= 0) continue;
-    const fraction = cat.amount / total;
-    const endAngle = startAngle + fraction * 2 * Math.PI;
-    const color    = CATEGORY_COLORS[cat.category] || '#6B7280';
-
-    if (fraction >= 0.9999) {
-      // Círculo completo (solo una categoría)
-      paths += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${color}"/>`;
-    } else {
-      const x1 = cx + R * Math.cos(startAngle);
-      const y1 = cy + R * Math.sin(startAngle);
-      const x2 = cx + R * Math.cos(endAngle);
-      const y2 = cy + R * Math.sin(endAngle);
-      const lg = fraction > 0.5 ? 1 : 0;
-      paths += `<path d="M${cx} ${cy} L${x1.toFixed(2)} ${y1.toFixed(2)} A${R} ${R} 0 ${lg} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z" fill="${color}"/>`;
-    }
-    startAngle = endAngle;
-  }
-
-  // Donut hole
-  const holeR = R * 0.58;
-  paths += `<circle cx="${cx}" cy="${cy}" r="${holeR}" fill="var(--card-bg,#0f1729)"/>`;
-
-  // Total en el centro
-  const totalStr = total >= 1000000
-    ? `$${(total / 1000000).toFixed(1)}M`
-    : total >= 1000
-    ? `$${Math.round(total / 1000)}k`
-    : `$${total}`;
-  paths += `<text x="${cx}" y="${cy - 7}" text-anchor="middle" font-size="10" fill="var(--text-muted,#8899aa)" font-family="DM Sans,sans-serif">Total</text>`;
-  paths += `<text x="${cx}" y="${cy + 11}" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text,#C8D6F0)" font-family="DM Sans,sans-serif">${totalStr}</text>`;
-
-  return `<svg viewBox="0 0 200 200" width="200" height="200" style="display:block;margin:0 auto">${paths}</svg>`;
-}
-
-function _buildLegend(categories, total) {
-  if (categories.length === 0) return '';
-  return categories.map(cat => {
-    const color = CATEGORY_COLORS[cat.category] || '#6B7280';
-    const pct   = total > 0 ? Math.round((cat.amount / total) * 100) : 0;
-    return `
-      <div style="display:flex;align-items:center;gap:.75rem;padding:.65rem 0;border-bottom:1px solid var(--border,rgba(255,255,255,.06))">
-        <div style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <span style="flex:1;font-size:.9rem">${cat.label}</span>
-        <span style="font-size:.8rem;color:var(--text-muted)">${pct}%</span>
-        <span style="font-weight:600;font-size:.9rem">$${cat.amount.toLocaleString('es-AR')}</span>
-      </div>`;
-  }).join('');
 }
 
 async function _loadAndRender() {
-  const el = document.getElementById('page-owner-expenses');
+  const el    = document.getElementById('page-owner-expenses');
   const today = new Date().toISOString().slice(0, 7);
 
   el.innerHTML = `
-    <div class="oh-wrap">
-      <div class="flex between" style="align-items:center;margin-bottom:1rem">
-        <h1 style="margin:0">Gastos del consorcio</h1>
+    <div style="padding:0 16px 32px">
+      <p class="page-eyebrow" style="padding-top:16px">Comunidad</p>
+      <h1 class="page-title">Gastos del consorcio</h1>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;background:var(--surface);border-radius:var(--r-lg);padding:6px 4px;border:1px solid var(--border)">
+        <button class="btn-icon" id="exp-prev">${svgIcon('chevron-l', 20)}</button>
+        <span class="bright" style="font:var(--t-body-md)" id="exp-month-label">${_monthLabel(_currentMonth)}</span>
+        <button class="btn-icon" id="exp-next" ${_currentMonth >= today ? 'disabled style="opacity:.3"' : ''}>${svgIcon('chevron-r', 20)}</button>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;background:var(--card-bg,#0f1729);border-radius:12px;padding:.5rem .75rem">
-        <button class="btn btn-ghost btn-sm" id="exp-prev">‹</button>
-        <span id="exp-month-label" style="font-weight:600;font-size:.95rem">${_formatMonthLabel(_currentMonth)}</span>
-        <button class="btn btn-ghost btn-sm" id="exp-next" ${_currentMonth >= today ? 'disabled style="opacity:.3"' : ''}>›</button>
-      </div>
-      <div id="exp-content">${skeleton(3)}</div>
+
+      <div id="exp-content" style="margin-top:16px">${skeleton(3)}</div>
     </div>`;
 
-  document.getElementById('exp-prev').onclick = () => {
-    _currentMonth = _prevMonth(_currentMonth);
-    _loadAndRender();
-  };
-  document.getElementById('exp-next').onclick = () => {
-    if (_currentMonth >= today) return;
-    _currentMonth = _nextMonth(_currentMonth);
-    _loadAndRender();
-  };
+  document.getElementById('exp-prev').onclick = () => { _currentMonth = _prevMonth(_currentMonth); _loadAndRender(); };
+  document.getElementById('exp-next').onclick = () => { if (_currentMonth < today) { _currentMonth = _nextMonth(_currentMonth); _loadAndRender(); } };
 
   try {
     const res = await api.expenses.getSummary(_currentMonth);
     const { total, categories } = res.data;
 
-    document.getElementById('exp-content').innerHTML = `
-      <div style="margin-bottom:1.5rem">
-        ${_buildPieChart(categories, total)}
+    const content = document.getElementById('exp-content');
+    if (!content) return;
+
+    if (categories.length === 0) {
+      content.innerHTML = `<div class="empty" style="padding:32px 0">
+        <div class="empty-icon">${svgIcon('pie', 24)}</div>
+        <p class="empty-title">Sin gastos</p>
+        <p class="empty-sub">No hay gastos registrados para este mes.</p>
+      </div>`;
+      return;
+    }
+
+    content.innerHTML = `
+      <div class="card-hero" style="padding:20px">
+        <div class="muted" style="font:var(--t-xs);letter-spacing:.12em;text-transform:uppercase">Total del mes</div>
+        <div class="h-amount-xl tnum" style="margin-top:8px">$${total.toLocaleString('es-AR')}</div>
+        <div class="muted" style="font:var(--t-sm);margin-top:4px">${categories.length} categoría${categories.length !== 1 ? 's' : ''}</div>
       </div>
-      <div class="card">
-        <div class="card-body" style="padding-top:.25rem;padding-bottom:.25rem">
-          ${categories.length === 0
-            ? '<p class="text-muted text-sm" style="padding:.75rem 0">No hay gastos registrados para este mes.</p>'
-            : _buildLegend(categories, total)}
-        </div>
-      </div>
-      <div style="margin-top:1rem;padding:.75rem;background:var(--card-bg,#0f1729);border-radius:12px;display:flex;justify-content:space-between;align-items:center">
-        <span class="text-muted text-sm">Total del mes</span>
-        <span style="font-size:1.1rem;font-weight:700">$${total.toLocaleString('es-AR')}</span>
+
+      <div class="card" style="padding:0;overflow:hidden;margin-top:14px">
+        <div class="section-head" style="padding:12px 16px"><h3>Por categoría</h3></div>
+        ${categories.map(c => _categoryRow(c, total)).join('<div style="height:1px;background:var(--border)"></div>')}
       </div>`;
   } catch (err) {
-    document.getElementById('exp-content').innerHTML = errorState(err.message, 'renderOwnerExpenses()');
+    const content = document.getElementById('exp-content');
+    if (content) content.innerHTML = errorState(err.message, 'renderOwnerExpenses()');
   }
 }
 

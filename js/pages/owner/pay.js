@@ -1,6 +1,6 @@
 import { toast } from '../../ui/toast.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { SVG } from '../../ui/icons.js';
+import { SVG, svgIcon } from '../../ui/icons.js';
 import { errorState } from '../../ui/helpers.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { cache, state } from '../../core/state.js';
@@ -157,95 +157,139 @@ export async function renderUploadPage() {
 
     const hasForm = months.length > 0 || extras.length > 0;
 
-    el.innerHTML = `
-      <div class="oh-wrap">
-
-        <div class="oh-greeting oh-entry" style="--delay:0ms">
-          <div>
-            <p class="oh-greeting-sub">Pagos</p>
-            <h1 class="oh-greeting-name">Subir Comprobante</h1>
+    // Build all period cards: regular months + extras
+    const periodCardsHtml = [
+      ...months.map((m, i) => {
+        const isDebt = unpaidPeriods.length > 0 && unpaidPeriods.includes(m.value) && m.value !== (cfg.expenseMonthCode);
+        const statusBadge = isDebt
+          ? `<span class="badge badge-danger">Vencida</span>`
+          : `<span class="badge badge-accent">Vigente</span>`;
+        return `
+          <label class="period-card${i === 0 ? ' is-selected' : ''}" data-type="period" data-value="${m.value}" data-amount="${_ownerFee}" onclick="togglePeriodCard(this)">
+            <span class="pc-check${i === 0 ? ' is-on' : ''}">${i === 0 ? svgIcon('check', 12) : ''}</span>
+            <div style="flex:1;min-width:0">
+              <div class="row" style="gap:6px">
+                <span class="bright" style="font:var(--t-body-md)">${m.value ? formatPeriodLabel(m.value) : m.label}</span>
+                ${statusBadge}
+              </div>
+              <div class="muted" style="font:var(--t-sm);margin-top:2px">Expensa ${isDebt ? 'vencida' : 'ordinaria'}</div>
+            </div>
+            <span class="bright tnum" style="font:var(--t-body-md)">$${_ownerFee.toLocaleString('es-AR')}</span>
+          </label>`;
+      }),
+      ...extras.map(e => `
+        <label class="period-card" data-type="extra" data-value="${e.id}" data-amount="${e.amount}" onclick="togglePeriodCard(this)">
+          <span class="pc-check"></span>
+          <div style="flex:1;min-width:0">
+            <div class="row" style="gap:6px">
+              <span class="bright" style="font:var(--t-body-md)">${e.title}</span>
+              <span class="badge badge-warning">Extra</span>
+            </div>
+            <div class="muted" style="font:var(--t-sm);margin-top:2px">Concepto extraordinario</div>
           </div>
-          <span class="op-header-icon">${SVG.upload}</span>
+          <span class="bright tnum" style="font:var(--t-body-md)">$${e.amount.toLocaleString('es-AR')}</span>
+        </label>`),
+    ].join('');
+
+    const initTotal = months.length > 0 ? _ownerFee : 0;
+
+    el.innerHTML = `
+      <div style="padding:0 16px 120px">
+        <p class="page-eyebrow">Pagos</p>
+        <h1 class="page-title">Pagar</h1>
+        <p class="page-sub">Seleccioná uno o más períodos para pagar juntos.</p>
+
+        <div class="seg" style="margin-top:18px" id="pay-tab-seg">
+          <button class="seg-btn is-active" id="tab-upload" onclick="switchPayTab('upload')">${svgIcon('upload', 16)} Subir comprobante</button>
+          <button class="seg-btn" id="tab-online" onclick="switchPayTab('online')">${svgIcon('wallet', 16)} Pago online</button>
         </div>
 
         ${balanceDebtHtml}
 
-        ${debtHtml}
+        ${hasForm ? `
+        <!-- Períodos a pagar -->
+        <div class="section-head" style="margin-top:18px">
+          <h3>Períodos a pagar</h3>
+          <span class="muted" style="font:var(--t-xs)" id="period-count">${months.length > 0 ? '1 seleccionado' : '0 seleccionados'}</span>
+        </div>
+        <div class="stack-2" id="period-cards-list">
+          ${periodCardsHtml}
+        </div>
 
-        <div class="card oh-entry" style="--delay:${hasBalanceDebt || hasDebt ? 120 : 60}ms">
-          <div class="card-body flex col gap-2">
-            ${!hasForm ? `
-            <p class="text-sm text-muted" style="text-align:center;padding:.5rem 0">No hay períodos ni conceptos disponibles para pagar.</p>
-            ` : `
-            ${months.length > 0 ? `
+        <!-- Total -->
+        <div class="card" style="margin-top:14px;padding:14px">
+          <div class="row-between">
             <div>
-              <p class="text-sm" style="font-weight:600;margin-bottom:.4rem">Períodos</p>
-              <div class="op-form-grid">
-                <div class="form-group">
-                  <label>Período</label>
-                  <select class="select" id="pay-month" onchange="updatePayTotal()">
-                    <option value=""></option>
-                    ${months.map((m, i) => `<option value="${m.value}"${i === 0 ? ' selected' : ''}>${m.label}</option>`).join('')}
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Importe ($)</label>
-                  <input class="input" type="number" id="pay-amount" value="${_ownerFee || ''}" placeholder="${_ownerFee || cfg.expenseAmount || ''}" min="1" oninput="updatePayTotal()">
-                </div>
-              </div>
-            </div>` : ''}
-            ${extrasHtml}
-            <div class="flex between" style="align-items:center;padding:.55rem .75rem;background:rgba(255,255,255,.06);border-radius:8px;margin-top:.25rem">
-              <span class="text-sm text-muted">Total</span>
-              <strong id="pay-total" style="font-size:1.05rem">$${(_ownerFee || 0).toLocaleString('es-AR')}</strong>
+              <div class="muted" style="font:var(--t-xs);letter-spacing:.12em;text-transform:uppercase">Total a pagar</div>
+              <div class="muted" style="font:var(--t-xs);margin-top:4px" id="period-count-label">${months.length > 0 ? '1 período seleccionado' : '0 períodos'}</div>
             </div>
-            <div class="form-group">
-              <label>Comprobante (PDF o imagen)</label>
-              <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-                <div class="upload-icon-wrap">${SVG.pdf}</div>
-                <p class="upload-title">Arrastrá tu archivo aquí</p>
-                <p class="upload-desc">o hacé clic para seleccionar</p>
-                <span class="upload-badge">PDF o imagen · máx. 10 MB</span>
-              </div>
-              <input type="file" id="file-input" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic" class="hidden" onchange="handleFileSelect(event)">
-              <div id="file-preview" class="hidden"></div>
-            </div>
-            <div class="form-group">
-              <label>Nota adicional (opcional)</label>
-              <textarea class="input" id="pay-note" placeholder="Ej: Transferencia N° 12345…" rows="2"></textarea>
-            </div>
-            <button class="btn btn-primary w-full" id="btn-submit-receipt" data-requires-network onclick="submitReceipt()">
-              ${SVG.upload} Enviar Comprobante
-            </button>
-            `}
+            <span class="h-amount tnum accent" style="font-size:30px" id="pay-total">$${initTotal.toLocaleString('es-AR')}</span>
           </div>
         </div>
 
-        ${!hasDebt && cfg.hasMercadoPago ? `
-        <div class="op-divider oh-entry" style="--delay:100ms">
-          <span>o pagá online</span>
+        <!-- Tab content: Subir comprobante -->
+        <div id="panel-upload">
+          <div class="section-head"><h3>Comprobante</h3></div>
+          <div class="upload-area" id="upload-zone" onclick="document.getElementById('file-input').click()">
+            <div style="width:52px;height:52px;border-radius:50%;background:var(--accent-lt);color:var(--accent);display:grid;place-items:center">
+              ${svgIcon('upload', 24)}
+            </div>
+            <div class="bright" style="font:var(--t-h3);margin-top:10px">Arrastrá tu archivo</div>
+            <div class="muted" style="font:var(--t-sm);margin-top:4px">o tocá para seleccionar</div>
+            <span class="badge" style="margin-top:12px;background:var(--surface-3)">PDF o imagen · máx. 10 MB</span>
+          </div>
+          <input type="file" id="file-input" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic" class="hidden" onchange="handleFileSelect(event)">
+          <div id="file-preview" class="hidden"></div>
+          <div class="field" style="margin-top:16px">
+            <label class="field-label">Nota (opcional)</label>
+            <textarea class="input textarea" id="pay-note" placeholder="Ej: Transferencia Nº 12345…"></textarea>
+          </div>
         </div>
 
-        <div class="op-mp-card oh-entry" style="--delay:140ms">
-          <div class="op-mp-card__header">
-            <span class="op-mp-card__title">Pagar con MercadoPago</span>
-            <svg width="36" height="22" viewBox="0 0 54 32" fill="none" aria-hidden="true">
-              <rect width="54" height="32" rx="7" fill="rgba(255,255,255,.18)"/>
-              <text x="27" y="22" text-anchor="middle" font-size="13" font-weight="800" fill="white" font-family="Arial,sans-serif">MP</text>
-            </svg>
+        <!-- Tab content: Pago online -->
+        <div id="panel-online" class="hidden">
+          <div class="card" style="margin-top:16px;background:radial-gradient(120% 100% at 100% 0%,rgba(156,242,123,0.10),transparent 55%),var(--surface);border:1px solid var(--border-md)">
+            <div style="padding:16px">
+              <div class="row-between">
+                <span class="muted" style="font:var(--t-xs);letter-spacing:.12em;text-transform:uppercase">Pago online</span>
+                <span class="badge badge-success">Seguro</span>
+              </div>
+              <div class="h-amount-xl tnum" style="margin-top:12px" id="online-total">$${initTotal.toLocaleString('es-AR')}</div>
+              <div class="muted" style="font:var(--t-sm);margin-top:4px" id="online-period-label">Seleccioná períodos arriba</div>
+              <div class="stack-3" style="margin-top:16px">
+                <button class="btn btn-primary btn-lg btn-block" onclick="initMercadoPagoNew()" data-requires-network>
+                  ${svgIcon('wallet', 18)} Ir al checkout seguro
+                </button>
+                <div class="row" style="justify-content:center;gap:6px;color:var(--muted);font:var(--t-xs)">
+                  ${svgIcon('shield', 14)} Pago procesado por MercadoPago
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="op-mp-card__amount-row">
-            <span class="op-mp-card__amount">$${(_ownerFee || cfg.expenseAmount || 0).toLocaleString('es-AR')}</span>
-            <span class="op-mp-card__period">· ${cfg.expenseMonth || ''}</span>
-          </div>
-          <button class="op-mp-btn" onclick="initMercadoPago()" data-requires-network>
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-            Ir al checkout seguro
-          </button>
-          <p class="op-mp-note">Serás redirigido a MercadoPago · Pagá con tarjeta, débito o saldo MP</p>
-        </div>` : ''}
+        </div>
+        ` : `
+        <div class="empty" style="padding:32px 0">
+          <div class="empty-icon">${svgIcon('check', 24)}</div>
+          <p class="empty-title">¡Todo al día!</p>
+          <p class="empty-sub">No hay períodos pendientes de pago en este momento.</p>
+        </div>
+        `}
 
-      </div>`;
+        <!-- Hidden inputs for submit compat -->
+        <select id="pay-month" class="hidden">
+          ${months.map((m, i) => `<option value="${m.value}"${i === 0 ? ' selected' : ''}>${m.label}</option>`).join('')}
+        </select>
+        <input type="number" id="pay-amount" class="hidden" value="${_ownerFee || ''}">
+
+        <div style="height:24px"></div>
+      </div>
+
+      ${hasForm ? `
+      <div class="sticky-cta" id="sticky-cta-upload">
+        <button class="btn btn-primary btn-lg btn-block" id="btn-submit-receipt" style="box-shadow:var(--glow-accent)" data-requires-network onclick="submitReceipt()">
+          ${svgIcon('check', 18)} Enviar comprobante · $${initTotal.toLocaleString('es-AR')}
+        </button>
+      </div>` : ''}`;
 
     updatePayTotal();
 
@@ -260,6 +304,30 @@ export async function renderUploadPage() {
   }
 }
 
+export function togglePeriodCard(el) {
+  const card = el.closest('.period-card') || el;
+  const isOn = card.classList.toggle('is-selected');
+  const check = card.querySelector('.pc-check');
+  if (check) {
+    check.classList.toggle('is-on', isOn);
+    check.innerHTML = isOn ? svgIcon('check', 12) : '';
+  }
+  if (card.dataset.type === 'extra') {
+    const id = card.dataset.value;
+    isOn ? _selectedExtras.add(id) : _selectedExtras.delete(id);
+  }
+  updatePayTotal();
+}
+
+export function switchPayTab(tab) {
+  const isUpload = tab === 'upload';
+  document.getElementById('tab-upload')?.classList.toggle('is-active', isUpload);
+  document.getElementById('tab-online')?.classList.toggle('is-active', !isUpload);
+  document.getElementById('panel-upload')?.classList.toggle('hidden', !isUpload);
+  document.getElementById('panel-online')?.classList.toggle('hidden', isUpload);
+  document.getElementById('sticky-cta-upload')?.classList.toggle('hidden', !isUpload);
+}
+
 export function toggleExtra(checkbox) {
   if (checkbox.checked) {
     _selectedExtras.add(checkbox.value);
@@ -270,12 +338,31 @@ export function toggleExtra(checkbox) {
 }
 
 export function updatePayTotal() {
-  const periodAmt  = Number(document.getElementById('pay-amount')?.value || 0);
-  const hasPeriod  = !!document.getElementById('pay-month')?.value;
-  const extrasAmt  = [..._selectedExtras].reduce((s, id) => s + (_extraAmounts[id] || 0), 0);
-  const total      = (hasPeriod ? periodAmt : 0) + extrasAmt;
-  const el         = document.getElementById('pay-total');
-  if (el) el.textContent = `$${total.toLocaleString('es-AR')}`;
+  const selected = [...document.querySelectorAll('.period-card.is-selected')];
+  const total    = selected.reduce((s, c) => s + Number(c.dataset.amount || 0), 0);
+  const periods  = selected.filter(c => c.dataset.type === 'period').map(c => c.dataset.value);
+  const count    = selected.length;
+
+  const totalEl   = document.getElementById('pay-total');
+  const onlineEl  = document.getElementById('online-total');
+  const countEl   = document.getElementById('period-count');
+  const labelEl   = document.getElementById('period-count-label');
+  const onlineLbl = document.getElementById('online-period-label');
+  const ctaBtn    = document.getElementById('btn-submit-receipt');
+
+  const fmt = v => `$${v.toLocaleString('es-AR')}`;
+  if (totalEl)   totalEl.textContent  = fmt(total);
+  if (onlineEl)  onlineEl.textContent = fmt(total);
+  if (countEl)   countEl.textContent  = `${count} seleccionado${count !== 1 ? 's' : ''}`;
+  if (labelEl)   labelEl.textContent  = count > 0 ? `${count} período${count !== 1 ? 's' : ''} seleccionado${count !== 1 ? 's' : ''}` : '0 períodos';
+  if (onlineLbl) onlineLbl.textContent = count > 0 ? `${count} período${count !== 1 ? 's' : ''}` : 'Seleccioná períodos arriba';
+  if (ctaBtn)    ctaBtn.innerHTML = `${svgIcon('check', 18)} Enviar comprobante · ${fmt(total)}`;
+
+  // Sync hidden inputs for submitReceipt backward compat
+  const monthSel = document.getElementById('pay-month');
+  const amtInput = document.getElementById('pay-amount');
+  if (monthSel && periods.length > 0) monthSel.value = periods[0];
+  if (amtInput) amtInput.value = total || '';
 }
 
 export function updateDebtTotal() {
@@ -293,6 +380,16 @@ export async function payDebtWithMP() {
     toast('Seleccioná al menos un período para pagar', 'error');
     return;
   }
+  await initMercadoPago(periods);
+}
+
+export async function initMercadoPagoNew() {
+  const selected = [...document.querySelectorAll('.period-card.is-selected[data-type="period"]')];
+  if (selected.length === 0) {
+    toast('Seleccioná al menos un período para pagar', 'error');
+    return;
+  }
+  const periods = selected.map(c => c.dataset.value);
   await initMercadoPago(periods);
 }
 
@@ -428,15 +525,18 @@ export async function submitBalancePayment() {
   }
 }
 
-window.renderUploadPage       = renderUploadPage;
-window.handleFileSelect       = handleFileSelect;
-window.handleFileDrop         = handleFileDrop;
-window.clearFile              = clearFile;
-window.submitReceipt          = submitReceipt;
-window.updateDebtTotal        = updateDebtTotal;
-window.payDebtWithMP          = payDebtWithMP;
-window.toggleExtra            = toggleExtra;
-window.updatePayTotal         = updatePayTotal;
+window.renderUploadPage        = renderUploadPage;
+window.handleFileSelect        = handleFileSelect;
+window.handleFileDrop          = handleFileDrop;
+window.clearFile               = clearFile;
+window.submitReceipt           = submitReceipt;
+window.updateDebtTotal         = updateDebtTotal;
+window.payDebtWithMP           = payDebtWithMP;
+window.toggleExtra             = toggleExtra;
+window.updatePayTotal          = updatePayTotal;
 window.handleBalanceFileSelect = handleBalanceFileSelect;
 window.clearBalanceFile        = clearBalanceFile;
 window.submitBalancePayment    = submitBalancePayment;
+window.togglePeriodCard        = togglePeriodCard;
+window.switchPayTab            = switchPayTab;
+window.initMercadoPagoNew      = initMercadoPagoNew;

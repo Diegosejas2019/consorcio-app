@@ -24,6 +24,12 @@ export function showPage(id) {
       : (n.dataset.page ? [n.dataset.page] : []);
     n.classList.toggle('active', pages.includes(id));
   });
+  document.querySelectorAll('.bn-item').forEach(n => {
+    const pages = n.dataset.pages
+      ? n.dataset.pages.split(',')
+      : (n.dataset.page ? [n.dataset.page] : []);
+    n.classList.toggle('is-active', pages.includes(id));
+  });
   if (state.role) localStorage.setItem(`lastPage_${state.role}`, id);
   setTimeout(updateOnlineStatus, 0);
 }

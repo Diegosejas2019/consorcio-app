@@ -3,47 +3,84 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
+import { svgIcon } from '../../ui/icons.js';
 import { CLAIM_CATEGORIES, claimStatusBadge } from '../admin/claims.js';
 
 let _selectedFiles = [];
 
+function _claimTimeline(status) {
+  const steps = ['Recibido', 'Asignado', 'En proceso', 'Resuelto'];
+  const doneAt = { open: 0, in_progress: 2, resolved: 3 };
+  const activeIdx = doneAt[status] ?? 0;
+  return `<div class="timeline">
+    ${steps.map((s, i) => `
+      <div class="tl-step${i < activeIdx ? ' is-done' : i === activeIdx ? ' is-active' : ''}">
+        <div class="tl-dot"></div>
+        <span class="tl-label">${s}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
 export async function renderOwnerClaims() {
   const el = document.getElementById('page-owner-claims');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  el.innerHTML = `<div style="padding:16px">${skeleton(3)}</div>`;
   try {
     const res    = await api.claims.getAll({ limit: 50 });
     const claims = res.data.claims;
+    const open   = claims.filter(c => c.status === 'open').length;
+    const inProg = claims.filter(c => c.status === 'in_progress').length;
+    const done   = claims.filter(c => c.status === 'resolved').length;
 
     el.innerHTML = `
-      <div class="oh-wrap">
-        <div class="oh-greeting oh-entry" style="--delay:0ms">
+      <div style="padding:0 16px 32px">
+        <div class="row-between" style="align-items:flex-end;padding-top:16px">
           <div>
-            <p class="oh-greeting-sub">Soporte</p>
-            <h1 class="oh-greeting-name">Mis Reclamos</h1>
+            <p class="page-eyebrow">Comunidad</p>
+            <h1 class="page-title">Mis Reclamos</h1>
           </div>
           <button class="btn btn-primary btn-sm" onclick="openNewClaimModal()">+ Nuevo</button>
         </div>
-        ${claims.length === 0
-          ? `<div class="oc-empty oh-entry" style="--delay:60ms">
-               <p class="oc-empty__icon">📝</p>
-               <p class="oc-empty__msg">No tenés reclamos registrados.</p>
-               <button class="btn btn-primary btn-sm" onclick="openNewClaimModal()">Crear primer reclamo</button>
-             </div>`
-          : claims.map((c, i) => `
-              <div class="oc-card oh-entry" style="--delay:${Math.min(i * 40 + 40, 220)}ms">
-                <div class="oc-card__header">
-                  <span class="oc-card__cat">${CLAIM_CATEGORIES[c.category] || c.category}</span>
-                  ${claimStatusBadge(c.status)}
-                </div>
-                <h3 class="oc-card__title">${c.title}</h3>
-                <p class="oc-card__body">${c.body}</p>
-                ${c.adminNote ? `<div class="oc-admin-note">💬 ${c.adminNote}</div>` : ''}
-                ${c.attachments?.length ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:.25rem">${_claimAttachmentButtons(c._id, c.attachments)}</div>` : ''}
-                <div class="oc-card__footer">
-                  <span class="oc-card__date">${formatDate(c.createdAt)}</span>
-                  ${c.status === 'open' ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger);font-size:.75rem;padding:.3rem .6rem" onclick="deleteClaim('${c._id}')">Eliminar</button>` : ''}
-                </div>
-              </div>`).join('')}
+
+        <div class="card" style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:16px 8px;margin-top:16px">
+          <div>
+            <div class="h-amount" style="font-size:22px;color:var(--warning)">${open}</div>
+            <div class="muted" style="font:var(--t-xs);margin-top:4px">Abiertos</div>
+          </div>
+          <div style="border-left:1px solid var(--border);border-right:1px solid var(--border)">
+            <div class="h-amount" style="font-size:22px;color:var(--info)">${inProg}</div>
+            <div class="muted" style="font:var(--t-xs);margin-top:4px">En proceso</div>
+          </div>
+          <div>
+            <div class="h-amount" style="font-size:22px;color:var(--success)">${done}</div>
+            <div class="muted" style="font:var(--t-xs);margin-top:4px">Resueltos</div>
+          </div>
+        </div>
+
+        ${claims.length === 0 ? `
+        <div class="empty" style="padding:32px 0">
+          <div class="empty-icon">${svgIcon('wrench', 24)}</div>
+          <p class="empty-title">Sin reclamos</p>
+          <p class="empty-sub">No tenés reclamos registrados.</p>
+          <button class="btn btn-primary" style="margin-top:16px" onclick="openNewClaimModal()">Crear reclamo</button>
+        </div>` : `
+        <div class="stack-2" style="margin-top:18px">
+          ${claims.map(c => `
+          <div class="card" style="padding:16px">
+            <div class="row-between" style="margin-bottom:12px">
+              <span class="badge badge-plain" style="font-size:.72rem">${CLAIM_CATEGORIES[c.category] || c.category}</span>
+              ${claimStatusBadge(c.status)}
+            </div>
+            <div class="bright" style="font:var(--t-body-md);margin-bottom:4px">${c.title}</div>
+            <div class="muted" style="font:var(--t-sm);margin-bottom:12px">${c.body.slice(0, 100)}${c.body.length > 100 ? '…' : ''}</div>
+            ${_claimTimeline(c.status)}
+            ${c.adminNote ? `<div style="margin-top:12px;padding:10px 12px;background:var(--info-bg);border-radius:8px;font:var(--t-sm);color:var(--info)">${svgIcon('info', 14)} ${c.adminNote}</div>` : ''}
+            ${c.attachments?.length ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:10px">${_claimAttachmentButtons(c._id, c.attachments)}</div>` : ''}
+            <div class="row-between" style="margin-top:12px">
+              <span class="muted" style="font:var(--t-xs)">${formatDate(c.createdAt)}</span>
+              ${c.status === 'open' ? `<button class="btn btn-ghost" style="color:var(--danger);font-size:.72rem;padding:4px 10px" onclick="deleteClaim('${c._id}')">Eliminar</button>` : ''}
+            </div>
+          </div>`).join('')}
+        </div>`}
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerClaims()');
@@ -52,35 +89,42 @@ export async function renderOwnerClaims() {
 
 export function openNewClaimModal() {
   _selectedFiles = [];
+  const cats = Object.entries(CLAIM_CATEGORIES);
   openModal();
   document.getElementById('modal').innerHTML = `
     <div class="modal-handle"></div>
-    <h2 style="margin-bottom:1rem">Nuevo Reclamo</h2>
-    <div class="flex col gap-2">
-      <div class="form-group">
-        <label>Categoría</label>
-        <select class="input" id="claim-category">
-          ${Object.entries(CLAIM_CATEGORIES).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
-        </select>
+    <h2 style="margin-bottom:16px">Nuevo Reclamo</h2>
+    <div class="flex col gap-3">
+      <div>
+        <div class="field-label" style="margin-bottom:8px">Categoría</div>
+        <div class="flex gap-1" style="flex-wrap:wrap" id="claim-chips">
+          ${cats.map(([v, l], i) => `
+            <button type="button" class="chip${i === 0 ? ' is-active' : ''}" data-cat="${v}" onclick="_selectClaimCat('${v}')">${l}</button>`).join('')}
+        </div>
+        <input type="hidden" id="claim-category" value="${cats[0][0]}">
       </div>
-      <div class="form-group">
-        <label>Título</label>
+      <div class="field">
+        <label class="field-label">Título</label>
         <input class="input" id="claim-title" placeholder="Ej: Pérdida de agua en pasillo" maxlength="150">
       </div>
-      <div class="form-group">
-        <label>Descripción</label>
-        <textarea class="input" id="claim-body" placeholder="Describí el problema con el mayor detalle posible..." rows="4" maxlength="2000"></textarea>
+      <div class="field">
+        <label class="field-label">Descripción</label>
+        <textarea class="input textarea" id="claim-body" placeholder="Describí el problema con el mayor detalle posible..." rows="4" maxlength="2000"></textarea>
       </div>
-      <div class="form-group">
-        <label>Adjuntos <span class="text-muted" style="font-size:.8rem">(opcional · máx. 3 archivos · 10 MB c/u)</span></label>
-        <input class="input" type="file" id="claim-files" accept="image/*,.pdf" multiple style="display:none"
-          onchange="onClaimFilesChange(this.files)">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('claim-files').click()">📎 Seleccionar archivos</button>
+      <div>
+        <label class="field-label">Adjuntos <span class="muted" style="font-size:.72rem">(opcional · máx. 3 · 10 MB c/u)</span></label>
+        <input type="file" id="claim-files" accept="image/*,.pdf" multiple class="hidden" onchange="onClaimFilesChange(this.files)">
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="document.getElementById('claim-files').click()">${svgIcon('clip', 14)} Adjuntar archivos</button>
         <div id="claim-files-preview"></div>
       </div>
-      <button class="btn btn-primary w-full" id="btn-submit-claim" onclick="submitClaim()">Enviar reclamo</button>
-      <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary btn-lg btn-block" id="btn-submit-claim" onclick="submitClaim()">Enviar reclamo</button>
+      <button class="btn btn-ghost btn-block" onclick="closeModal()">Cancelar</button>
     </div>`;
+}
+
+export function _selectClaimCat(val) {
+  document.getElementById('claim-category').value = val;
+  document.querySelectorAll('#claim-chips .chip').forEach(b => b.classList.toggle('is-active', b.dataset.cat === val));
 }
 
 function _truncateFilename(str, max = 20) {
@@ -178,3 +222,4 @@ window.submitClaim             = submitClaim;
 window.onClaimFilesChange      = onClaimFilesChange;
 window.removeClaimFile         = removeClaimFile;
 window.downloadClaimAttachment = downloadClaimAttachment;
+window._selectClaimCat         = _selectClaimCat;

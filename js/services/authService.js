@@ -1,7 +1,7 @@
 import { state, setState, cache } from '../core/state.js';
 import { showLoading, showSessionRestoreError } from '../ui/loading.js';
 import { toast } from '../ui/toast.js';
-import { SVG } from '../ui/icons.js';
+import { SVG, svgIcon } from '../ui/icons.js';
 import { showInstallBanner, isStandalone } from '../ui/pwa.js';
 import { updateOnlineStatus } from '../ui/offline.js';
 import { setupPushNotifications, checkMonthlyReminder } from './pushService.js';
@@ -482,11 +482,10 @@ export function setupNav() {
   } else {
     _navCurrentGroups = OWNER_NAV_GROUPS;
     nav.innerHTML = `
-      <button class="nav-item active" data-page="page-owner-home"    onclick="showPage('page-owner-home');renderOwnerHome()">${SVG.home}<span>Inicio</span></button>
-      <button class="nav-item"        data-page="page-owner-pay"     onclick="showPage('page-owner-pay');renderUploadPage()">${SVG.upload}<span>Pagar</span></button>
-      <button class="nav-item"        data-page="page-owner-history" onclick="showPage('page-owner-history');renderOwnerHistory()">${SVG.list}<span>Historial</span></button>
-      <button class="nav-item" data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations" onclick="navToggleGroup('comunidad')">${SVG.bell}<span>Comunidad</span></button>
-      <button class="nav-item" data-page="page-owner-profile" onclick="showPage('page-owner-profile');renderOwnerProfile()">${SVG_PROFILE}<span>Perfil</span></button>`;
+      <button class="bn-item is-active" data-page="page-owner-home" onclick="showPage('page-owner-home');renderOwnerHome()">${svgIcon('home',22)}<span>Inicio</span></button>
+      <button class="bn-item" data-pages="page-owner-pay,page-owner-history" onclick="showPage('page-owner-pay');renderUploadPage()">${svgIcon('wallet',22)}<span>Pagar</span></button>
+      <button class="bn-item" data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations" onclick="navToggleGroup('comunidad')">${svgIcon('community',22)}<span>Comunidad</span></button>
+      <button class="bn-item" data-page="page-owner-profile" onclick="showPage('page-owner-profile');renderOwnerProfile()">${svgIcon('profile',22)}<span>Perfil</span></button>`;
   }
 }
 

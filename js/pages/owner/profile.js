@@ -2,6 +2,7 @@ import { state, setState } from '../../core/state.js';
 import { toast } from '../../ui/toast.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { errorState } from '../../ui/helpers.js';
+import { svgIcon } from '../../ui/icons.js';
 
 // ── Helpers ───────────────────────────────────────────────────
 function escapeHtml(str) {
@@ -11,7 +12,7 @@ function escapeHtml(str) {
 // ── Render ────────────────────────────────────────────────────
 export async function renderOwnerProfile() {
   const el = document.getElementById('page-owner-profile');
-  el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
+  el.innerHTML = `<div style="padding:16px">${skeleton(4)}</div>`;
 
   try {
     const res   = await api.auth.getMe();
@@ -19,103 +20,75 @@ export async function renderOwnerProfile() {
     const units = res.data.units ?? [];
     setState({ user });
 
-    el.innerHTML = `
-      <div class="oh-wrap">
+    const initials = (user.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
-        <div class="oh-greeting oh-entry" style="--delay:0ms">
-          <div>
-            <p class="oh-greeting-sub">Cuenta</p>
-            <h1 class="oh-greeting-name">Mi perfil</h1>
+    el.innerHTML = `
+      <div style="padding:0 16px 40px">
+
+        <!-- Identity card -->
+        <div class="card-hero" style="text-align:center;padding:28px 16px 20px;margin-top:16px">
+          <div class="avatar-lg" style="margin:0 auto 14px">${initials}</div>
+          <div class="bright" style="font:var(--t-h2)">${escapeHtml(user.name)}</div>
+          <div class="muted" style="font:var(--t-sm);margin-top:4px">${escapeHtml(user.email)}</div>
+          <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            <span class="badge badge-accent">Propietario</span>
+            ${units.map(u => `<span class="badge badge-plain">${escapeHtml(u.name)}</span>`).join('')}
           </div>
         </div>
 
         <!-- Datos personales -->
-        <div class="card oh-entry" style="--delay:60ms">
-          <div class="card-header" style="padding:.9rem 1.1rem">
-            <span style="font-size:.85rem;font-weight:600;letter-spacing:.03em;color:var(--muted)">DATOS PERSONALES</span>
-          </div>
-          <div class="card-body">
-            <div class="form-group">
-              <label>Nombre completo</label>
-              <input class="input" type="text" id="profile-name"
-                value="${escapeHtml(user.name)}"
-                placeholder="Tu nombre completo">
+        <div class="section-head" style="margin-top:20px"><h3>Datos personales</h3></div>
+        <div class="card" style="padding:16px">
+          <div class="stack-3">
+            <div class="field">
+              <label class="field-label">Nombre completo</label>
+              <input class="input" type="text" id="profile-name" value="${escapeHtml(user.name)}" placeholder="Tu nombre completo">
             </div>
-            <div class="form-group" style="margin-top:1rem">
-              <label>Teléfono</label>
-              <input class="input" type="tel" id="profile-phone"
-                value="${escapeHtml(user.phone)}"
-                placeholder="Ej: 11 1234-5678">
+            <div class="field">
+              <label class="field-label">Teléfono</label>
+              <input class="input" type="tel" id="profile-phone" value="${escapeHtml(user.phone || '')}" placeholder="Ej: 11 1234-5678">
             </div>
-            <div class="form-group" style="margin-top:1rem">
-              <label style="color:var(--muted)">Email</label>
-              <input class="input" type="email"
-                value="${escapeHtml(user.email)}"
-                disabled
-                style="opacity:.5;cursor:not-allowed">
-              <small style="color:var(--muted);font-size:.78rem;margin-top:.3rem;display:block">El email no puede modificarse.</small>
+            <div class="field">
+              <label class="field-label" style="color:var(--muted)">Email ${svgIcon('shield', 12)}</label>
+              <input class="input" type="email" value="${escapeHtml(user.email)}" disabled style="opacity:.5;cursor:not-allowed">
             </div>
             ${user.startBillingPeriod ? `
-            <div class="form-group" style="margin-top:1rem">
-              <label style="color:var(--muted)">Inicio de cobro</label>
-              <input class="input"
-                value="${formatPeriodLabel(user.startBillingPeriod)}"
-                disabled
-                style="opacity:.5;cursor:not-allowed">
+            <div class="field">
+              <label class="field-label" style="color:var(--muted)">Inicio de cobro</label>
+              <input class="input" value="${formatPeriodLabel(user.startBillingPeriod)}" disabled style="opacity:.5;cursor:not-allowed">
             </div>` : ''}
-            <button class="btn btn-primary w-full" style="margin-top:1.5rem"
-              id="btn-save-profile" onclick="saveOwnerProfile()">
+            <button class="btn btn-primary btn-block" id="btn-save-profile" onclick="saveOwnerProfile()">
               Guardar cambios
             </button>
           </div>
         </div>
 
-        ${units.length > 0 ? `
-        <!-- Unidades funcionales -->
-        <div class="card oh-entry" style="--delay:120ms">
-          <div class="card-header" style="padding:.9rem 1.1rem">
-            <span style="font-size:.85rem;font-weight:600;letter-spacing:.03em;color:var(--muted)">MIS UNIDADES</span>
-          </div>
-          <div class="card-body" style="padding:0">
-            ${units.map((u, i) => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;${i < units.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}">
-              <span style="font-weight:500">${escapeHtml(u.name)}</span>
-              <span style="font-size:.82rem;color:var(--muted)">
-                ${u.customFee != null
-                  ? `$${u.customFee.toLocaleString('es-AR')}`
-                  : `Coef. ${u.coefficient}`}
-              </span>
-            </div>`).join('')}
-          </div>
-        </div>` : ''}
-
-        <!-- Cambiar contraseña -->
-        <div class="card oh-entry" style="--delay:180ms">
-          <div class="card-header" style="padding:.9rem 1.1rem">
-            <span style="font-size:.85rem;font-weight:600;letter-spacing:.03em;color:var(--muted)">CAMBIAR CONTRASEÑA</span>
-          </div>
-          <div class="card-body">
-            <div class="form-group">
-              <label>Contraseña actual</label>
-              <input class="input" type="password" id="profile-current-pass"
-                placeholder="Tu contraseña actual">
+        <!-- Seguridad -->
+        <div class="section-head" style="margin-top:20px"><h3>Seguridad</h3></div>
+        <div class="card" style="padding:16px">
+          <div class="stack-3">
+            <div class="field">
+              <label class="field-label">Contraseña actual</label>
+              <input class="input" type="password" id="profile-current-pass" placeholder="Tu contraseña actual">
             </div>
-            <div class="form-group" style="margin-top:1rem">
-              <label>Nueva contraseña</label>
-              <input class="input" type="password" id="profile-new-pass"
-                placeholder="Mínimo 6 caracteres">
+            <div class="field">
+              <label class="field-label">Nueva contraseña</label>
+              <input class="input" type="password" id="profile-new-pass" placeholder="Mínimo 6 caracteres">
             </div>
-            <div class="form-group" style="margin-top:1rem">
-              <label>Confirmar nueva contraseña</label>
-              <input class="input" type="password" id="profile-confirm-pass"
-                placeholder="Repetí la nueva contraseña">
+            <div class="field">
+              <label class="field-label">Confirmar nueva contraseña</label>
+              <input class="input" type="password" id="profile-confirm-pass" placeholder="Repetí la nueva contraseña">
             </div>
-            <button class="btn btn-secondary w-full" style="margin-top:1.5rem"
-              id="btn-change-pass" onclick="changeOwnerPassword()">
-              Cambiar contraseña
+            <button class="btn btn-ghost btn-block" id="btn-change-pass" onclick="changeOwnerPassword()">
+              ${svgIcon('key', 16)} Cambiar contraseña
             </button>
           </div>
         </div>
+
+        <!-- Cerrar sesión -->
+        <button class="btn btn-ghost btn-block" style="margin-top:24px;color:var(--danger);border-color:var(--danger-bg)" onclick="logout()">
+          ${svgIcon('logout', 16)} Cerrar sesión
+        </button>
 
       </div>`;
   } catch (err) {

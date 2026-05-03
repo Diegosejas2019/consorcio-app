@@ -3,6 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { formatDate, errorState } from '../../ui/helpers.js';
+import { svgIcon } from '../../ui/icons.js';
 import { VISIT_TYPES, visitStatusBadge } from '../admin/visits.js';
 
 function formatDateTime(d) {
@@ -13,46 +14,55 @@ function formatDateTime(d) {
   });
 }
 
+function _visitDotClass(status) {
+  if (status === 'approved' || status === 'inside') return 's-success';
+  if (status === 'pending')  return 's-warning';
+  if (status === 'rejected') return 's-danger';
+  return 's-muted';
+}
+
 export async function renderOwnerVisits() {
   const el = document.getElementById('page-owner-visits');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  el.innerHTML = `<div style="padding:16px">${skeleton(3)}</div>`;
   try {
     const res    = await api.visits.getMy();
     const visits = res.data.visits;
 
     el.innerHTML = `
-      <div class="oh-wrap">
-        <div class="oh-greeting oh-entry" style="--delay:0ms">
+      <div style="padding:0 16px 32px">
+        <div class="row-between" style="align-items:flex-end;padding-top:16px">
           <div>
-            <p class="oh-greeting-sub">Control de acceso</p>
-            <h1 class="oh-greeting-name">Mis Visitas</h1>
+            <p class="page-eyebrow">Comunidad</p>
+            <h1 class="page-title">Mis Visitas</h1>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openNewVisitModal()">+ Nueva</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewVisitModal()">${svgIcon('plus', 14)} Nueva</button>
         </div>
-        ${visits.length === 0
-          ? `<div class="oc-empty oh-entry" style="--delay:60ms">
-               <p class="oc-empty__icon">🚪</p>
-               <p class="oc-empty__msg">No tenés visitas registradas.</p>
-               <button class="btn btn-primary btn-sm" onclick="openNewVisitModal()">Registrar visita</button>
-             </div>`
-          : visits.map((v, i) => `
-              <div class="oc-card oh-entry" style="--delay:${Math.min(i * 40 + 40, 220)}ms">
-                <div class="oc-card__header">
-                  <span class="oc-card__cat">${VISIT_TYPES[v.type] || v.type}</span>
+
+        ${visits.length === 0 ? `
+        <div class="empty" style="padding:32px 0">
+          <div class="empty-icon">${svgIcon('visit', 24)}</div>
+          <p class="empty-title">Sin visitas</p>
+          <p class="empty-sub">No tenés visitas registradas.</p>
+          <button class="btn btn-primary" style="margin-top:16px" onclick="openNewVisitModal()">Registrar visita</button>
+        </div>` : `
+        <div class="card" style="padding:0;overflow:hidden;margin-top:18px">
+          ${visits.map((v, i) => `
+            ${i > 0 ? '<div style="height:1px;background:var(--border)"></div>' : ''}
+            <div class="list-item" style="padding:14px 16px">
+              <div class="dot-status ${_visitDotClass(v.status)}"></div>
+              <div class="list-body">
+                <div class="row-between">
+                  <span class="list-title">${v.name}</span>
                   ${visitStatusBadge(v.status)}
                 </div>
-                <h3 class="oc-card__title">${v.name}</h3>
-                <p class="oc-card__body" style="font-size:.83rem;color:var(--muted)">
-                  📅 ${formatDateTime(v.expectedDate)}
-                </p>
-                ${v.note ? `<p class="oc-card__body" style="font-size:.8rem;color:var(--muted);font-style:italic">${v.note}</p>` : ''}
-                <div class="oc-card__footer">
-                  <span class="oc-card__date">${formatDate(v.createdAt)}</span>
-                  ${v.status === 'pending'
-                    ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger);font-size:.75rem;padding:.3rem .6rem" onclick="deleteVisit('${v._id}')">Eliminar</button>`
-                    : ''}
+                <div class="row-between" style="margin-top:4px">
+                  <span class="list-sub">${VISIT_TYPES[v.type] || v.type} · ${formatDateTime(v.expectedDate)}</span>
+                  ${v.status === 'pending' ? `<button class="btn btn-ghost" style="color:var(--danger);font-size:.7rem;padding:3px 8px;height:auto" onclick="deleteVisit('${v._id}')">Eliminar</button>` : ''}
                 </div>
-              </div>`).join('')}
+                ${v.note ? `<div class="muted" style="font:var(--t-xs);margin-top:4px;font-style:italic">${v.note}</div>` : ''}
+              </div>
+            </div>`).join('')}
+        </div>`}
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerVisits()');

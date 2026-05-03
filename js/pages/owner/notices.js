@@ -2,48 +2,71 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
+import { svgIcon } from '../../ui/icons.js';
 
 let _notices = [];
+let _noticeFilter = 'all';
 
-const TAG_ICON  = { info: '📢', warning: '⚠️', urgent: '🔴' };
+const TAG_ICON  = { info: 'megaphone', warning: 'alert', urgent: 'bell' };
 const TAG_LABEL = { info: 'Informativo', warning: 'Advertencia', urgent: 'Urgente' };
+const TAG_BADGE = { info: 'badge-info', warning: 'badge-warning', urgent: 'badge-danger' };
 
-function formatInboxDate(d) {
+function _relDate(d) {
   if (!d) return '';
-  const now  = new Date();
-  const dt   = new Date(d);
-  const diff = Math.floor((now - dt) / 86400000);
+  const diff = Math.floor((Date.now() - new Date(d)) / 86400000);
   if (diff === 0) return 'Hoy';
   if (diff === 1) return 'Ayer';
-  if (diff < 7)  return dt.toLocaleDateString('es-AR', { weekday: 'short' });
-  return dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  if (diff < 7)  return new Date(d).toLocaleDateString('es-AR', { weekday: 'short' });
+  return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
 }
 
-function noticeRow(n, i) {
+function _noticeCard(n) {
   const unread = !n.isRead;
+  const icon   = TAG_ICON[n.tag] || 'megaphone';
+  const badge  = TAG_BADGE[n.tag] || '';
+  const label  = TAG_LABEL[n.tag] || n.tag;
   return `
-    <div class="ni-row${unread ? ' ni-row--unread' : ''} oh-entry"
-         style="--delay:${Math.min(i * 30 + 40, 200)}ms"
-         onclick="openOwnerNotice('${n._id}')">
-      <div class="ni-dot${unread ? ' ni-dot--visible' : ''}"></div>
-      <div class="ni-avatar ni-avatar--${n.tag}">${TAG_ICON[n.tag] || '📢'}</div>
-      <div class="ni-content">
-        <div class="ni-content-top">
-          <span class="ni-sender">Administración</span>
-          <span class="ni-date">${formatInboxDate(n.createdAt)}</span>
+    <div class="notice${unread ? ' is-unread' : ''}" onclick="openOwnerNotice('${n._id}')">
+      <div class="notice-side">${svgIcon(icon, 20)}</div>
+      <div class="notice-body">
+        <div class="row-between" style="gap:8px">
+          <span class="badge ${badge}" style="font-size:.7rem">${label}</span>
+          <span class="muted" style="font:var(--t-xs);flex-shrink:0">${_relDate(n.createdAt)}</span>
         </div>
-        <div class="ni-subject">${n.title}</div>
-        <div class="ni-preview">${n.body.slice(0, 80)}${n.body.length > 80 ? '…' : ''}</div>
+        <div class="notice-title">${n.title}</div>
+        <div class="notice-text">${n.body.slice(0, 120)}${n.body.length > 120 ? '…' : ''}</div>
+        <div class="row-between" style="margin-top:8px">
+          <span class="muted" style="font:var(--t-xs)">Administración</span>
+          <button class="btn btn-ghost" style="font-size:.7rem;padding:2px 8px;height:auto"
+            onclick="event.stopPropagation();toggleOwnerNoticeRead('${n._id}')">
+            ${unread ? 'Marcar leído' : 'Marcar no leído'}
+          </button>
+        </div>
       </div>
     </div>`;
 }
 
+export function switchNoticeFilter(f) {
+  _noticeFilter = f;
+  document.querySelectorAll('#notice-seg .seg-btn').forEach(b => b.classList.toggle('is-active', b.dataset.f === f));
+  _updateNoticeList();
+}
+
+async function _markAllRead() {
+  const unread = _notices.filter(n => !n.isRead);
+  if (!unread.length) return;
+  await Promise.all(unread.map(n => api.notices.markRead(n._id).catch(() => {})));
+  unread.forEach(n => { n.isRead = true; });
+  _renderInbox();
+}
+
 export async function renderOwnerNotices() {
   const el = document.getElementById('page-owner-notices');
-  el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
+  el.innerHTML = `<div style="padding:16px">${skeleton(4)}</div>`;
   try {
-    const res = await api.notices.getAll({ limit: 50 });
+    const res  = await api.notices.getAll({ limit: 100 });
     _notices   = res.data.notices;
+    _noticeFilter = 'all';
     _renderInbox();
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerNotices()');
@@ -51,38 +74,60 @@ export async function renderOwnerNotices() {
 }
 
 function _renderInbox() {
-  const el      = document.getElementById('page-owner-notices');
-  const unread  = _notices.filter(n => !n.isRead).length;
-
+  const el     = document.getElementById('page-owner-notices');
+  const unread = _notices.filter(n => !n.isRead).length;
   el.innerHTML = `
-    <div class="oh-wrap">
-      <div class="ni-inbox-header oh-entry" style="--delay:0ms">
-        <div class="ni-inbox-title-row">
-          <h1 class="ni-inbox-title">Comunicados</h1>
-          ${unread > 0 ? `<span class="ni-unread-chip">${unread} nuevo${unread > 1 ? 's' : ''}</span>` : ''}
+    <div style="padding:0 16px 32px">
+      <div class="row-between" style="align-items:flex-end;padding-top:16px">
+        <div>
+          <p class="page-eyebrow">Comunidad</p>
+          <h1 class="page-title">Comunicados</h1>
         </div>
+        ${unread > 0 ? `<span class="badge badge-accent">${unread} sin leer</span>` : ''}
       </div>
-      <div class="ni-inbox oh-entry" style="--delay:60ms">
-        ${_notices.length === 0
-          ? '<p class="ni-empty">Sin comunicados por el momento.</p>'
-          : _notices.map((n, i) => noticeRow(n, i)).join('')}
+
+      <div class="row-between" style="margin-top:18px;align-items:center">
+        <div class="seg" id="notice-seg" style="flex:1;margin-right:10px">
+          <button class="seg-btn is-active" data-f="all" onclick="switchNoticeFilter('all')">Todos</button>
+          <button class="seg-btn" data-f="unread" onclick="switchNoticeFilter('unread')">No leídos</button>
+          <button class="seg-btn" data-f="urgent" onclick="switchNoticeFilter('urgent')">Urgentes</button>
+        </div>
+        ${unread > 0 ? `<button class="btn btn-ghost" style="font-size:.75rem;white-space:nowrap;padding:6px 12px" onclick="markAllNoticesRead()">Marcar todos</button>` : ''}
+      </div>
+
+      <div class="stack-2" style="margin-top:16px" id="notice-list">
+        ${_filteredNoticeCards()}
       </div>
     </div>`;
+}
+
+function _filteredNoticeCards() {
+  let list = _notices;
+  if (_noticeFilter === 'unread')  list = _notices.filter(n => !n.isRead);
+  if (_noticeFilter === 'urgent')  list = _notices.filter(n => n.tag === 'urgent');
+  if (list.length === 0) {
+    return `<div class="empty" style="padding:32px 0">
+      <div class="empty-icon">${svgIcon('megaphone', 24)}</div>
+      <p class="empty-title">Sin comunicados</p>
+      <p class="empty-sub">No hay comunicados en esta categoría.</p>
+    </div>`;
+  }
+  return list.map(_noticeCard).join('');
+}
+
+function _updateNoticeList() {
+  const el = document.getElementById('notice-list');
+  if (el) el.innerHTML = _filteredNoticeCards();
 }
 
 export async function openOwnerNotice(id) {
   const notice = _notices.find(n => n._id === id);
   if (!notice) return;
 
-  // Marcar como leído al abrir (fire and forget)
   if (!notice.isRead) {
     notice.isRead = true;
     api.notices.markRead(id).catch(() => {});
-    // Actualizar la fila sin re-renderizar todo
-    const row = document.querySelector(`.ni-row[onclick="openOwnerNotice('${id}')"]`);
-    if (row) row.classList.remove('ni-row--unread');
-    // Actualizar chip de no leídos
-    _updateUnreadChip();
+    _updateNoticeList();
   }
 
   document.getElementById('modal').innerHTML = `
@@ -125,26 +170,17 @@ export async function toggleOwnerNoticeRead(id) {
       await api.notices.markRead(id);
       notice.isRead = true;
     }
-    // Actualizar fila
-    const row = document.querySelector(`.ni-row[onclick="openOwnerNotice('${id}')"]`);
-    if (row) row.classList.toggle('ni-row--unread', !notice.isRead);
-    // Actualizar botón en el modal
     const btn = document.getElementById('ni-toggle-btn');
     if (btn) btn.textContent = notice.isRead ? 'Marcar como no leído' : 'Marcar como leído';
-    // Actualizar chip
-    _updateUnreadChip();
+    _updateNoticeList();
   } catch {
     toast('No se pudo actualizar el estado', 'error');
   }
 }
 
-function _updateUnreadChip() {
-  const unread = _notices.filter(n => !n.isRead).length;
-  const chip   = document.querySelector('#page-owner-notices .ni-unread-chip');
-  if (chip) {
-    chip.textContent = unread > 0 ? `${unread} nuevo${unread > 1 ? 's' : ''}` : '';
-    chip.style.display = unread > 0 ? '' : 'none';
-  }
+export async function markAllNoticesRead() {
+  await _markAllRead();
+  toast('Todos los comunicados marcados como leídos', 'success');
 }
 
 function _escapeHtml(str) {
@@ -163,3 +199,5 @@ window.renderOwnerNotices             = renderOwnerNotices;
 window.openOwnerNotice                = openOwnerNotice;
 window.toggleOwnerNoticeRead          = toggleOwnerNoticeRead;
 window.downloadOwnerNoticeAttachment  = downloadOwnerNoticeAttachment;
+window.switchNoticeFilter             = switchNoticeFilter;
+window.markAllNoticesRead             = markAllNoticesRead;

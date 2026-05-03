@@ -3,6 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { formatDate, errorState } from '../../ui/helpers.js';
+import { svgIcon } from '../../ui/icons.js';
 
 export function reservationStatusBadge(status) {
   if (status === 'pending')   return `<span class="badge" style="background:#e2e8f0;color:#64748b">Pendiente</span>`;
@@ -12,45 +13,55 @@ export function reservationStatusBadge(status) {
   return `<span class="badge">${status}</span>`;
 }
 
+function _resDotClass(status) {
+  if (status === 'approved')  return 's-success';
+  if (status === 'pending')   return 's-warning';
+  if (status === 'rejected' || status === 'cancelled') return 's-danger';
+  return 's-muted';
+}
+
 export async function renderOwnerReservations() {
   const el = document.getElementById('page-owner-reservations');
-  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  el.innerHTML = `<div style="padding:16px">${skeleton(3)}</div>`;
   try {
     const res          = await api.reservations.getMine();
     const reservations = res.data.reservations;
 
     el.innerHTML = `
-      <div class="oh-wrap">
-        <div class="oh-greeting oh-entry" style="--delay:0ms">
+      <div style="padding:0 16px 32px">
+        <div class="row-between" style="align-items:flex-end;padding-top:16px">
           <div>
-            <p class="oh-greeting-sub">Espacios</p>
-            <h1 class="oh-greeting-name">Mis Reservas</h1>
+            <p class="page-eyebrow">Comunidad</p>
+            <h1 class="page-title">Mis Reservas</h1>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openNewReservationModal()">+ Nueva</button>
+          <button class="btn btn-primary btn-sm" onclick="openNewReservationModal()">${svgIcon('plus', 14)} Nueva</button>
         </div>
-        ${reservations.length === 0
-          ? `<div class="oc-empty oh-entry" style="--delay:60ms">
-               <p class="oc-empty__icon">🏢</p>
-               <p class="oc-empty__msg">No tenés reservas registradas.</p>
-               <button class="btn btn-primary btn-sm" onclick="openNewReservationModal()">Crear primera reserva</button>
-             </div>`
-          : reservations.map((r, i) => `
-              <div class="oc-card oh-entry" style="--delay:${Math.min(i * 40 + 40, 220)}ms">
-                <div class="oc-card__header">
-                  <span class="oc-card__cat">${r.space?.name || '—'}</span>
+
+        ${reservations.length === 0 ? `
+        <div class="empty" style="padding:32px 0">
+          <div class="empty-icon">${svgIcon('court', 24)}</div>
+          <p class="empty-title">Sin reservas</p>
+          <p class="empty-sub">No tenés reservas registradas.</p>
+          <button class="btn btn-primary" style="margin-top:16px" onclick="openNewReservationModal()">Crear reserva</button>
+        </div>` : `
+        <div class="card" style="padding:0;overflow:hidden;margin-top:18px">
+          ${reservations.map((r, i) => `
+            ${i > 0 ? '<div style="height:1px;background:var(--border)"></div>' : ''}
+            <div class="list-item" style="padding:14px 16px">
+              <div class="dot-status ${_resDotClass(r.status)}"></div>
+              <div class="list-body">
+                <div class="row-between">
+                  <span class="list-title">${r.space?.name || '—'}</span>
                   ${reservationStatusBadge(r.status)}
                 </div>
-                <p style="font-size:.9rem;font-weight:600;margin:.25rem 0">
-                  📅 ${r.date} · ${r.startTime}–${r.endTime}
-                </p>
-                ${r.note ? `<p class="oc-card__body">${r.note}</p>` : ''}
-                <div class="oc-card__footer">
-                  <span class="oc-card__date">${formatDate(r.createdAt)}</span>
-                  ${['pending', 'approved'].includes(r.status)
-                    ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger);font-size:.75rem;padding:.3rem .6rem" onclick="cancelOwnerReservation('${r._id}')">Cancelar</button>`
-                    : ''}
+                <div class="row-between" style="margin-top:4px">
+                  <span class="list-sub">${svgIcon('calendar', 12)} ${r.date} · ${r.startTime}–${r.endTime}</span>
+                  ${['pending', 'approved'].includes(r.status) ? `<button class="btn btn-ghost" style="color:var(--danger);font-size:.7rem;padding:3px 8px;height:auto" onclick="cancelOwnerReservation('${r._id}')">Cancelar</button>` : ''}
                 </div>
-              </div>`).join('')}
+                ${r.note ? `<div class="muted" style="font:var(--t-xs);margin-top:4px">${r.note}</div>` : ''}
+              </div>
+            </div>`).join('')}
+        </div>`}
       </div>`;
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderOwnerReservations()');

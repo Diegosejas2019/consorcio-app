@@ -1,3 +1,49 @@
+/* svgIcon(name, size, stroke) — returns SVG HTML string for use in template literals */
+export function svgIcon(name, size = 22, stroke = 1.75) {
+  const a = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"`;
+  const paths = {
+    home:        `<path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2v-9z"/>`,
+    wallet:      `<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12.5a1.5 1.5 0 1 0 0 3H21v-3z"/>`,
+    community:   `<path d="M16 11a4 4 0 1 0-8 0"/><circle cx="12" cy="7" r="3"/><path d="M3 21a7 7 0 0 1 18 0"/>`,
+    profile:     `<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>`,
+    bell:        `<path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z"/><path d="M10 20a2 2 0 0 0 4 0"/>`,
+    'arrow-r':   `<path d="M5 12h14M13 6l6 6-6 6"/>`,
+    check:       `<path d="M5 12l5 5L20 7"/>`,
+    'check-circle': `<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>`,
+    x:           `<path d="M6 6l12 12M18 6L6 18"/>`,
+    plus:        `<path d="M12 5v14M5 12h14"/>`,
+    upload:      `<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>`,
+    download:    `<path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 19h16"/>`,
+    doc:         `<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>`,
+    megaphone:   `<path d="M3 11v2a2 2 0 0 0 2 2h2l8 5V4l-8 5H5a2 2 0 0 0-2 2z"/><path d="M19 8a4 4 0 0 1 0 8"/>`,
+    alert:       `<path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.01"/>`,
+    info:        `<circle cx="12" cy="12" r="9"/><path d="M12 8v.01M11 12h1v5h1"/>`,
+    wrench:      `<path d="M14 7a4 4 0 0 1 5 5l-7 7a3 3 0 0 1-4-4l7-7a4 4 0 0 1 4-4l-2 2 2 2-2 2-2-2 2-2"/>`,
+    vote:        `<path d="M9 12l2 2 4-4"/><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 20h8"/>`,
+    calendar:    `<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>`,
+    key:         `<circle cx="8" cy="15" r="4"/><path d="M11 13l9-9M16 7l3 3"/>`,
+    visit:       `<path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/>`,
+    court:       `<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M12 6v12M3 12h18"/>`,
+    clip:        `<path d="M21 11l-9 9a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/>`,
+    logout:      `<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>`,
+    shield:      `<path d="M12 3l8 4v6c0 5-4 8-8 8s-8-3-8-8V7l8-4z"/>`,
+    sparkle:     `<path d="M12 3v6M12 15v6M3 12h6M15 12h6M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3"/>`,
+    'chevron-r': `<path d="M9 6l6 6-6 6"/>`,
+    'chevron-l': `<path d="M15 6l-9 6 9 6"/>`,
+    'chevron-d': `<path d="M6 9l6 6 6-6"/>`,
+    mail:        `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 7 9-7"/>`,
+    phone:       `<path d="M22 16v3a2 2 0 0 1-2 2A18 18 0 0 1 3 5a2 2 0 0 1 2-2h3l2 5-2 1a12 12 0 0 0 6 6l1-2 5 2z"/>`,
+    pin:         `<path d="M12 22s7-7 7-13a7 7 0 0 0-14 0c0 6 7 13 7 13z"/><circle cx="12" cy="9" r="2.5"/>`,
+    sun:         `<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>`,
+    pool:        `<path d="M2 17c2 0 2 2 5 2s3-2 5-2 3 2 5 2 3-2 5-2"/><path d="M5 11V6a3 3 0 0 1 6 0v8M14 14V6a3 3 0 0 1 6 0v8"/>`,
+    gym:         `<path d="M3 12h18M5 8v8M19 8v8M9 5v14M15 5v14"/>`,
+    pie:         `<path d="M12 3v9h9a9 9 0 1 1-9-9z"/><path d="M14 3a7 7 0 0 1 7 7h-7V3z"/>`,
+    building:    `<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h2M13 8h2M9 12h2M13 12h2M9 16h2M13 16h2"/>`,
+  };
+  const inner = paths[name] || '';
+  return `<svg ${a}>${inner}</svg>`;
+}
+
 export const SVG = {
   home:     `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>`,
   users:    `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
