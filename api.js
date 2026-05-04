@@ -238,6 +238,7 @@ const api = {
     getReceiptUrl: (id) => `${API_BASE}/payments/${id}/receipt`,
 
     getSystemReceipt: (id) => request(`/payments/${id}/system-receipt`),
+    getSystemReceiptUrl: (id) => `${API_BASE}/payments/${id}/system-receipt?download=1`,
 
     sendReminders: () => request('/payments/send-reminders', { method: 'POST' }),
 

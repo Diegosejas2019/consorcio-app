@@ -76,20 +76,23 @@ export async function downloadReceipt(paymentId) {
 export async function downloadSystemReceipt(paymentId) {
   if (!paymentId) return;
   try {
-    const res = await api.payments.getSystemReceipt(paymentId);
-    const url = res.data?.url;
-    if (!url) {
-      toast('El recibo no está disponible todavía.', 'warning');
-      return;
-    }
+    const resp = await fetch(api.payments.getSystemReceiptUrl(paymentId), {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!resp.ok) { toast('Error al descargar el recibo.', 'error'); return; }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const disposition = resp.headers.get('content-disposition') || '';
+    const filenameMatch = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    const filename = filenameMatch ? decodeURIComponent(filenameMatch[1]) : 'recibo.pdf';
+
     const a = document.createElement('a');
     a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.download = res.data?.receiptNumber ? `${res.data.receiptNumber}.pdf` : 'recibo.pdf';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   } catch (err) {
     toast(err.message || 'No se pudo descargar el recibo.', 'error');
   }
