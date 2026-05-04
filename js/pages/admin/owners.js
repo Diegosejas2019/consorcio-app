@@ -13,6 +13,7 @@ export const _debouncedOwnerFilter = debounce(() => { ownersListState.page = 1; 
 let _newOwnerCfg    = null;
 let _ownerDetailCfg = null;
 let _newOwnerUnits  = [];
+let _newOwnerAvailableUnits = [];
 let _lastCheckedEmail = '';
 let _emailCheckResult = null;
 
@@ -456,18 +457,53 @@ export function removeNewOwnerUnit(index) {
   _renderNewOwnerUnits();
 }
 
+function _renderNewOwnerUnitSelect() {
+  const container = document.getElementById('no-units-container');
+  if (!container) return;
+  const orderedUnits = [..._newOwnerAvailableUnits].sort((a, b) =>
+    String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' })
+  );
+  const availableCount = orderedUnits.filter(u => !u.owner && u.status !== 'occupied').length;
+  container.innerHTML = `
+    <select class="select" id="no-unit-ids" multiple size="${Math.min(Math.max(orderedUnits.length, 4), 8)}" style="width:100%">
+      ${orderedUnits.map(unit => {
+        const occupied = unit.owner || unit.status === 'occupied';
+        const ownerName = typeof unit.owner === 'object' ? unit.owner?.name : '';
+        return `<option value="${unit._id}" ${occupied ? 'disabled' : ''}>
+          ${escapeHtml(unit.name)}${occupied ? ` - ocupada${ownerName ? ` por ${escapeHtml(ownerName)}` : ''}` : ''}
+        </option>`;
+      }).join('')}
+    </select>
+    <small class="text-muted" style="display:block;margin-top:.35rem">
+      ${orderedUnits.length === 0
+        ? 'No hay unidades cargadas.'
+        : `${availableCount} unidad${availableCount !== 1 ? 'es' : ''} disponible${availableCount !== 1 ? 's' : ''}.`}
+    </small>`;
+}
+
+function _selectedNewOwnerUnitIds() {
+  return Array.from(document.getElementById('no-unit-ids')?.selectedOptions || [])
+    .map(option => option.value)
+    .filter(Boolean);
+}
+
 // ── Nuevo propietario ─────────────────────────────────────────
 export async function openNewOwnerModal() {
   _newOwnerCfg = cache.get('config');
-  if (!_newOwnerCfg) {
-    try {
-      const res = await api.config.get();
-      _newOwnerCfg = res.data.config;
-      cache.set('config', _newOwnerCfg);
-    } catch { _newOwnerCfg = null; }
-  }
+  const loadConfig = _newOwnerCfg
+    ? Promise.resolve(_newOwnerCfg)
+    : api.config.get().then(res => {
+        _newOwnerCfg = res.data.config;
+        cache.set('config', _newOwnerCfg);
+        return _newOwnerCfg;
+      }).catch(() => null);
+  const loadUnits = api.units.getAll()
+    .then(res => res.data.units || [])
+    .catch(() => []);
+  const [, units] = await Promise.all([loadConfig, loadUnits]);
 
   _newOwnerUnits    = [];
+  _newOwnerAvailableUnits = units;
   _lastCheckedEmail = '';
   _emailCheckResult = null;
   const modal = document.getElementById('modal');
@@ -511,7 +547,7 @@ export async function openNewOwnerModal() {
       </div>
     </div>`;
   openModal();
-  _renderNewOwnerUnits();
+  _renderNewOwnerUnitSelect();
 }
 
 export async function checkNewOwnerEmail() {
@@ -587,24 +623,11 @@ export async function saveNewOwner() {
     return;
   }
 
-  const pendingInput = document.getElementById('no-unit-input');
-  const pendingName  = pendingInput?.value.trim();
-  if (pendingName) _newOwnerUnits.push({ name: pendingName });
-
+  const unitIds = _selectedNewOwnerUnitIds();
   const chargeCurrentMonth = document.getElementById('no-charge-current')?.checked !== false;
 
   try {
-    const res     = await api.owners.create({ name, email, password: pass, phone, initialDebtAmount, chargeCurrentMonth });
-    const ownerId = res.data?.owner?._id;
-
-    if (ownerId && _newOwnerUnits.length > 0) {
-      const results = await Promise.allSettled(
-        _newOwnerUnits.map(u => api.units.create({ ownerId, name: u.name }))
-      );
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed > 0) toast(`Propietario creado, pero ${failed} unidad${failed > 1 ? 'es' : ''} no se pudo${failed > 1 ? 'ieron' : ''} guardar`, 'warning');
-    }
-
+    await api.owners.create({ name, email, password: pass, phone, initialDebtAmount, chargeCurrentMonth, unitIds });
     toast('Propietario creado exitosamente', 'success');
     renderOwnersList();
     if (phone) {
