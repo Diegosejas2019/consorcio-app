@@ -14,6 +14,8 @@ let _newOwnerCfg    = null;
 let _ownerDetailCfg = null;
 let _newOwnerUnits  = [];
 let _newOwnerAvailableUnits = [];
+let _newOwnerSelectedUnitIds = new Set();
+let _newOwnerUnitFilter = '';
 let _lastCheckedEmail = '';
 let _emailCheckResult = null;
 
@@ -463,28 +465,71 @@ function _renderNewOwnerUnitSelect() {
   const orderedUnits = [..._newOwnerAvailableUnits].sort((a, b) =>
     String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' })
   );
-  const availableCount = orderedUnits.filter(u => !u.owner && u.status !== 'occupied').length;
+  const availableUnits = orderedUnits.filter(u => !u.owner && u.status !== 'occupied');
+  const occupiedCount = orderedUnits.length - availableUnits.length;
+  const filter = _newOwnerUnitFilter.trim().toLowerCase();
+  const visibleUnits = filter
+    ? availableUnits.filter(unit => String(unit.name || '').toLowerCase().includes(filter))
+    : availableUnits;
+  const selectedUnits = orderedUnits.filter(unit => _newOwnerSelectedUnitIds.has(unit._id));
+
   container.innerHTML = `
-    <select class="select" id="no-unit-ids" multiple size="${Math.min(Math.max(orderedUnits.length, 4), 8)}" style="width:100%">
-      ${orderedUnits.map(unit => {
-        const occupied = unit.owner || unit.status === 'occupied';
-        const ownerName = typeof unit.owner === 'object' ? unit.owner?.name : '';
-        return `<option value="${unit._id}" ${occupied ? 'disabled' : ''}>
-          ${escapeHtml(unit.name)}${occupied ? ` - ocupada${ownerName ? ` por ${escapeHtml(ownerName)}` : ''}` : ''}
-        </option>`;
-      }).join('')}
-    </select>
-    <small class="text-muted" style="display:block;margin-top:.35rem">
+    <div style="border:1px solid var(--border);border-radius:10px;padding:.65rem;background:var(--surface,#111b16)">
+      <input class="input" id="no-unit-search" type="search" placeholder="Buscar unidad..."
+        value="${escapeHtml(_newOwnerUnitFilter)}"
+        oninput="filterNewOwnerUnits(this.value)"
+        style="height:40px;margin-bottom:.55rem">
+
+      <div id="no-unit-selected" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:${selectedUnits.length ? '.55rem' : '0'}">
+        ${selectedUnits.map(unit => `
+          <button type="button" class="chip is-active" onclick="toggleNewOwnerUnit('${unit._id}')" style="min-height:32px">
+            ${escapeHtml(unit.name)} &times;
+          </button>`).join('')}
+      </div>
+
+      <div style="display:grid;gap:.4rem;max-height:220px;overflow:auto;padding-right:.15rem">
+        ${visibleUnits.length
+          ? visibleUnits.map(unit => {
+              const selected = _newOwnerSelectedUnitIds.has(unit._id);
+              return `
+                <button type="button" onclick="toggleNewOwnerUnit('${unit._id}')"
+                  style="display:flex;align-items:center;gap:.65rem;width:100%;min-height:44px;text-align:left;padding:.6rem .7rem;border:1px solid ${selected ? 'var(--primary)' : 'var(--border)'};border-radius:8px;background:${selected ? 'var(--accent-lt,rgba(156,242,123,.12))' : 'var(--bg)'};color:var(--text)">
+                  <input type="checkbox" ${selected ? 'checked' : ''} tabindex="-1"
+                    style="width:18px;height:18px;accent-color:var(--primary);pointer-events:none;flex-shrink:0">
+                  <span style="font-weight:${selected ? '700' : '500'}">${escapeHtml(unit.name)}</span>
+                </button>`;
+            }).join('')
+          : `<div style="padding:.75rem;text-align:center;color:var(--text-muted);font-size:.85rem">
+              ${availableUnits.length ? 'No hay unidades disponibles con ese filtro.' : 'No hay unidades disponibles.'}
+            </div>`}
+      </div>
+    </div>
+    <small class="text-muted" style="display:block;margin-top:.4rem">
       ${orderedUnits.length === 0
         ? 'No hay unidades cargadas.'
-        : `${availableCount} unidad${availableCount !== 1 ? 'es' : ''} disponible${availableCount !== 1 ? 's' : ''}.`}
+        : `${availableUnits.length} disponible${availableUnits.length !== 1 ? 's' : ''}${occupiedCount ? ` · ${occupiedCount} ocupada${occupiedCount !== 1 ? 's' : ''}` : ''}.`}
     </small>`;
 }
 
 function _selectedNewOwnerUnitIds() {
-  return Array.from(document.getElementById('no-unit-ids')?.selectedOptions || [])
-    .map(option => option.value)
-    .filter(Boolean);
+  return [..._newOwnerSelectedUnitIds];
+}
+
+export function toggleNewOwnerUnit(unitId) {
+  if (_newOwnerSelectedUnitIds.has(unitId)) _newOwnerSelectedUnitIds.delete(unitId);
+  else _newOwnerSelectedUnitIds.add(unitId);
+  _renderNewOwnerUnitSelect();
+}
+
+export function filterNewOwnerUnits(value) {
+  _newOwnerUnitFilter = value || '';
+  _renderNewOwnerUnitSelect();
+  const input = document.getElementById('no-unit-search');
+  if (input) {
+    input.focus();
+    const len = input.value.length;
+    input.setSelectionRange(len, len);
+  }
 }
 
 // ── Nuevo propietario ─────────────────────────────────────────
@@ -504,6 +549,8 @@ export async function openNewOwnerModal() {
 
   _newOwnerUnits    = [];
   _newOwnerAvailableUnits = units;
+  _newOwnerSelectedUnitIds = new Set();
+  _newOwnerUnitFilter = '';
   _lastCheckedEmail = '';
   _emailCheckResult = null;
   const modal = document.getElementById('modal');
@@ -913,6 +960,8 @@ window.deleteUnit        = deleteUnit;
 // Unidades (formulario nuevo propietario)
 window.addNewOwnerUnit    = addNewOwnerUnit;
 window.removeNewOwnerUnit = removeNewOwnerUnit;
+window.toggleNewOwnerUnit = toggleNewOwnerUnit;
+window.filterNewOwnerUnits = filterNewOwnerUnits;
 // WhatsApp
 window.openWhatsAppOwnerModal  = openWhatsAppOwnerModal;
 window.sendWhatsAppOwner       = sendWhatsAppOwner;
