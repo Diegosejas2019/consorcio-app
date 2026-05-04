@@ -258,7 +258,7 @@ export async function renderUploadPage() {
               <div class="muted" style="font:var(--t-sm);margin-top:4px" id="online-period-label">Seleccioná períodos arriba</div>
               <div class="stack-3" style="margin-top:16px">
                 <button class="btn btn-primary btn-lg btn-block" onclick="initMercadoPagoNew()" data-requires-network>
-                  ${svgIcon('wallet', 18)} Ir al checkout seguro
+                  ${svgIcon('wallet', 18)} Ir a MercadoPago
                 </button>
                 <div class="row" style="justify-content:center;gap:6px;color:var(--muted);font:var(--t-xs)">
                   ${svgIcon('shield', 14)} Pago procesado por MercadoPago
