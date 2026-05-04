@@ -314,10 +314,27 @@ export function enterApp() {
 
 // ── setupTopBar ───────────────────────────────────────────────
 export function setupTopBar() {
-  const initials = state.user.name.split(' ').slice(0, 2).map(w => w[0]).join('');
-  document.getElementById('avatar').textContent    = initials;
+  const initials  = state.user.name.split(' ').slice(0, 2).map(w => w[0]).join('');
+  const roleLabel = state.role === 'admin' ? 'Administrador' : (state.user.unit || '');
+  const avatar    = document.getElementById('avatar');
+  avatar.textContent = initials;
+  avatar.title       = roleLabel ? `${state.user.name} · ${roleLabel}` : state.user.name;
   document.getElementById('user-name').textContent = state.user.name;
-  document.getElementById('user-role').textContent = state.role === 'admin' ? 'Administrador' : (state.user.unit || '');
+  document.getElementById('user-role').textContent = roleLabel;
+
+  const btnReport = document.getElementById('btn-report-problem');
+  const btnNotif  = document.getElementById('btn-notifications');
+  if (state.role === 'admin') {
+    btnReport.style.display = '';
+    btnNotif.style.display  = 'none';
+  } else {
+    btnReport.style.display = 'none';
+    btnNotif.style.display  = '';
+    btnNotif.onclick = () => {
+      window.showPage('page-owner-notices');
+      window.renderOwnerNotices?.();
+    };
+  }
 }
 
 // ── Nav icons ─────────────────────────────────────────────────

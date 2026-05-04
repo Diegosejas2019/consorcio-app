@@ -300,38 +300,6 @@ textarea { resize: vertical; min-height: 90px; }
 
 /* ── App Shell ── */
 #app-shell { display: none; flex-direction: column; min-height: 100vh; }
-.top-bar {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(14,21,18,0.85);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
-  padding: 0 1.25rem;
-  height: 58px; display: flex; align-items: center; justify-content: space-between;
-}
-.top-bar .brand {
-  display: flex; align-items: center; gap: .55rem;
-  font-family: var(--font-display); font-weight: 700; font-size: .95rem;
-  color: var(--text-bright); letter-spacing: -.01em;
-}
-.top-bar .brand .dot {
-  width: 7px; height: 7px;
-  background: var(--accent);
-  border-radius: 50%;
-  box-shadow: 0 0 8px var(--accent);
-}
-.user-info { display: flex; align-items: center; gap: .6rem; }
-
-.btn-report-problem { white-space: nowrap; }
-
-@media (max-width: 520px) {
-  .btn-report-problem {
-    max-width: 92px;
-    padding-left: .55rem;
-    padding-right: .55rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
 
 .support-filters {
   display: grid;
@@ -395,12 +363,6 @@ textarea { resize: vertical; min-height: 90px; }
   .support-ticket-controls {
     grid-template-columns: 1fr;
   }
-}
-.avatar {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #0a1209; font-size: .75rem; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
 }
 
 /* ── Bottom Nav ── */
@@ -1292,7 +1254,7 @@ body.is-offline #app-shell { padding-top: 36px; }
 
 /* ── Print ── */
 @media print {
-  .top-bar, .bottom-nav, .nav-submenu, .nav-submenu-backdrop,
+  .topbar, .bottom-nav, .nav-submenu, .nav-submenu-backdrop,
   .offline-banner, .install-banner, .report-controls,
   .report-print-btn, #toast-container, #modal-overlay, .ob-tooltip { display: none !important; }
   body { background: #fff !important; color: #000 !important; }
@@ -2202,13 +2164,15 @@ body.is-offline #app-shell { padding-top: 36px; }
   padding: 0 16px 96px;
 }
 
-/* ── Topbar (owner) ── */
+/* ── Topbar ── */
 .topbar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px 10px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
   position: sticky; top: 0;
-  background: linear-gradient(180deg, var(--bg) 70%, transparent);
-  z-index: 5;
+  background: rgba(14,21,18,0.90);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
 }
 .topbar-logo {
   font: 700 18px/1 'Inter Tight', sans-serif;
