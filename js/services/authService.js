@@ -359,9 +359,10 @@ const ADMIN_NAV_GROUPS = {
   },
   comunidad: {
     label: 'Comunidad',
-    pages: ['page-admin-owners', 'page-admin-notices', 'page-admin-claims', 'page-admin-votes', 'page-admin-visits', 'page-admin-reservations', 'page-admin-spaces'],
+    pages: ['page-admin-owners', 'page-admin-units', 'page-admin-notices', 'page-admin-claims', 'page-admin-votes', 'page-admin-visits', 'page-admin-reservations', 'page-admin-spaces'],
     items: [
       { page: 'page-admin-owners',        label: 'Propietarios', fn: 'renderOwnersList',        icon: SVG_S_USERS },
+      { page: 'page-admin-units',         label: 'Unidades',     fn: 'renderAdminUnits',        icon: SVG_S_SPACE },
       { page: 'page-admin-notices',       label: 'Comunicados',  fn: 'renderAdminNotices',       icon: SVG_S_BELL  },
       { page: 'page-admin-claims',        label: 'Reclamos',     fn: 'renderAdminClaims',        icon: SVG_S_CLAIM },
       { page: 'page-admin-votes',         label: 'Votaciones',   fn: 'renderAdminVotes',         icon: SVG_S_VOTE  },
@@ -477,7 +478,7 @@ export function setupNav() {
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-admin-home" onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
       <button class="nav-item" data-pages="page-admin-dashboard,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
-      <button class="nav-item" data-pages="page-admin-owners,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
+      <button class="nav-item" data-pages="page-admin-owners,page-admin-units,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
       <button class="nav-item" data-pages="page-admin-providers,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
   } else {
     _navCurrentGroups = OWNER_NAV_GROUPS;

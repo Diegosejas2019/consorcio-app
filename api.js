@@ -408,6 +408,9 @@ const api = {
     create: (data) =>
       request('/units', { method: 'POST', body: JSON.stringify(data) }),
 
+    bulkCreate: (data) =>
+      request('/units/bulk', { method: 'POST', body: JSON.stringify(data) }),
+
     update: (id, data) =>
       request(`/units/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 

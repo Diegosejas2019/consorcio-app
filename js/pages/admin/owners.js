@@ -3,7 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { showLoading } from '../../ui/loading.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
-import { formatMonth, statusBadge, errorState, downloadReceipt, debounce, formatPhone, buildWhatsAppLink } from '../../ui/helpers.js';
+import { formatMonth, statusBadge, errorState, downloadReceipt, debounce, formatPhone, buildWhatsAppLink, escapeHtml } from '../../ui/helpers.js';
 import { cache } from '../../core/state.js';
 
 // ── Estado de la vista ────────────────────────────────────────
@@ -16,6 +16,14 @@ let _newOwnerUnits  = [];
 let _lastCheckedEmail = '';
 let _emailCheckResult = null;
 
+function _ownerUnitNames(owner) {
+  if (!owner?.units?.length) return owner?.unit ? [owner.unit] : [];
+  return owner.units.map(u => typeof u === 'string' ? u : u?.name).filter(Boolean);
+}
+
+function _ownerUnitDisplay(owner) {
+  return _ownerUnitNames(owner).join(', ');
+}
 
 export async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
@@ -23,7 +31,7 @@ export async function renderOwnersList() {
   try {
     const res = await api.owners.getAll({ limit: 500 });
     ownersListState.all  = (res.data.owners || []).sort((a, b) =>
-      (a.unit || '').localeCompare(b.unit || '', undefined, { numeric: true, sensitivity: 'base' })
+      _ownerUnitDisplay(a).localeCompare(_ownerUnitDisplay(b), undefined, { numeric: true, sensitivity: 'base' })
     );
     ownersListState.page = 1;
     _renderOwnersView();
@@ -37,7 +45,7 @@ function _applyOwnersFilter() {
   const unit = ownersListState.filterUnit.toLowerCase().trim();
   return ownersListState.all.filter(o => {
     const matchName = !q    || o.name.toLowerCase().includes(q);
-    const unitStr   = o.units?.length ? o.units.join(', ') : (o.unit || '');
+    const unitStr   = _ownerUnitDisplay(o);
     const matchUnit = !unit || unitStr.toLowerCase().includes(unit);
     return matchName && matchUnit;
   });
@@ -99,7 +107,7 @@ export function _renderOwnersView() {
                 <div class="owner-avatar">${o.name.split(' ').slice(0, 2).map(w => w[0]).join('')}</div>
                 <div class="owner-info">
                   <p class="name">${_highlightMatch(o.name, ownersListState.filterName)}</p>
-                  <p class="unit">${_highlightMatch((o.units?.length ? o.units.join(', ') : o.unit) || '—', ownersListState.filterUnit)}${o.phone ? ` · ${o.phone}` : ''}</p>
+                  <p class="unit">${_highlightMatch(_ownerUnitDisplay(o) || '—', ownersListState.filterUnit)}${o.phone ? ` · ${escapeHtml(o.phone)}` : ''}</p>
                 </div>
                 <div class="flex col" style="align-items:flex-end;gap:.25rem">
                   <span class="badge ${o.isDebtor ? 'badge-danger' : 'badge-success'}">${o.isDebtor ? 'Deuda' : 'Al día'}</span>
@@ -121,9 +129,10 @@ export function _renderOwnersView() {
 }
 
 function _highlightMatch(text, query) {
-  if (!query || !text) return text;
+  const safeText = escapeHtml(text);
+  if (!query || !text) return safeText;
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return text.replace(new RegExp(`(${escaped})`, 'gi'),
+  return safeText.replace(new RegExp(`(${escaped})`, 'gi'),
     '<mark style="background:var(--accent-lt);color:var(--accent);border-radius:3px;padding:0 2px">$1</mark>');
 }
 
@@ -227,7 +236,7 @@ function _renderUnitsSection(ownerId, units) {
   const totalFee = units.reduce((sum, u) => sum + (u.finalFee || 0), 0);
   const unitRows = units.map(u => `
     <div class="flex between" style="padding:.5rem 0;border-bottom:1px solid var(--border)">
-      <span class="text-sm">${u.name}</span>
+      <span class="text-sm">${escapeHtml(u.name)}</span>
       <div class="flex gap-1" style="align-items:center">
         <span class="text-sm bold">$${(u.finalFee || 0).toLocaleString('es-AR')}</span>
         <button class="btn btn-ghost btn-sm" style="padding:.2rem .45rem;color:var(--danger)"
@@ -424,7 +433,7 @@ function _renderNewOwnerUnits() {
   container.innerHTML = `
     ${_newOwnerUnits.map((u, i) => `
       <div class="flex between" style="padding:.4rem .5rem;background:var(--bg);border-radius:6px;margin-bottom:.3rem">
-        <span class="text-sm">${u.name}</span>
+        <span class="text-sm">${escapeHtml(u.name)}</span>
         <button class="btn btn-ghost btn-sm" style="padding:.15rem .4rem;color:var(--danger)" onclick="removeNewOwnerUnit(${i})">×</button>
       </div>`).join('')}
     <div class="flex gap-1" style="margin-top:${_newOwnerUnits.length ? '.4rem' : '0'}">
@@ -839,7 +848,7 @@ export function downloadOwnersExcel() {
   const rows = owners.map(o => ({
     Nombre:         o.name,
     Email:          o.email || '',
-    Unidades:       (o.units || []).map(u => u.name).join(', ') || o.unit || '',
+    Unidades:       _ownerUnitDisplay(o),
     Teléfono:       o.phone || '',
     Estado:         o.isDebtor ? 'Moroso' : 'Al día',
     Saldo:          o.balance || 0,

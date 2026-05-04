@@ -371,6 +371,77 @@ Propietario: maria@mail.com / Prop2025!
 Admin:       admin@consorcio.com / Admin2025!
 ```
 
+## Diseño visual
+
+### Tema
+Dark mode con paleta verde bosque. Fondo oscuro (`#0e1512`) + acento verde neón (`#9cf27b`). Glassmorphism en top bar y login box (`backdrop-filter: blur`). Gradiente radial verde sutil en el fondo del body (fijo con `background-attachment: fixed`).
+
+### Variables CSS clave (`styles.css :root`)
+
+| Variable | Valor | Uso |
+|----------|-------|-----|
+| `--bg` | `#0e1512` | Fondo base de la app |
+| `--surface` | `#18221d` | Cards, modales |
+| `--surface-2` | `#131b17` | Inputs, fondo de tabs |
+| `--surface-3` | `#18221d` | Botón secundario, tab activo |
+| `--border` | `rgba(255,255,255,0.08)` | Bordes sutiles |
+| `--border-md` | `rgba(255,255,255,0.14)` | Bordes con más peso |
+| `--accent` | `#9cf27b` | Verde neón — botón primario, focus, dot del brand |
+| `--accent-2` | `#7dd65e` | Hover del acento |
+| `--accent-lt` | `rgba(156,242,123,0.12)` | Fondo tenue del acento |
+| `--success` | `#22C55E` | Estado aprobado/exitoso |
+| `--warning` | `#FBBF24` | Estado pendiente/advertencia |
+| `--danger` | `#F87171` | Estado rechazado/error |
+| `--text` | `#a8b3ac` | Texto normal |
+| `--text-bright` | `#eef1ed` | Títulos y valores destacados |
+| `--muted` | `#6b7870` | Labels de formulario, subtextos |
+| `--radius` | `14px` | Radio de cards |
+| `--font` | `'Inter'` | Tipografía base |
+| `--font-display` | `'Inter Tight'` | Headings y valores grandes |
+
+### Tipografía
+- `h1`: 1.75rem / 700 / letter-spacing −0.04em / `var(--text-bright)`
+- `h2`: 1.25rem / 700 / letter-spacing −0.02em / `var(--text-bright)`
+- `h3`: 1rem / 600 / `var(--text-bright)`
+- `small`: 0.8rem / `var(--muted)`
+- Labels de formulario (`.form-group label`): 0.82rem / 700 / `var(--muted)` / uppercase
+
+### Componentes CSS
+
+**Botones**
+- `.btn-primary` — fondo `--accent` (verde neón), texto `#0a1209`, sombra verde. Hover: sube 1px + glow.
+- `.btn-secondary` — fondo `--surface-3`, borde `--border-md`. Hover: oscurece.
+- `.btn-ghost` — transparente, color `--accent`, borde 1.5px semitransparente.
+- `.btn-danger` — fondo `--danger-lt`, borde rojo semitransparente.
+- `.btn-success` — fondo `--success-lt`, borde verde semitransparente.
+- `.btn-sm` — padding reducido, border-radius 7px.
+- `.btn-icon` — cuadrado pequeño, fondo `--surface-3`, color `--muted`.
+
+**Cards**
+- `.card` — fondo `--surface`, border `--border`, radius 14px, `backdrop-filter: blur(8px)`.
+- `.card-header` — padding 1.1rem 1.5rem, borde inferior.
+- `.card-body` — padding 1.35rem 1.5rem.
+- `.stat-card` — layout column con `.stat-label` (uppercase tiny), `.stat-value` (2rem bold), `.stat-sub`.
+- `.stat-card-clickable` — hover: sube 2px + border + sombra; línea de acento en el top al hover.
+
+**Badges**
+- `.badge` — pill (border-radius 999px), 0.72rem, bold, letra-spacing 0.02em.
+- `.badge-success/warning/danger/neutral` — fondo y color semántico.
+
+**Inputs / Formularios**
+- `.input`, `.select`, `textarea` — border 1.5px `--border-md`, radius 9px, fondo `--surface-2`.
+- Focus: borde `--accent` + glow `rgba(156,242,123,0.12)`.
+- `.form-group` — flex column con gap 0.45rem, label uppercase pequeño en `--muted`.
+
+**Utilidades**
+`.hidden`, `.flex`, `.col`, `.gap-1/2/3`, `.center`, `.between`, `.w-full`, `.mt-1/2/3`, `.text-sm`, `.text-muted`, `.bold`
+
+### Shell de la app
+- **Top bar**: sticky, glassmorphism. Brand con punto verde pulsante (`.dot` con glow). Altura 58px.
+- **Login box**: glassmorphism (`backdrop-filter: blur(20px)`), radius 22px, borde sutil con toque verde.
+- **Skeleton loaders**: clase `.skeleton` con animación shimmer CSS.
+- **Loading spinner**: clase `.loading-spinner` (no estilos inline).
+
 ## Convenciones
 
 - Todo el código es ES2020+ vanilla, sin transpilación.
