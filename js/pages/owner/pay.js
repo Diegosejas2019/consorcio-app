@@ -28,6 +28,7 @@ export async function renderUploadPage() {
     ]);
 
     const cfg      = cfgRes.data.config;
+    const hasMercadoPago = !!cfg.hasMercadoPago;
     const available = availRes.data;
     const payments = payRes.data.payments;
     const owner    = { ...state.user, ...(state.membership || {}) };
@@ -199,9 +200,16 @@ export async function renderUploadPage() {
         <h1 class="page-title">Pagar</h1>
         <p class="page-sub">Seleccioná uno o más períodos para pagar juntos.</p>
 
+        <div class="seg" style="margin-top:18px">
+          <button class="seg-btn is-active">${svgIcon('wallet', 16)} Pagar</button>
+          <button class="seg-btn" onclick="showPage('page-owner-history');renderOwnerHistory()">${svgIcon('doc', 16)} Historial</button>
+        </div>
+
         <div class="seg" style="margin-top:18px" id="pay-tab-seg">
           <button class="seg-btn is-active" id="tab-upload" onclick="switchPayTab('upload')">${svgIcon('upload', 16)} Subir comprobante</button>
+          ${hasMercadoPago ? `
           <button class="seg-btn" id="tab-online" onclick="switchPayTab('online')">${svgIcon('wallet', 16)} Pago online</button>
+          ` : ''}
         </div>
 
         ${balanceDebtHtml}
@@ -246,6 +254,7 @@ export async function renderUploadPage() {
           </div>
         </div>
 
+        ${hasMercadoPago ? `
         <!-- Tab content: Pago online -->
         <div id="panel-online" class="hidden">
           <div class="card" style="margin-top:16px;background:radial-gradient(120% 100% at 100% 0%,rgba(156,242,123,0.10),transparent 55%),var(--surface);border:1px solid var(--border-md)">
@@ -267,6 +276,7 @@ export async function renderUploadPage() {
             </div>
           </div>
         </div>
+        ` : ''}
         ` : `
         <div class="empty" style="padding:32px 0">
           <div class="empty-icon">${svgIcon('check', 24)}</div>

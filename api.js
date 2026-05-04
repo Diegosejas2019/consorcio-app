@@ -352,10 +352,12 @@ const api = {
   // ── Empleados ─────────────────────────────────────────────────
   employees: {
     getAll:  (params = {}) => request(`/employees?${new URLSearchParams(params)}`),
-    create:  (data)        => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
+    create:  (data)        => request('/employees', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
     getOne:  (id)          => request(`/employees/${id}`),
-    update:  (id, data)    => request(`/employees/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    update:  (id, data)    => request(`/employees/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
     delete:  (id)          => request(`/employees/${id}`, { method: 'DELETE' }),
+    getDocumentUrl: (id, index) => `${API_BASE}/employees/${id}/document/${index}`,
+    deleteDocument: (id, index) => request(`/employees/${id}/document/${index}`, { method: 'DELETE' }),
   },
 
   // ── Sueldos ───────────────────────────────────────────────────

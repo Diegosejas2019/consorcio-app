@@ -1,7 +1,7 @@
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { errorState } from '../../ui/helpers.js';
+import { downloadAttachment, errorState, escapeHtml } from '../../ui/helpers.js';
 
 const ROLE_LABELS = {
   security:    'Seguridad',
@@ -12,6 +12,8 @@ const ROLE_LABELS = {
 };
 
 const empState = { all: [], filterRole: '', filterActive: 'true' };
+
+const _jsString = (value) => String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
 export async function renderAdminEmployees() {
   const el = document.getElementById('page-admin-employees');
@@ -61,7 +63,7 @@ function _renderEmployeesView() {
         : `<div class="table-wrap">
             <table class="table">
               <thead><tr>
-                <th>Nombre</th><th>Rol</th><th>DNI</th><th>Teléfono</th><th>Inicio</th><th>Estado</th><th></th>
+                <th>Nombre</th><th>Rol</th><th>DNI</th><th>Teléfono</th><th>Inicio</th><th>Archivos</th><th>Estado</th><th></th>
               </tr></thead>
               <tbody>
                 ${items.map(e => `
@@ -71,6 +73,7 @@ function _renderEmployeesView() {
                     <td>${e.documentNumber || '—'}</td>
                     <td>${e.phone || '—'}</td>
                     <td>${e.startDate ? new Date(e.startDate).toLocaleDateString('es-AR') : '—'}</td>
+                    <td>${e.documents?.length ? `${e.documents.length} archivo${e.documents.length !== 1 ? 's' : ''}` : '—'}</td>
                     <td><span class="badge ${e.isActive ? 'badge-green' : 'badge-gray'}">${e.isActive ? 'Activo' : 'Baja'}</span></td>
                     <td class="actions">
                       <button class="btn btn-sm btn-ghost" onclick="openEditEmployeeModal('${e._id}')">Editar</button>
@@ -82,6 +85,26 @@ function _renderEmployeesView() {
             </table>
           </div>`
       }
+    </div>`;
+}
+
+function _employeeDocumentsList(e = {}) {
+  const docs = e.documents || [];
+  if (!docs.length) return '';
+  return `
+    <div class="form-group">
+      <label>Archivos cargados</label>
+      <div class="flex col gap-1">
+        ${docs.map((d, i) => `
+          <div class="flex between" style="gap:.75rem;background:var(--bg);border-radius:8px;padding:.55rem .7rem">
+            <span class="text-sm" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.filename || `archivo-${i + 1}`)}</span>
+            <div class="flex gap-1" style="flex-shrink:0">
+              <button class="btn btn-ghost btn-sm" onclick="downloadEmployeeDoc('${e._id}',${i},'${_jsString(d.filename || 'archivo')}')">Descargar</button>
+              <button class="btn btn-danger-ghost btn-sm" onclick="deleteEmployeeDoc('${e._id}',${i})">Eliminar</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
     </div>`;
 }
 
@@ -123,6 +146,11 @@ function _employeeForm(e = {}) {
       <div class="form-group">
         <label>Notas</label>
         <textarea class="input" id="emp-notes" rows="2" placeholder="Observaciones opcionales">${e.notes || ''}</textarea>
+      </div>
+      ${_employeeDocumentsList(e)}
+      <div class="form-group">
+        <label>${e._id ? 'Agregar archivos' : 'Archivos relacionados'}</label>
+        <input class="input" id="emp-documents" type="file" accept=".pdf,image/*" multiple>
       </div>
     </div>`;
 }
@@ -214,12 +242,31 @@ window.deactivateEmployee = async function(id) {
   }
 };
 
+window.downloadEmployeeDoc = async function(employeeId, index, filename) {
+  await downloadAttachment(api.employees.getDocumentUrl(employeeId, index), filename || 'archivo');
+};
+
+window.deleteEmployeeDoc = async function(employeeId, index) {
+  if (!confirm('¿Eliminar este archivo del empleado?')) return;
+  try {
+    await api.employees.deleteDocument(employeeId, index);
+    toast('Archivo eliminado.', 'success');
+    const res = await api.employees.getOne(employeeId);
+    const updated = res.data.employee;
+    const idx = empState.all.findIndex(e => e._id === employeeId);
+    if (idx >= 0) empState.all[idx] = updated;
+    window.openEditEmployeeModal(employeeId);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+};
+
 function _collectForm() {
   const name = document.getElementById('emp-name')?.value.trim();
   const role = document.getElementById('emp-role')?.value;
   if (!name) { toast('El nombre es obligatorio.', 'error'); return null; }
   if (!role) { toast('El rol es obligatorio.', 'error');    return null; }
-  return {
+  const data = {
     name,
     role,
     customRole:     document.getElementById('emp-custom-role')?.value.trim() || undefined,
@@ -229,6 +276,14 @@ function _collectForm() {
     startDate:      document.getElementById('emp-start')?.value                || undefined,
     notes:          document.getElementById('emp-notes')?.value.trim()         || undefined,
   };
+
+  const formData = new FormData();
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined) formData.append(key, value);
+  });
+  const files = document.getElementById('emp-documents')?.files || [];
+  Array.from(files).forEach(file => formData.append('documents', file));
+  return formData;
 }
 
 window.empState         = empState;

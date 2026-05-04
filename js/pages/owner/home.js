@@ -1,5 +1,6 @@
 import { state } from '../../core/state.js';
 import { showPage, PAGE_RENDERERS } from '../../core/router.js';
+import { isFeatureEnabled } from '../../services/featureService.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { formatDate, errorState } from '../../ui/helpers.js';
 import { svgIcon } from '../../ui/icons.js';
@@ -118,12 +119,12 @@ function heroStatusBadge(status) {
   return map[status.kind] || map.due;
 }
 
-function heroCtaHtml(status, amount) {
+function heroCtaHtml(status, amount, cfg) {
   const amtStr = `$${amount.toLocaleString('es-AR')}`;
   if (status.kind === 'paid') {
     return `
-      <button class="btn btn-primary btn-lg btn-block" style="height:52px;font-size:15px" onclick="showPage('page-owner-pay');renderUploadPage()">
-        ${svgIcon('upload', 18)} Adelantar próximo pago ${svgIcon('arrow-r', 14)}
+      <button class="btn btn-primary btn-lg btn-block" style="height:52px;font-size:15px" onclick="showPage('page-owner-history');renderOwnerHistory()">
+        ${svgIcon('check', 18)} Ver historial de pagos ${svgIcon('arrow-r', 14)}
       </button>`;
   }
   if (status.kind === 'pending') {
@@ -142,9 +143,9 @@ function heroCtaHtml(status, amount) {
     <button class="btn btn-primary btn-lg btn-block" style="height:52px;font-size:15px" onclick="showPage('page-owner-pay');renderUploadPage()">
       ${svgIcon('upload', 18)} Subir comprobante ${svgIcon('arrow-r', 14)}
     </button>
-    <button class="btn btn-ghost btn-block" style="height:44px;margin-top:8px" onclick="showPage('page-owner-pay');renderUploadPage()">
+    ${cfg.hasMercadoPago ? `<button class="btn btn-ghost btn-block" style="height:44px;margin-top:8px" onclick="showPage('page-owner-pay');renderUploadPage()">
       ${svgIcon('wallet', 16)} Pagar online
-    </button>`;
+    </button>` : ''}`;
 }
 
 // ─── Render principal ─────────────────────────────────────────��
@@ -236,7 +237,7 @@ export async function renderOwnerHome() {
           <div class="progress" style="margin-top:14px;margin-bottom:16px"><span style="width:${progressPct}%"></span></div>
           ` : `<div style="height:20px"></div>`}
 
-          ${heroCtaHtml(status, amount)}
+          ${heroCtaHtml(status, amount, cfg)}
         </div>
 
         <!-- Acciones rápidas -->
@@ -259,20 +260,20 @@ export async function renderOwnerHome() {
               <div class="qa-hint">Reportá un problema</div>
             </div>
           </button>
-          <button class="qa-card" onclick="showPage('page-owner-reservations');renderOwnerReservations()">
+          ${isFeatureEnabled('reservations') ? `<button class="qa-card" onclick="showPage('page-owner-reservations');renderOwnerReservations()">
             <div class="qa-icon">${svgIcon('court', 20)}</div>
             <div>
               <div class="qa-label">Reservar espacio</div>
               <div class="qa-hint">Pileta · SUM · Cancha</div>
             </div>
-          </button>
-          <button class="qa-card" onclick="showPage('page-owner-visits');renderOwnerVisits()">
+          </button>` : ''}
+          ${isFeatureEnabled('visits') ? `<button class="qa-card" onclick="showPage('page-owner-visits');renderOwnerVisits()">
             <div class="qa-icon">${svgIcon('visit', 20)}</div>
             <div>
               <div class="qa-label">Visitas</div>
               <div class="qa-hint">Autorizar ingreso</div>
             </div>
-          </button>
+          </button>` : ''}
         </div>
 
         <!-- Último pago -->

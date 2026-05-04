@@ -324,11 +324,10 @@ export function setupTopBar() {
 
   const btnReport = document.getElementById('btn-report-problem');
   const btnNotif  = document.getElementById('btn-notifications');
+  btnReport.style.display = '';
   if (state.role === 'admin') {
-    btnReport.style.display = '';
     btnNotif.style.display  = 'none';
   } else {
-    btnReport.style.display = 'none';
     btnNotif.style.display  = '';
     btnNotif.onclick = () => {
       window.showPage('page-owner-notices');

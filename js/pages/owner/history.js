@@ -125,6 +125,11 @@ export async function renderOwnerHistory() {
         <p class="page-eyebrow">Cuenta</p>
         <h1 class="page-title">Mis Pagos</h1>
 
+        <div class="seg" style="margin-top:18px">
+          <button class="seg-btn" onclick="showPage('page-owner-pay');renderUploadPage()">${svgIcon('wallet', 16)} Pagar</button>
+          <button class="seg-btn is-active">${svgIcon('doc', 16)} Historial</button>
+        </div>
+
         <div class="card" style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:16px 8px;margin-top:16px">
           <div>
             <div class="h-amount" style="font-size:22px">$${paidYTD >= 1000 ? Math.round(paidYTD / 1000) + 'k' : paidYTD.toLocaleString('es-AR')}</div>
