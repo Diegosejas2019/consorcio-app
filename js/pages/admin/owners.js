@@ -2,8 +2,8 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { showLoading } from '../../ui/loading.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { SVG } from '../../ui/icons.js';
-import { formatMonth, statusBadge, errorState, downloadReceipt, debounce, formatPhone, buildWhatsAppLink, escapeHtml } from '../../ui/helpers.js';
+import { SVG, svgIcon } from '../../ui/icons.js';
+import { formatMonth, statusBadge, errorState, downloadReceipt, downloadSystemReceipt, debounce, formatPhone, buildWhatsAppLink, escapeHtml } from '../../ui/helpers.js';
 import { cache } from '../../core/state.js';
 
 // ── Estado de la vista ────────────────────────────────────────
@@ -214,7 +214,10 @@ export async function viewOwnerDetail(ownerId) {
                 <td>${formatMonth(p.month)}</td>
                 <td>$${p.amount.toLocaleString('es-AR')}</td>
                 <td>${statusBadge(p.status)}</td>
-                <td>${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}</td>
+                <td>
+                  ${p.status === 'approved' ? `<button class="btn btn-ghost btn-sm" onclick="downloadSystemReceipt('${p._id}')" title="Descargar recibo" style="padding:.3rem .5rem">${svgIcon('doc', 14)}</button>` : ''}
+                  ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar comprobante" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}
+                </td>
               </tr>`).join('')}
             </tbody>
           </table></div>`}

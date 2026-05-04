@@ -1,8 +1,8 @@
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { SVG } from '../../ui/icons.js';
-import { formatMonth, statusBadge, errorState, downloadReceipt } from '../../ui/helpers.js';
+import { SVG, svgIcon } from '../../ui/icons.js';
+import { formatMonth, statusBadge, errorState, downloadReceipt, downloadSystemReceipt } from '../../ui/helpers.js';
 
 let _dashYear    = new Date().getFullYear();
 let _dashPeriod  = 'año'; // 'mes' | 'trimestre' | 'año' | 'todo'
@@ -550,7 +550,8 @@ export async function openStatDetail(type, arg) {
               </div>
               <div class="flex gap-1" style="align-items:center">
                 ${statusBadge(p.status)}
-                ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" style="padding:.25rem .4rem">${SVG.download}</button>` : ''}
+                ${p.status === 'approved' ? `<button class="btn btn-ghost btn-sm" onclick="downloadSystemReceipt('${p._id}')" title="Descargar recibo" style="padding:.25rem .4rem">${svgIcon('doc', 14)}</button>` : ''}
+                ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar comprobante" style="padding:.25rem .4rem">${SVG.download}</button>` : ''}
               </div>
             </div>`).join('')}
         </div>` : '<p class="text-muted text-sm">Sin pagos registrados en este período.</p>'}

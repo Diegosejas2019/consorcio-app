@@ -34,6 +34,14 @@ function _statusBadge(status) {
 function _paymentRow(p) {
   const period = p.monthFormatted || _periodLabel(p.month);
   const method = p.paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Transferencia';
+  const receiptActions = [
+    p.status === 'approved'
+      ? `<button class="btn-icon" onclick="downloadSystemReceipt('${p._id}')" title="Descargar recibo" aria-label="Descargar recibo" style="color:var(--success);flex-shrink:0">${svgIcon('doc', 18)}</button>`
+      : '',
+    p.receipt?.url
+      ? `<button class="btn-icon" onclick="downloadReceipt('${p._id}')" title="Descargar comprobante" aria-label="Descargar comprobante" style="color:var(--muted);flex-shrink:0">${svgIcon('download', 18)}</button>`
+      : '',
+  ].join('');
   return `
     <div class="list-item" style="padding:14px 16px">
       <div class="dot-status ${_dotClass(p.status)}"></div>
@@ -47,7 +55,7 @@ function _paymentRow(p) {
           ${_statusBadge(p.status)}
         </div>
       </div>
-      ${p.receipt?.url ? `<button class="btn-icon" onclick="downloadReceipt('${p._id}')" style="color:var(--muted);flex-shrink:0">${svgIcon('download', 18)}</button>` : ''}
+      ${receiptActions ? `<div style="display:flex;gap:6px;align-items:center">${receiptActions}</div>` : ''}
     </div>`;
 }
 

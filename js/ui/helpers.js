@@ -73,6 +73,28 @@ export async function downloadReceipt(paymentId) {
   }
 }
 
+export async function downloadSystemReceipt(paymentId) {
+  if (!paymentId) return;
+  try {
+    const res = await api.payments.getSystemReceipt(paymentId);
+    const url = res.data?.url;
+    if (!url) {
+      toast('El recibo no está disponible todavía.', 'warning');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.download = res.data?.receiptNumber ? `${res.data.receiptNumber}.pdf` : 'recibo.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err) {
+    toast(err.message || 'No se pudo descargar el recibo.', 'error');
+  }
+}
+
 export function currentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -95,6 +117,7 @@ export function errorState(msg, fn = '') {
 }
 
 window.downloadReceipt = downloadReceipt;
+window.downloadSystemReceipt = downloadSystemReceipt;
 
 export async function downloadAttachment(url, filename = 'archivo') {
   try {

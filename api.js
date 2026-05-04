@@ -237,6 +237,8 @@ const api = {
 
     getReceiptUrl: (id) => `${API_BASE}/payments/${id}/receipt`,
 
+    getSystemReceipt: (id) => request(`/payments/${id}/system-receipt`),
+
     sendReminders: () => request('/payments/send-reminders', { method: 'POST' }),
 
     getAvailableItems: () => request('/payments/available-items'),
