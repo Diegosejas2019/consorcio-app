@@ -245,28 +245,23 @@ function showMPResultScreen(status) {
   window.history.replaceState({}, '', '/');
 
   const btn = document.getElementById('mp-result-btn');
+  const goToPayments = () => {
+    sessionStorage.setItem('mp-goto', 'pagos');
+    continueFromMPResult();
+  };
 
   if (status === 'success') {
     btn.style.display = '';
     btn.textContent = 'Ir a Pagos';
-    btn.onclick = () => {
-      sessionStorage.setItem('mp-goto', 'pagos');
-      window.location.reload();
-    };
+    btn.onclick = goToPayments;
   } else if (status === 'failure') {
     btn.style.display = '';
     btn.textContent = 'Volver a Pagos';
-    btn.onclick = () => {
-      sessionStorage.setItem('mp-goto', 'pagos');
-      window.location.reload();
-    };
+    btn.onclick = goToPayments;
   } else {
     btn.style.display = '';
     btn.textContent = 'Volver a Pagos';
-    btn.onclick = () => {
-      sessionStorage.setItem('mp-goto', 'pagos');
-      window.location.reload();
-    };
+    btn.onclick = goToPayments;
   }
 }
 
@@ -275,6 +270,39 @@ function handleMPRedirect() {
   if (!mpStatus) return false;
   showMPResultScreen(mpStatus);
   return true;
+}
+
+async function continueFromMPResult() {
+  const token = getToken();
+  if (!token) {
+    document.getElementById('mp-result-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    return;
+  }
+
+  try {
+    showLoading(true);
+    const res = await api.auth.getMe();
+    setState({ role: res.data.user.role, user: res.data.user,
+               membership: res.data.membership || null,
+               organization: res.data.membership?.organization || null });
+    await loadFeatures();
+    cache.clear();
+    document.getElementById('mp-result-screen').style.display = 'none';
+    enterApp();
+    await handlePendingMPNavigation();
+  } catch (err) {
+    if (err.status === 401 || err.message?.includes('Sesión expirada')) {
+      clearToken();
+      document.getElementById('mp-result-screen').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      toast('Sesión expirada. Iniciá sesión nuevamente.', 'error');
+    } else {
+      showSessionRestoreError();
+    }
+  } finally {
+    showLoading(false);
+  }
 }
 
 // ── Restaurar sesión / detectar reset token ───────────────────
