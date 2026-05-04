@@ -247,11 +247,12 @@ function showMPResultScreen(status) {
   const btn = document.getElementById('mp-result-btn');
 
   if (status === 'success') {
-    btn.style.display = 'none';
-    setTimeout(() => {
+    btn.style.display = '';
+    btn.textContent = 'Ir a Pagos';
+    btn.onclick = () => {
       sessionStorage.setItem('mp-goto', 'pagos');
       window.location.reload();
-    }, 1500);
+    };
   } else if (status === 'failure') {
     btn.style.display = '';
     btn.textContent = 'Volver a Pagos';
