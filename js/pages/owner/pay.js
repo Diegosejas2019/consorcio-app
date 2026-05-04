@@ -103,6 +103,10 @@ export async function renderUploadPage() {
             <button class="btn btn-primary w-full" id="btn-submit-balance" data-requires-network onclick="submitBalancePayment()">
               ${SVG.upload} Enviar comprobante de deuda
             </button>
+            ${hasMercadoPago ? `
+            <button class="op-mp-btn" id="btn-pay-balance-mp" onclick="payBalanceWithMP()" data-requires-network>
+              ${svgIcon('wallet', 16)} Pagar deuda con MercadoPago
+            </button>` : ''}
           </div>
         </div>`;
     }
@@ -393,14 +397,24 @@ export async function payDebtWithMP() {
   await initMercadoPago(periods);
 }
 
+export async function payBalanceWithMP() {
+  const amount = Number(document.getElementById('balance-amount')?.value || 0);
+  if (!amount || amount < 1) {
+    toast('Ingresá un importe válido', 'error');
+    return;
+  }
+  await initMercadoPago({ balanceAmount: amount });
+}
+
 export async function initMercadoPagoNew() {
-  const selected = [...document.querySelectorAll('.period-card.is-selected[data-type="period"]')];
+  const selected = [...document.querySelectorAll('.period-card.is-selected')];
   if (selected.length === 0) {
     toast('Seleccioná al menos un período para pagar', 'error');
     return;
   }
-  const periods = selected.map(c => c.dataset.value);
-  await initMercadoPago(periods);
+  const periods = selected.filter(c => c.dataset.type === 'period').map(c => c.dataset.value);
+  const extraordinaryIds = selected.filter(c => c.dataset.type === 'extra').map(c => c.dataset.value);
+  await initMercadoPago({ periods, extraordinaryIds });
 }
 
 export function handleFileSelect(e) { selectedFile = e.target.files[0]; showFilePreview(selectedFile); }
@@ -542,6 +556,7 @@ window.clearFile               = clearFile;
 window.submitReceipt           = submitReceipt;
 window.updateDebtTotal         = updateDebtTotal;
 window.payDebtWithMP           = payDebtWithMP;
+window.payBalanceWithMP        = payBalanceWithMP;
 window.toggleExtra             = toggleExtra;
 window.updatePayTotal          = updatePayTotal;
 window.handleBalanceFileSelect = handleBalanceFileSelect;

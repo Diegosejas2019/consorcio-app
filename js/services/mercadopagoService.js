@@ -1,10 +1,10 @@
 import { showLoading } from '../ui/loading.js';
 import { toast } from '../ui/toast.js';
 
-export async function initMercadoPago(periods) {
+export async function initMercadoPago(payload) {
   try {
     showLoading(true);
-    const res = await api.mercadopago.createPreference(periods);
+    const res = await api.mercadopago.createPreference(payload);
     const { initPoint, sandboxUrl } = res.data;
     showLoading(false);
     const url = document.location.hostname === 'localhost' ? sandboxUrl : initPoint;

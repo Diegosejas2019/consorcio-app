@@ -318,10 +318,10 @@ const api = {
 
   // ── MercadoPago ───────────────────────────────────────────────
   mercadopago: {
-    createPreference: (periods) =>
+    createPreference: (payload) =>
       request('/mercadopago/preference', {
         method: 'POST',
-        body: JSON.stringify(periods?.length ? { periods } : {}),
+        body: JSON.stringify(Array.isArray(payload) ? { periods: payload } : (payload || {})),
       }),
 
     getPaymentStatus: (mpPaymentId) =>
