@@ -42,7 +42,8 @@ export async function renderUploadPage() {
     const feeLabel = _ownerFee > 0 ? ` — $${_ownerFee.toLocaleString('es-AR')}` : '';
 
     // Usar períodos del endpoint available-items (ya filtrados por el backend)
-    const months = (available.periods || []).map(v => ({
+    const currentPeriod = cfg.expenseMonthCode || new Date().toISOString().slice(0, 7);
+    const months = (available.periods || []).filter(v => v <= currentPeriod).map(v => ({
       value: v,
       label: `${formatPeriodLabel(v)}${feeLabel}`,
     }));
@@ -61,7 +62,6 @@ export async function renderUploadPage() {
     const pendingPeriods  = new Set(payments.filter(p => p.status === 'pending').map(p => p.month));
     const activePeriods   = new Set([...approvedPeriods, ...pendingPeriods]);
     const startBilling    = owner?.startBillingPeriod;
-    const currentPeriod   = cfg.expenseMonthCode || new Date().toISOString().slice(0, 7);
     const unpaidPeriods   = (cfg.paymentPeriods || [])
       .filter(p => !activePeriods.has(p) && (!startBilling || p >= startBilling) && (!currentPeriod || p <= currentPeriod));
 

@@ -27,6 +27,33 @@ async function loadFeatures() {
 }
 
 // ── Toggle visibilidad de contraseña ─────────────────────────
+async function handlePendingMPNavigation() {
+  const mpGoto = sessionStorage.getItem('mp-goto');
+  if (!mpGoto) return false;
+
+  sessionStorage.removeItem('mp-goto');
+  const mpPaymentId = sessionStorage.getItem('mp-payment-id');
+  sessionStorage.removeItem('mp-payment-id');
+
+  if (mpPaymentId) {
+    try {
+      await api.mercadopago.getPaymentStatus(mpPaymentId);
+      cache.clear();
+    } catch (err) {
+      toast(err.message || 'No se pudo sincronizar el pago de MercadoPago.', 'warning');
+    }
+  }
+
+  if (mpGoto === 'pagos') {
+    setTimeout(() => {
+      window.showPage?.('page-owner-pay');
+      window.renderUploadPage?.();
+    }, 200);
+  }
+
+  return true;
+}
+
 export function togglePassword(inputId, btn) {
   const input = document.getElementById(inputId);
   if (!input) return;
@@ -87,6 +114,7 @@ async function selectOrg(membershipId) {
     await loadFeatures();
     cache.clear();
     enterApp();
+    await handlePendingMPNavigation();
   } catch (err) {
     toast(err.message || 'No se pudo seleccionar la organización', 'error');
   } finally {
@@ -160,6 +188,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     await loadFeatures();
     cache.clear();
     enterApp();
+    await handlePendingMPNavigation();
   } catch (err) {
     const msg = err.message || 'No se pudo iniciar sesión. Intentá nuevamente';
     toast(msg, 'error');
@@ -175,6 +204,11 @@ function getMPStatus() {
   if (path.includes('/pago/fallido'))   return 'failure';
   if (path.includes('/pago/pendiente')) return 'pending';
   return null;
+}
+
+function getMPPaymentId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('payment_id') || params.get('collection_id');
 }
 
 const MP_CONFIGS = {
@@ -200,6 +234,8 @@ const MP_CONFIGS = {
 
 function showMPResultScreen(status) {
   const cfg = MP_CONFIGS[status] || MP_CONFIGS.pending;
+  const paymentId = getMPPaymentId();
+  if (paymentId) sessionStorage.setItem('mp-payment-id', paymentId);
   document.getElementById('mp-result-icon').innerHTML       = cfg.icon;
   document.getElementById('mp-result-title').textContent    = cfg.title;
   document.getElementById('mp-result-title').style.color    = cfg.color;
@@ -225,8 +261,11 @@ function showMPResultScreen(status) {
     };
   } else {
     btn.style.display = '';
-    btn.textContent = 'Ir al inicio';
-    btn.onclick = () => { window.location.reload(); };
+    btn.textContent = 'Volver a Pagos';
+    btn.onclick = () => {
+      sessionStorage.setItem('mp-goto', 'pagos');
+      window.location.reload();
+    };
   }
 }
 
@@ -264,16 +303,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     await loadFeatures();
     cache.clear();
     enterApp();
-    const mpGoto = sessionStorage.getItem('mp-goto');
-    if (mpGoto) {
-      sessionStorage.removeItem('mp-goto');
-      if (mpGoto === 'pagos') {
-        setTimeout(() => {
-          window.showPage?.('page-owner-pay');
-          window.renderUploadPage?.();
-        }, 200);
-      }
-    }
+    await handlePendingMPNavigation();
   } catch (err) {
     if (err.status === 401 || err.message?.includes('Sesión expirada')) {
       clearToken();
