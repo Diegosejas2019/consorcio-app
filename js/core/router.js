@@ -5,6 +5,7 @@ import { toast } from '../ui/toast.js';
 
 // Poblado por app.js después de importar todos los módulos de páginas
 export const PAGE_RENDERERS = {};
+const PUBLIC_PAGES = new Set(['page-terms']);
 
 export function showPage(id) {
   window.navCloseSubmenu?.();
@@ -30,7 +31,7 @@ export function showPage(id) {
       : (n.dataset.page ? [n.dataset.page] : []);
     n.classList.toggle('is-active', pages.includes(id));
   });
-  if (state.role) localStorage.setItem(`lastPage_${state.role}`, id);
+  if (state.role && !PUBLIC_PAGES.has(id)) localStorage.setItem(`lastPage_${state.role}`, id);
   setTimeout(updateOnlineStatus, 0);
 }
 

@@ -85,6 +85,16 @@ export async function renderOwnerProfile() {
           </div>
         </div>
 
+        <!-- Legal -->
+        <div class="section-head" style="margin-top:20px"><h3>Legal</h3></div>
+        <div class="card" style="padding:16px">
+          <button class="legal-link" onclick="openTermsPage()">
+            <span>${svgIcon('doc', 18)}</span>
+            <span>Términos y Condiciones</span>
+            <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
+          </button>
+        </div>
+
         <!-- Cerrar sesión -->
         <button class="btn btn-ghost btn-block" style="margin-top:24px;color:var(--danger);border-color:var(--danger-bg)" onclick="logout()">
           ${svgIcon('logout', 16)} Cerrar sesión

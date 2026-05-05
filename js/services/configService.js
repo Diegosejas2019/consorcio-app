@@ -3,7 +3,7 @@ import { toast } from '../ui/toast.js';
 import { showLoading, setBtnLoading } from '../ui/loading.js';
 import { skeleton } from '../ui/skeleton.js';
 import { errorState } from '../ui/helpers.js';
-import { SVG } from '../ui/icons.js';
+import { SVG, svgIcon } from '../ui/icons.js';
 import { setupTopBar, getOrgId } from './authService.js';
 import { openModal, closeModal } from '../ui/modal.js';
 
@@ -220,6 +220,17 @@ export async function renderAdminSettings() {
         ${await _renderFeaturesCard()}
 
         <div class="card">
+          <div class="card-header"><h3>Legal</h3></div>
+          <div class="card-body">
+            <button class="legal-link" onclick="openTermsPage()">
+              <span>${svgIcon('doc', 18)}</span>
+              <span>Términos y Condiciones</span>
+              <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-header"><h3>Cuenta</h3></div>
           <div class="card-body">
             <button class="btn btn-danger w-full" onclick="logout()">${SVG.logout} Cerrar sesión</button>
@@ -251,6 +262,16 @@ export async function renderAdminSettings() {
               <div class="form-group"><label>Dirección</label><input class="input" id="setup-org-address" placeholder="Av. Siempre Viva 742"></div>
               <div class="form-group"><label>Email de contacto</label><input class="input" type="email" id="setup-org-email" placeholder="admin@consorcio.com"></div>
               <button class="btn btn-primary" onclick="createOrganization()">Crear organización</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>Legal</h3></div>
+            <div class="card-body">
+              <button class="legal-link" onclick="openTermsPage()">
+                <span>${svgIcon('doc', 18)}</span>
+                <span>Términos y Condiciones</span>
+                <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
+              </button>
             </div>
           </div>
         </div>`;
