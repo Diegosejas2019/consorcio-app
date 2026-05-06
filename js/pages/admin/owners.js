@@ -118,7 +118,7 @@ export function _renderOwnersView() {
                   <p class="unit">${_highlightMatch(_ownerUnitDisplay(o) || '—', ownersListState.filterUnit)}${o.phone ? ` · ${escapeHtml(o.phone)}` : ''}</p>
                 </div>
                 <div class="flex col" style="align-items:flex-end;gap:.25rem">
-                  <span class="badge ${o.isDebtor ? 'badge-danger' : 'badge-success'}">${o.isDebtor ? 'Deuda' : 'Al día'}</span>
+                  <span class="badge ${(o.totalOwed || 0) > 0 ? 'badge-danger' : 'badge-success'}">${(o.totalOwed || 0) > 0 ? 'Deuda' : 'Al día'}</span>
                   ${o.lastPayment ? `<small>${formatMonth(o.lastPayment.month)}</small>` : '<small class="text-muted">Sin pagos</small>'}
                 </div>
                 ${o.phone ? `<button class="btn btn-ghost btn-sm" style="color:#25D366" onclick="openWhatsAppOwnerModal('${o.name.replace(/'/g, "\\'")}','${o.phone}')" title="Enviar WhatsApp">💬</button>` : ''}
@@ -193,12 +193,12 @@ export async function viewOwnerDetail(ownerId) {
           <h2>${owner.name}</h2>
           <small>${[owner.phone, owner.email].filter(Boolean).join(' · ')}</small>
         </div>
-        <span class="badge ${owner.isDebtor ? 'badge-danger' : 'badge-success'}">${owner.isDebtor ? 'Deudor' : 'Al día'}</span>
+        <span class="badge ${(owner.totalOwed || 0) > 0 ? 'badge-danger' : 'badge-success'}">${(owner.totalOwed || 0) > 0 ? 'Deudor' : 'Al día'}</span>
       </div>
       <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:.5rem" class="flex between">
         <span class="text-sm text-muted">Saldo</span>
-        <span class="bold" style="color:${(owner.balance || 0) < 0 ? 'var(--danger)' : 'var(--success)'}">
-          ${(owner.balance || 0) < 0 ? '-' : ''}$${Math.abs(owner.balance || 0).toLocaleString('es-AR')}
+        <span class="bold" style="color:${(owner.totalOwed || 0) > 0 ? 'var(--danger)' : 'var(--success)'}">
+          ${(owner.totalOwed || 0) > 0 ? '-' : ''}$${(owner.totalOwed || 0).toLocaleString('es-AR')}
         </span>
       </div>
       ${owner.startBillingPeriod ? `

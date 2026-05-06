@@ -115,8 +115,8 @@ function _buildDashboard() {
     payerMap[id].count++;
   });
   const topPayers  = Object.values(payerMap).sort((a, b) => b.total - a.total).slice(0, 3);
-  const topDebtors = _allOwners.filter(o => o.isDebtor && o.balance < 0)
-    .sort((a, b) => a.balance - b.balance).slice(0, 3);
+  const topDebtors = _allOwners.filter(o => (o.totalOwed || 0) > 0)
+    .sort((a, b) => (b.totalOwed || 0) - (a.totalOwed || 0)).slice(0, 3);
 
   const complianceSpark = _buildSparkline(monthly.map(m => m.count || 0));
   const debtorSpark     = _buildSparkline(monthly.map(m => (m.pending || 0) + (m.rejected || 0)));
@@ -275,7 +275,7 @@ function _buildDashboard() {
                 <div class="dash-mover-name">${o.name}</div>
                 <div class="dash-mover-meta">${o.unit ? o.unit + ' · ' : ''}MOROSO</div>
               </div>
-              <div class="dash-mover-amt neg">−$${_fmtK(Math.abs(o.balance))}<span class="dash-mover-tag">DEUDA</span></div>
+              <div class="dash-mover-amt neg">−$${_fmtK(o.totalOwed || 0)}<span class="dash-mover-tag">DEUDA</span></div>
             </div>`).join('')}
         </div>
       </div>` : ''}
@@ -455,8 +455,8 @@ export async function openStatDetail(type, arg) {
         () => api.owners.getAll({ limit: 100 })
       );
       const owners = res.data.owners;
-      const upToDate = owners.filter(o => !o.isDebtor);
-      const debtors  = owners.filter(o => o.isDebtor);
+      const upToDate = owners.filter(o => !((o.totalOwed || 0) > 0));
+      const debtors  = owners.filter(o => (o.totalOwed || 0) > 0);
       html += `<h2 style="margin-bottom:1rem">Cumplimiento de Pagos</h2>
         <div class="flex gap-2" style="margin-bottom:1.25rem">
           <div style="flex:1;background:var(--success-lt);color:var(--success);border-radius:10px;padding:.85rem;text-align:center">
@@ -493,7 +493,7 @@ export async function openStatDetail(type, arg) {
         CACHE_TTL.OWNERS,
         () => api.owners.getAll({ limit: 100 })
       );
-      const debtors = res.data.owners.filter(o => o.isDebtor);
+      const debtors = res.data.owners.filter(o => (o.totalOwed || 0) > 0);
       html += `<h2 style="margin-bottom:1.25rem">Propietarios Morosos</h2>
         ${debtors.length === 0
           ? '<p class="text-muted text-sm">No hay morosos actualmente.</p>'
@@ -506,7 +506,7 @@ export async function openStatDetail(type, arg) {
                   </div>
                   <div style="text-align:right">
                     <span class="badge badge-danger">Deuda</span>
-                    ${o.balance ? `<p style="font-size:.78rem;color:var(--danger);margin-top:.25rem">$${Math.abs(o.balance).toLocaleString('es-AR')}</p>` : ''}
+                    ${(o.totalOwed || 0) > 0 ? `<p style="font-size:.78rem;color:var(--danger);margin-top:.25rem">$${(o.totalOwed).toLocaleString('es-AR')}</p>` : ''}
                   </div>
                 </div>`).join('')}
             </div>`}
