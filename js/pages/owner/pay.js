@@ -11,6 +11,7 @@ let _monthlyFee   = 0;
 let _ownerFee     = 0;
 let _selectedExtras = new Set();
 let _extraAmounts   = {};
+let _balanceDebtAmount = 0;
 const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 export async function renderUploadPage() {
@@ -18,6 +19,7 @@ export async function renderUploadPage() {
   el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
   _selectedExtras = new Set();
   _extraAmounts   = {};
+  _balanceDebtAmount = 0;
 
   try {
     const [cfgRes, availRes, payRes, unitsRes] = await Promise.all([
@@ -69,6 +71,7 @@ export async function renderUploadPage() {
     const hasDebt  = isDebtor && unpaidPeriods.length > 0;
     const hasPendingBalancePayment = payments.some(p => p.type === 'balance' && p.status === 'pending');
     const hasBalanceDebt = (owner?.balance || 0) < 0 && !hasPendingBalancePayment;
+    _balanceDebtAmount = hasBalanceDebt ? Math.abs(Number(owner.balance || 0)) : 0;
 
     // ── Sección de saldo anterior ────────────────────────────────
     let balanceDebtHtml = '';
@@ -160,10 +163,22 @@ export async function renderUploadPage() {
         </div>
       </div>` : '';
 
-    const hasForm = months.length > 0 || extras.length > 0;
+    const hasForm = months.length > 0 || extras.length > 0 || hasBalanceDebt;
 
     // Build all period cards: regular months + extras
     const periodCardsHtml = [
+      hasBalanceDebt ? `
+        <label class="period-card" data-type="balance" data-value="initial-balance" data-amount="${_balanceDebtAmount}" onclick="togglePeriodCard(this)">
+          <span class="pc-check"></span>
+          <div style="flex:1;min-width:0">
+            <div class="row" style="gap:6px">
+              <span class="bright" style="font:var(--t-body-md)">Deuda inicial</span>
+              <span class="badge badge-danger">Deuda</span>
+            </div>
+            <div class="muted" style="font:var(--t-sm);margin-top:2px">Saldo anterior pendiente</div>
+          </div>
+          <span class="bright tnum" style="font:var(--t-body-md)">$${_balanceDebtAmount.toLocaleString('es-AR')}</span>
+        </label>` : '',
       ...months.map((m, i) => {
         const isDebt = unpaidPeriods.length > 0 && unpaidPeriods.includes(m.value) && m.value !== (cfg.expenseMonthCode);
         const statusBadge = isDebt
@@ -216,12 +231,10 @@ export async function renderUploadPage() {
           ` : ''}
         </div>
 
-        ${balanceDebtHtml}
-
         ${hasForm ? `
-        <!-- Períodos a pagar -->
+        <!-- Conceptos a pagar -->
         <div class="section-head" style="margin-top:18px">
-          <h3>Períodos a pagar</h3>
+          <h3>Conceptos a pagar</h3>
           <span class="muted" style="font:var(--t-xs)" id="period-count">${months.length > 0 ? '1 seleccionado' : '0 seleccionados'}</span>
         </div>
         <div class="stack-2" id="period-cards-list">
@@ -291,9 +304,11 @@ export async function renderUploadPage() {
 
         <!-- Hidden inputs for submit compat -->
         <select id="pay-month" class="hidden">
+          <option value=""></option>
           ${months.map((m, i) => `<option value="${m.value}"${i === 0 ? ' selected' : ''}>${m.label}</option>`).join('')}
         </select>
         <input type="number" id="pay-amount" class="hidden" value="${_ownerFee || ''}">
+        <input type="number" id="pay-balance-amount" class="hidden" value="">
 
         <div style="height:24px"></div>
       </div>
@@ -355,6 +370,7 @@ export function updatePayTotal() {
   const selected = [...document.querySelectorAll('.period-card.is-selected')];
   const total    = selected.reduce((s, c) => s + Number(c.dataset.amount || 0), 0);
   const periods  = selected.filter(c => c.dataset.type === 'period').map(c => c.dataset.value);
+  const hasBalance = selected.some(c => c.dataset.type === 'balance');
   const count    = selected.length;
 
   const totalEl   = document.getElementById('pay-total');
@@ -375,8 +391,10 @@ export function updatePayTotal() {
   // Sync hidden inputs for submitReceipt backward compat
   const monthSel = document.getElementById('pay-month');
   const amtInput = document.getElementById('pay-amount');
-  if (monthSel && periods.length > 0) monthSel.value = periods[0];
-  if (amtInput) amtInput.value = total || '';
+  const balanceInput = document.getElementById('pay-balance-amount');
+  if (monthSel) monthSel.value = periods.length > 0 ? periods[0] : '';
+  if (amtInput) amtInput.value = periods.length > 0 ? _ownerFee : '';
+  if (balanceInput) balanceInput.value = hasBalance ? _balanceDebtAmount : '';
 }
 
 export function updateDebtTotal() {
@@ -414,7 +432,8 @@ export async function initMercadoPagoNew() {
   }
   const periods = selected.filter(c => c.dataset.type === 'period').map(c => c.dataset.value);
   const extraordinaryIds = selected.filter(c => c.dataset.type === 'extra').map(c => c.dataset.value);
-  await initMercadoPago({ periods, extraordinaryIds });
+  const balanceAmount = selected.some(c => c.dataset.type === 'balance') ? _balanceDebtAmount : 0;
+  await initMercadoPago({ periods, extraordinaryIds, balanceAmount });
 }
 
 export function handleFileSelect(e) { selectedFile = e.target.files[0]; showFilePreview(selectedFile); }
@@ -455,8 +474,38 @@ export function clearFile() {
 export async function submitReceipt() {
   const month  = document.getElementById('pay-month')?.value;
   const amount = document.getElementById('pay-amount')?.value;
+  const balanceAmount = Number(document.getElementById('pay-balance-amount')?.value || 0);
   const note   = document.getElementById('pay-note')?.value?.trim();
   const extras = [..._selectedExtras];
+  const isBalanceOnly = balanceAmount > 0 && !month && extras.length === 0;
+
+  if (balanceAmount > 0 && (month || extras.length > 0)) {
+    toast('Para subir comprobante, paga la deuda inicial en un comprobante separado.', 'error');
+    return;
+  }
+
+  if (isBalanceOnly) {
+    if (!selectedFile) { toast('Adjunta el comprobante (PDF o imagen)', 'error'); return; }
+    const formData = new FormData();
+    formData.append('balanceAmount', String(balanceAmount));
+    if (note) formData.append('ownerNote', note);
+    formData.append('receipt', selectedFile);
+
+    const btn = document.getElementById('btn-submit-receipt');
+    setBtnLoading(btn, true);
+    try {
+      await api.payments.create(formData);
+      toast('Comprobante enviado. Pendiente de revision.', 'success');
+      selectedFile = null;
+      cache.del('owner_home');
+      await renderUploadPage();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setBtnLoading(btn, false);
+    }
+    return;
+  }
 
   if (!month && extras.length === 0) { toast('Seleccioná un período o al menos un concepto extraordinario', 'error'); return; }
   if (month && (!amount || amount < 1)) { toast('Ingresá un importe válido', 'error'); return; }

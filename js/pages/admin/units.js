@@ -6,7 +6,7 @@ let unitsState = { all: [], filter: '' };
 
 function statusLabel(unit) {
   if (!unit.active) return '<span class="badge badge-danger">Inactiva</span>';
-  if (unit.status === 'occupied') return '<span class="badge badge-success">Ocupada</span>';
+  if (unit.owner || unit.status === 'occupied') return '<span class="badge badge-success">Ocupada</span>';
   return '<span class="badge badge-warning">Disponible</span>';
 }
 
@@ -41,8 +41,8 @@ export async function renderAdminUnits() {
 export function renderUnitsView() {
   const el = document.getElementById('page-admin-units');
   const units = filteredUnits();
-  const occupied = unitsState.all.filter(u => u.status === 'occupied').length;
-  const available = unitsState.all.filter(u => u.status !== 'occupied').length;
+  const occupied = unitsState.all.filter(u => u.owner || u.status === 'occupied').length;
+  const available = unitsState.all.filter(u => !u.owner && u.status !== 'occupied').length;
 
   el.innerHTML = `
     <div class="flex col gap-3">

@@ -370,6 +370,12 @@ const api = {
     delete:  (id)          => request(`/salaries/${id}`, { method: 'DELETE' }),
   },
 
+  salaryPayments: {
+    getAll: (params = {}) => request(`/salary-payments?${new URLSearchParams(params)}`),
+    create: (data)        => request('/salary-payments', { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id)          => request(`/salary-payments/${id}`, { method: 'DELETE' }),
+  },
+
   // ── Reportes ──────────────────────────────────────────────────
   reports: {
     getMonthlySummary: (month) =>
