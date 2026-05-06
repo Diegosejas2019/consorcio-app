@@ -216,12 +216,14 @@ export async function renderUploadPage() {
     el.innerHTML = `
       <div style="padding:0 16px 120px">
         <p class="page-eyebrow">Pagos</p>
-        <h1 class="page-title">Pagar</h1>
-        <p class="page-sub">Seleccioná uno o más períodos para pagar juntos.</p>
-
-        <div class="seg" style="margin-top:18px">
-          <button class="seg-btn is-active">${svgIcon('wallet', 16)} Pagar</button>
-          <button class="seg-btn" onclick="showPage('page-owner-history');renderOwnerHistory()">${svgIcon('doc', 16)} Historial</button>
+        <div class="pay-page-head">
+          <div>
+            <h1 class="page-title">Pagar</h1>
+            <p class="page-sub">Selecciona los conceptos que queres pagar.</p>
+          </div>
+          <button class="btn btn-ghost pay-history-btn" onclick="showPage('page-owner-history');renderOwnerHistory()">
+            ${svgIcon('doc', 16)} Historial
+          </button>
         </div>
 
         <div class="seg" style="margin-top:18px" id="pay-tab-seg">
@@ -235,7 +237,7 @@ export async function renderUploadPage() {
         <!-- Conceptos a pagar -->
         <div class="section-head" style="margin-top:18px">
           <h3>Conceptos a pagar</h3>
-          <span class="muted" style="font:var(--t-xs)" id="period-count">${months.length > 0 ? '1 seleccionado' : '0 seleccionados'}</span>
+          <span class="muted" style="font:var(--t-xs)" id="period-count">${months.length > 0 ? '1 concepto' : '0 conceptos'}</span>
         </div>
         <div class="stack-2" id="period-cards-list">
           ${periodCardsHtml}
@@ -246,7 +248,7 @@ export async function renderUploadPage() {
           <div class="row-between">
             <div>
               <div class="muted" style="font:var(--t-xs);letter-spacing:.12em;text-transform:uppercase">Total a pagar</div>
-              <div class="muted" style="font:var(--t-xs);margin-top:4px" id="period-count-label">${months.length > 0 ? '1 período seleccionado' : '0 períodos'}</div>
+              <div class="muted" style="font:var(--t-xs);margin-top:4px" id="period-count-label">${months.length > 0 ? '1 concepto seleccionado' : '0 conceptos'}</div>
             </div>
             <span class="h-amount tnum accent" style="font-size:30px" id="pay-total">$${initTotal.toLocaleString('es-AR')}</span>
           </div>
@@ -269,6 +271,9 @@ export async function renderUploadPage() {
             <label class="field-label">Nota (opcional)</label>
             <textarea class="input textarea" id="pay-note" placeholder="Ej: Transferencia Nº 12345…"></textarea>
           </div>
+          <button class="btn btn-primary btn-lg pay-submit-inline pay-submit-btn" id="btn-submit-receipt-inline" data-requires-network onclick="submitReceipt()">
+            ${svgIcon('check', 18)} Enviar comprobante · $${initTotal.toLocaleString('es-AR')}
+          </button>
         </div>
 
         ${hasMercadoPago ? `
@@ -315,7 +320,7 @@ export async function renderUploadPage() {
 
       ${hasForm ? `
       <div class="sticky-cta" id="sticky-cta-upload">
-        <button class="btn btn-primary btn-lg btn-block" id="btn-submit-receipt" style="box-shadow:var(--glow-accent)" data-requires-network onclick="submitReceipt()">
+        <button class="btn btn-primary btn-lg btn-block pay-submit-btn" id="btn-submit-receipt-sticky" style="box-shadow:var(--glow-accent)" data-requires-network onclick="submitReceipt()">
           ${svgIcon('check', 18)} Enviar comprobante · $${initTotal.toLocaleString('es-AR')}
         </button>
       </div>` : ''}`;
@@ -378,15 +383,15 @@ export function updatePayTotal() {
   const countEl   = document.getElementById('period-count');
   const labelEl   = document.getElementById('period-count-label');
   const onlineLbl = document.getElementById('online-period-label');
-  const ctaBtn    = document.getElementById('btn-submit-receipt');
+  const ctaBtns   = document.querySelectorAll('.pay-submit-btn');
 
   const fmt = v => `$${v.toLocaleString('es-AR')}`;
   if (totalEl)   totalEl.textContent  = fmt(total);
   if (onlineEl)  onlineEl.textContent = fmt(total);
-  if (countEl)   countEl.textContent  = `${count} seleccionado${count !== 1 ? 's' : ''}`;
-  if (labelEl)   labelEl.textContent  = count > 0 ? `${count} período${count !== 1 ? 's' : ''} seleccionado${count !== 1 ? 's' : ''}` : '0 períodos';
-  if (onlineLbl) onlineLbl.textContent = count > 0 ? `${count} período${count !== 1 ? 's' : ''}` : 'Seleccioná períodos arriba';
-  if (ctaBtn)    ctaBtn.innerHTML = `${svgIcon('check', 18)} Enviar comprobante · ${fmt(total)}`;
+  if (countEl)   countEl.textContent  = `${count} concepto${count !== 1 ? 's' : ''}`;
+  if (labelEl)   labelEl.textContent  = count > 0 ? `${count} concepto${count !== 1 ? 's' : ''} seleccionado${count !== 1 ? 's' : ''}` : '0 conceptos';
+  if (onlineLbl) onlineLbl.textContent = count > 0 ? `${count} concepto${count !== 1 ? 's' : ''}` : 'Selecciona conceptos arriba';
+  ctaBtns.forEach(btn => { btn.innerHTML = `${svgIcon('check', 18)} Enviar comprobante · ${fmt(total)}`; });
 
   // Sync hidden inputs for submitReceipt backward compat
   const monthSel = document.getElementById('pay-month');
@@ -491,8 +496,8 @@ export async function submitReceipt() {
     if (note) formData.append('ownerNote', note);
     formData.append('receipt', selectedFile);
 
-    const btn = document.getElementById('btn-submit-receipt');
-    setBtnLoading(btn, true);
+    const buttons = [...document.querySelectorAll('.pay-submit-btn')];
+    buttons.forEach(btn => setBtnLoading(btn, true));
     try {
       await api.payments.create(formData);
       toast('Comprobante enviado. Pendiente de revision.', 'success');
@@ -502,7 +507,7 @@ export async function submitReceipt() {
     } catch (err) {
       toast(err.message, 'error');
     } finally {
-      setBtnLoading(btn, false);
+      buttons.forEach(btn => setBtnLoading(btn, false));
     }
     return;
   }
@@ -518,8 +523,8 @@ export async function submitReceipt() {
   extras.forEach(id => formData.append('extraordinaryIds', id));
   formData.append('receipt', selectedFile);
 
-  const btn = document.getElementById('btn-submit-receipt');
-  setBtnLoading(btn, true);
+  const buttons = [...document.querySelectorAll('.pay-submit-btn')];
+  buttons.forEach(btn => setBtnLoading(btn, true));
 
   try {
     await api.payments.create(formData);
@@ -530,7 +535,7 @@ export async function submitReceipt() {
   } catch (err) {
     toast(err.message, 'error');
   } finally {
-    setBtnLoading(btn, false);
+    buttons.forEach(btn => setBtnLoading(btn, false));
   }
 }
 

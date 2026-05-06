@@ -2541,6 +2541,43 @@ body.is-offline #app-shell { padding-top: 36px; }
   bottom: calc(62px + 10px); z-index: 50;
 }
 
+.pay-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pay-history-btn {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 12px;
+}
+.pay-submit-inline {
+  display: none;
+  margin-top: 16px;
+  min-width: 240px;
+}
+
+@media (min-width: 768px) {
+  #sticky-cta-upload { display: none; }
+  .pay-submit-inline {
+    display: inline-flex;
+    width: auto;
+    max-width: 320px;
+  }
+}
+
+@media (max-width: 560px) {
+  .pay-page-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .pay-history-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* ── Utility classes ── */
 .row         { display: flex; align-items: center; gap: 8px; }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
