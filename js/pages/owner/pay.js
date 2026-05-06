@@ -15,6 +15,19 @@ let _extraAmounts   = {};
 let _balanceDebtAmount = 0;
 const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
+function currentPeriodCode() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function isPeriodOverdue(period, dueDayOfMonth = 10) {
+  if (!period || !/^\d{4}-\d{2}$/.test(period)) return false;
+  const [year, month] = period.split('-').map(Number);
+  const dueDay = Math.min(Math.max(Number(dueDayOfMonth) || 10, 1), 28);
+  const dueDate = new Date(year, month - 1, dueDay, 23, 59, 59, 999);
+  return new Date() > dueDate;
+}
+
 export async function renderUploadPage() {
   const el = document.getElementById('page-owner-pay');
   el.innerHTML = `<div class="oh-wrap">${skeleton(4)}</div>`;
@@ -52,7 +65,7 @@ export async function renderUploadPage() {
     const feeLabel = _ownerFee > 0 ? ` — $${_ownerFee.toLocaleString('es-AR')}` : '';
 
     // Usar períodos del endpoint available-items (ya filtrados por el backend)
-    const currentPeriod = cfg.expenseMonthCode || new Date().toISOString().slice(0, 7);
+    const currentPeriod = currentPeriodCode();
     const months = (available.periods || []).filter(v => v <= currentPeriod).map(v => ({
       value: v,
       label: `${formatPeriodLabel(v)}${feeLabel}`,
@@ -188,10 +201,10 @@ export async function renderUploadPage() {
           <span class="bright tnum" style="font:var(--t-body-md)">$${_balanceDebtAmount.toLocaleString('es-AR')}</span>
         </label>` : '',
       ...months.map((m, i) => {
-        const isDebt = unpaidPeriods.length > 0 && unpaidPeriods.includes(m.value) && m.value !== (cfg.expenseMonthCode);
+        const isDebt = isPeriodOverdue(m.value, cfg.dueDayOfMonth);
         const statusBadge = isDebt
           ? `<span class="badge badge-danger">Vencida</span>`
-          : `<span class="badge badge-accent">Vigente</span>`;
+          : `<span class="badge badge-accent">Disponible</span>`;
         return `
           <label class="period-card${i === 0 ? ' is-selected' : ''}" data-type="period" data-value="${m.value}" data-amount="${_ownerFee}" onclick="togglePeriodCard(this)">
             <span class="pc-check${i === 0 ? ' is-on' : ''}">${i === 0 ? svgIcon('check', 12) : ''}</span>
