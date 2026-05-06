@@ -5,6 +5,7 @@ import { setBtnLoading } from '../../ui/loading.js';
 import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
 import { svgIcon } from '../../ui/icons.js';
 import { CLAIM_CATEGORIES, claimStatusBadge } from '../admin/claims.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 let _selectedFiles = [];
 
@@ -25,7 +26,11 @@ export async function renderOwnerClaims() {
   const el = document.getElementById('page-owner-claims');
   el.innerHTML = `<div style="padding:16px">${skeleton(3)}</div>`;
   try {
-    const res    = await api.claims.getAll({ limit: 50 });
+    const res    = await getCachedOrFetch(
+      'claims:owner:limit=50',
+      CACHE_TTL.CLAIMS,
+      () => api.claims.getAll({ limit: 50 })
+    );
     const claims = res.data.claims;
     const open   = claims.filter(c => c.status === 'open').length;
     const inProg = claims.filter(c => c.status === 'in_progress').length;

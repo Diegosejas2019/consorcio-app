@@ -2,6 +2,7 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
+import { CACHE_TTL, getCachedOrFetch, stableParams } from '../../core/cacheHelpers.js';
 
 const CAT_LABELS = {
   cleaning:       'Limpieza',
@@ -35,7 +36,11 @@ export async function renderAdminExpenses() {
     if (expensesState.filterMonth)    params.month    = expensesState.filterMonth;
     if (expensesState.filterCategory) params.category = expensesState.filterCategory;
 
-    const res = await api.expenses.getAll(params);
+    const res = await getCachedOrFetch(
+      `expenses:admin:${stableParams(params)}`,
+      CACHE_TTL.EXPENSES,
+      () => api.expenses.getAll(params)
+    );
     expensesState.all  = res.data.expenses;
     expensesState.page = 1;
     _renderExpensesView();
@@ -160,7 +165,11 @@ export async function deleteExpenseAttachment(expenseId, index) {
 export async function openNewExpenseModal() {
   let providersHtml = '<option value="">Sin proveedor</option>';
   try {
-    const res = await api.providers.getAll();
+    const res = await getCachedOrFetch(
+      'providers:active',
+      CACHE_TTL.PROVIDERS,
+      () => api.providers.getAll()
+    );
     providersHtml += res.data.providers.map(p =>
       `<option value="${p._id}">${p.name} (${CAT_LABELS[p.serviceType] || p.serviceType})</option>`
     ).join('');
@@ -367,7 +376,11 @@ export async function openEditExpenseModal(id) {
 
   let providersHtml = '<option value="">Sin proveedor</option>';
   try {
-    const res = await api.providers.getAll();
+    const res = await getCachedOrFetch(
+      'providers:active',
+      CACHE_TTL.PROVIDERS,
+      () => api.providers.getAll()
+    );
     const currentProviderId = expense.provider?._id || expense.provider;
     providersHtml += res.data.providers.map(p =>
       `<option value="${p._id}" ${currentProviderId === p._id ? 'selected' : ''}>${p.name} (${CAT_LABELS[p.serviceType] || p.serviceType})</option>`

@@ -3,6 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG, svgIcon } from '../../ui/icons.js';
 import { formatMonth, statusBadge, errorState, downloadReceipt, downloadSystemReceipt } from '../../ui/helpers.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 let _dashYear    = new Date().getFullYear();
 let _dashPeriod  = 'año'; // 'mes' | 'trimestre' | 'año' | 'todo'
@@ -35,13 +36,20 @@ export async function renderAdminDashboard(year) {
   const el = document.getElementById('page-admin-dashboard');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(6)}</div>`;
   try {
-    const [dashRes, statsRes, expensesRes, ownersRes, paymentsRes] = await Promise.all([
-      api.payments.getDashboard(_dashYear),
-      api.owners.getStats(),
-      api.expenses.getAll({ limit: 500 }),
-      api.owners.getAll({ limit: 100 }),
-      api.payments.getAll({ limit: 500, status: 'approved' }),
-    ]);
+    const { dashRes, statsRes, expensesRes, ownersRes, paymentsRes } = await getCachedOrFetch(
+      `dashboard:page:${_dashYear}`,
+      CACHE_TTL.DASHBOARD,
+      async () => {
+        const [dashRes, statsRes, expensesRes, ownersRes, paymentsRes] = await Promise.all([
+          api.payments.getDashboard(_dashYear),
+          api.owners.getStats(),
+          api.expenses.getAll({ limit: 500 }),
+          api.owners.getAll({ limit: 100 }),
+          api.payments.getAll({ limit: 500, status: 'approved' }),
+        ]);
+        return { dashRes, statsRes, expensesRes, ownersRes, paymentsRes };
+      }
+    );
     _dashData    = dashRes.data;
     _dashStats   = statsRes.data;
     _dashMonthly = _dashData.monthly || [];
@@ -412,7 +420,11 @@ export async function openStatDetail(type, arg) {
     let html = '<div class="modal-handle"></div>';
 
     if (type === 'pending') {
-      const res      = await api.payments.getAll({ status: 'pending', limit: 50 });
+      const res      = await getCachedOrFetch(
+        'payments:admin-pending:limit=50',
+        CACHE_TTL.PAYMENTS_SHORT,
+        () => api.payments.getAll({ status: 'pending', limit: 50 })
+      );
       const payments = res.data.payments;
       html += `<h2 style="margin-bottom:1.25rem">Comprobantes Pendientes</h2>
         ${payments.length === 0
@@ -437,7 +449,11 @@ export async function openStatDetail(type, arg) {
     }
 
     else if (type === 'compliance') {
-      const res    = await api.owners.getAll({ limit: 100 });
+      const res    = await getCachedOrFetch(
+        'owners:dashboard:limit=100',
+        CACHE_TTL.OWNERS,
+        () => api.owners.getAll({ limit: 100 })
+      );
       const owners = res.data.owners;
       const upToDate = owners.filter(o => !o.isDebtor);
       const debtors  = owners.filter(o => o.isDebtor);
@@ -472,7 +488,11 @@ export async function openStatDetail(type, arg) {
     }
 
     else if (type === 'debtors') {
-      const res     = await api.owners.getAll({ limit: 100 });
+      const res     = await getCachedOrFetch(
+        'owners:dashboard:limit=100',
+        CACHE_TTL.OWNERS,
+        () => api.owners.getAll({ limit: 100 })
+      );
       const debtors = res.data.owners.filter(o => o.isDebtor);
       html += `<h2 style="margin-bottom:1.25rem">Propietarios Morosos</h2>
         ${debtors.length === 0
@@ -494,7 +514,9 @@ export async function openStatDetail(type, arg) {
     }
 
     else if (type === 'collected') {
-      const monthly = _dashMonthly.length > 0 ? _dashMonthly : (await api.payments.getDashboard(_dashYear)).data.monthly || [];
+      const monthly = _dashMonthly.length > 0
+        ? _dashMonthly
+        : (await getCachedOrFetch(`dashboard:raw:${_dashYear}`, CACHE_TTL.DASHBOARD, () => api.payments.getDashboard(_dashYear))).data.monthly || [];
       const total   = monthly.reduce((sum, m) => sum + (m.total || 0), 0);
       html += `<h2 style="margin-bottom:1rem">Recaudación ${_dashYear}</h2>
         <div style="background:var(--bg);border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center">
@@ -518,7 +540,11 @@ export async function openStatDetail(type, arg) {
 
     else if (type === 'monthDetail') {
       const month    = arg;
-      const res      = await api.payments.getAll({ effectiveMonth: month, limit: 100 });
+      const res      = await getCachedOrFetch(
+        `payments:month-detail:${month}`,
+        CACHE_TTL.PAYMENTS_SHORT,
+        () => api.payments.getAll({ effectiveMonth: month, limit: 100 })
+      );
       const payments = res.data.payments || [];
       const approved = payments.filter(p => p.status === 'approved');
       const pending  = payments.filter(p => p.status === 'pending');
@@ -571,7 +597,11 @@ export async function openStatDetail(type, arg) {
 
 export async function exportDashboardExcel() {
   try {
-    const res         = await api.payments.getAll({ limit: 500 });
+    const res         = await getCachedOrFetch(
+      'payments:dashboard-export:limit=500',
+      CACHE_TTL.PAYMENTS,
+      () => api.payments.getAll({ limit: 500 })
+    );
     const allPayments = (res.data.payments || []).filter(p => {
       const year = p.month ? p.month.slice(0, 4) : (p.createdAt || '').slice(0, 4);
       return year === String(_dashYear);

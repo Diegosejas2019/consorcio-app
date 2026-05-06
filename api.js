@@ -31,12 +31,64 @@ function buildCacheKey(method, endpoint) {
   return `${method}:${endpoint}`;
 }
 
+const API_DEBUG_DUP_WINDOW_MS = 2500;
+const _apiDebugLastCalls = {};
+
+function isApiDebugEnabled() {
+  try {
+    return localStorage.getItem('debugApi') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function logApiDebug({ method, endpoint, startedAt, status = '', cache = '' }) {
+  if (!isApiDebugEnabled()) return;
+  const key = buildCacheKey(method, endpoint);
+  const now = Date.now();
+  const prev = _apiDebugLastCalls[key];
+  const duplicated = prev && (now - prev) < API_DEBUG_DUP_WINDOW_MS;
+  _apiDebugLastCalls[key] = now;
+  const duration = Math.round(performance.now() - startedAt);
+  const suffix = [cache, `${duration}ms`, status, duplicated ? 'DUPLICATED' : '']
+    .filter(Boolean)
+    .join(' ');
+  console.info(`[API] ${method} ${endpoint} ${suffix}`);
+}
+
+window.__apiDebugLogCache = function(key, status) {
+  if (!isApiDebugEnabled()) return;
+  console.info(`[API cache] ${status} ${key} ${new Date().toISOString()}`);
+};
+
+function inferInvalidationScope(endpoint, method) {
+  if (method === 'GET') return null;
+  if (endpoint.startsWith('/payments')) return 'payments';
+  if (endpoint.startsWith('/notices')) return 'notices';
+  if (endpoint.startsWith('/claims')) return 'claims';
+  if (endpoint.startsWith('/config')) return 'config';
+  if (/^\/organizations\/[^/]+\/features/.test(endpoint)) return 'features';
+  if (endpoint.startsWith('/expenses')) return 'expenses';
+  if (endpoint.startsWith('/salaries')) return 'expenses';
+  if (endpoint.startsWith('/salary-payments')) return 'expenses';
+  if (endpoint.startsWith('/owners')) return 'owners';
+  if (endpoint.startsWith('/units')) return 'units';
+  if (endpoint.startsWith('/providers')) return 'providers';
+  return null;
+}
+
+function notifyCacheInvalidation(endpoint, method) {
+  const scope = inferInvalidationScope(endpoint, method);
+  if (scope) window.gestionarInvalidateCaches?.(scope);
+}
+
 // ── Función base de fetch ─────────────────────────────────────
 async function request(endpoint, options = {}) {
   const method   = (options.method || 'GET').toUpperCase();
   const isWrite  = method !== 'GET';
   const cacheKey = buildCacheKey(method, endpoint);
   const token    = getToken();
+  const startedAt = performance.now();
 
   // ── Offline path ─────────────────────────────────────────────
   if (!navigator.onLine) {
@@ -53,13 +105,19 @@ async function request(endpoint, options = {}) {
           createdAt: Date.now(),
         });
       }
+      notifyCacheInvalidation(endpoint, method);
+      logApiDebug({ method, endpoint, startedAt, status: 'OFFLINE_QUEUED' });
       return { success: true, offline: true };
     }
     // GET offline → try IDB cache
     if (window.idbService) {
       const cached = await window.idbService.get('cache', cacheKey);
-      if (cached) return cached.value;
+      if (cached) {
+        logApiDebug({ method, endpoint, startedAt, cache: 'IDB_HIT' });
+        return cached.value;
+      }
     }
+    logApiDebug({ method, endpoint, startedAt, status: 'OFFLINE_MISS' });
     throw new Error('Sin conexión y sin datos cacheados.');
   }
 
@@ -81,8 +139,12 @@ async function request(endpoint, options = {}) {
     // Network failure while nominally online → try IDB cache for GETs
     if (!isWrite && window.idbService) {
       const cached = await window.idbService.get('cache', cacheKey);
-      if (cached) return cached.value;
+      if (cached) {
+        logApiDebug({ method, endpoint, startedAt, cache: 'IDB_HIT', status: 'NETWORK_FALLBACK' });
+        return cached.value;
+      }
     }
+    logApiDebug({ method, endpoint, startedAt, status: 'NETWORK_ERROR' });
     throw new Error('Sin conexión con el servidor. Verificá tu internet.');
   }
 
@@ -102,6 +164,7 @@ async function request(endpoint, options = {}) {
       clearToken();
       window.dispatchEvent(new CustomEvent('auth:expired'));
     }
+    logApiDebug({ method, endpoint, startedAt, status: `HTTP_${response.status}` });
     throw err;
   }
 
@@ -110,6 +173,8 @@ async function request(endpoint, options = {}) {
     window.idbService.set('cache', cacheKey, { value: data, cachedAt: Date.now() });
   }
 
+  if (isWrite) notifyCacheInvalidation(endpoint, method);
+  logApiDebug({ method, endpoint, startedAt, status: `HTTP_${response.status}` });
   return data;
 }
 

@@ -5,6 +5,7 @@ import { skeleton } from '../../ui/skeleton.js';
 import { SVG, svgIcon } from '../../ui/icons.js';
 import { formatMonth, statusBadge, errorState, downloadReceipt, downloadSystemReceipt, debounce, formatPhone, buildWhatsAppLink, escapeHtml } from '../../ui/helpers.js';
 import { cache } from '../../core/state.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 // ── Estado de la vista ────────────────────────────────────────
 export const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
@@ -32,7 +33,11 @@ export async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
   try {
-    const res = await api.owners.getAll({ limit: 500 });
+    const res = await getCachedOrFetch(
+      'owners:list:limit=500',
+      CACHE_TTL.OWNERS,
+      () => api.owners.getAll({ limit: 500 })
+    );
     ownersListState.all  = (res.data.owners || []).sort((a, b) =>
       _ownerUnitDisplay(a).localeCompare(_ownerUnitDisplay(b), undefined, { numeric: true, sensitivity: 'base' })
     );
@@ -172,8 +177,8 @@ export async function viewOwnerDetail(ownerId) {
   document.getElementById('modal').innerHTML = `<div class="modal-handle"></div>${skeleton(4)}`;
   try {
     const [ownerRes, unitsRes] = await Promise.all([
-      api.owners.getOne(ownerId),
-      api.units.getAll({ ownerId }),
+      getCachedOrFetch(`owners:detail:${ownerId}`, CACHE_TTL.OWNERS, () => api.owners.getOne(ownerId)),
+      getCachedOrFetch(`units:owner:${ownerId}`, CACHE_TTL.UNITS, () => api.units.getAll({ ownerId })),
     ]);
     const owner    = ownerRes.data.owner;
     const payments = ownerRes.data.payments || [];
@@ -540,12 +545,12 @@ export async function openNewOwnerModal() {
   _newOwnerCfg = cache.get('config');
   const loadConfig = _newOwnerCfg
     ? Promise.resolve(_newOwnerCfg)
-    : api.config.get().then(res => {
+    : getCachedOrFetch('config:api', CACHE_TTL.CONFIG, () => api.config.get()).then(res => {
         _newOwnerCfg = res.data.config;
         cache.set('config', _newOwnerCfg);
         return _newOwnerCfg;
       }).catch(() => null);
-  const loadUnits = api.units.getAll()
+  const loadUnits = getCachedOrFetch('units:available', CACHE_TTL.UNITS, () => api.units.getAll())
     .then(res => res.data.units || [])
     .catch(() => []);
   const [, units] = await Promise.all([loadConfig, loadUnits]);
@@ -695,7 +700,7 @@ export async function openRegisterPaymentModal(ownerId, ownerName) {
   _ownerDetailCfg = cache.get('config');
   if (!_ownerDetailCfg) {
     try {
-      const res = await api.config.get();
+      const res = await getCachedOrFetch('config:api', CACHE_TTL.CONFIG, () => api.config.get());
       _ownerDetailCfg = res.data.config;
       cache.set('config', _ownerDetailCfg);
     } catch { _ownerDetailCfg = null; }
@@ -763,7 +768,7 @@ export async function submitRegisterPayment(ownerId) {
     await api.payments.create(formData);
     toast('Pago registrado correctamente', 'success');
     viewOwnerDetail(ownerId);
-    cache.del('owner_home');
+    window.gestionarInvalidateCaches?.('payments');
   } catch (err) {
     toast(err.message, 'error');
   }

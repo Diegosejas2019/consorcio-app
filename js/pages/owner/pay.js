@@ -3,7 +3,8 @@ import { skeleton } from '../../ui/skeleton.js';
 import { SVG, svgIcon } from '../../ui/icons.js';
 import { errorState } from '../../ui/helpers.js';
 import { setBtnLoading } from '../../ui/loading.js';
-import { cache, state } from '../../core/state.js';
+import { state } from '../../core/state.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 let selectedFile  = null;
 let _selectedBalanceFile = null;
@@ -22,12 +23,19 @@ export async function renderUploadPage() {
   _balanceDebtAmount = 0;
 
   try {
-    const [cfgRes, availRes, payRes, unitsRes] = await Promise.all([
-      api.config.get(),
-      api.payments.getAvailableItems(),
-      api.payments.getAll({ limit: 50 }),
-      api.units.getAll(),
-    ]);
+    const { cfgRes, availRes, payRes, unitsRes } = await getCachedOrFetch(
+      'owner-pay',
+      CACHE_TTL.PAYMENTS_SHORT,
+      async () => {
+        const [cfgRes, availRes, payRes, unitsRes] = await Promise.all([
+          api.config.get(),
+          api.payments.getAvailableItems(),
+          api.payments.getAll({ limit: 50 }),
+          api.units.getAll(),
+        ]);
+        return { cfgRes, availRes, payRes, unitsRes };
+      }
+    );
 
     const cfg      = cfgRes.data.config;
     const hasMercadoPago = !!cfg.hasMercadoPago;
@@ -502,7 +510,7 @@ export async function submitReceipt() {
       await api.payments.create(formData);
       toast('Comprobante enviado. Pendiente de revision.', 'success');
       selectedFile = null;
-      cache.del('owner_home');
+      window.gestionarInvalidateCaches?.('payments');
       await renderUploadPage();
     } catch (err) {
       toast(err.message, 'error');
@@ -530,7 +538,7 @@ export async function submitReceipt() {
     await api.payments.create(formData);
     toast('Comprobante enviado. Pendiente de revisión.', 'success');
     selectedFile = null;
-    cache.del('owner_home');
+    window.gestionarInvalidateCaches?.('payments');
     await renderUploadPage();
   } catch (err) {
     toast(err.message, 'error');
@@ -594,7 +602,7 @@ export async function submitBalancePayment() {
     await api.payments.create(formData);
     toast('Comprobante enviado. Pendiente de revisión.', 'success');
     _selectedBalanceFile = null;
-    cache.del('owner_home');
+    window.gestionarInvalidateCaches?.('payments');
     await renderUploadPage();
   } catch (err) {
     toast(err.message, 'error');

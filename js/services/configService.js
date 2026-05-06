@@ -1,4 +1,5 @@
 import { state, setState } from '../core/state.js';
+import { CACHE_TTL, getCachedOrFetch } from '../core/cacheHelpers.js';
 import { toast } from '../ui/toast.js';
 import { showLoading, setBtnLoading } from '../ui/loading.js';
 import { skeleton } from '../ui/skeleton.js';
@@ -18,6 +19,10 @@ function getCurrentPeriod() {
 
 // Períodos cacheados para el modal
 let _allPeriods = [];
+
+function getCachedConfig() {
+  return getCachedOrFetch('config:api', CACHE_TTL.CONFIG, () => api.config.get());
+}
 
 export function periodChip(value) {
   return `<span data-period="${value}" style="display:inline-flex;align-items:center;gap:.35rem;background:var(--primary-lt);color:var(--primary);padding:.25rem .65rem;border-radius:99px;font-size:.82rem;font-weight:500">
@@ -40,7 +45,11 @@ async function _renderFeaturesCard() {
 
   let features = {};
   try {
-    const res = await api.organizations.getFeatures(orgId);
+    const res = await getCachedOrFetch(
+      `features:${orgId}`,
+      CACHE_TTL.FEATURES,
+      () => api.organizations.getFeatures(orgId)
+    );
     features = res.data.features;
   } catch (_) {
     // Error cargando features → mostrar todos habilitados
@@ -81,6 +90,8 @@ export async function saveFeatureSettings() {
 
     const res = await api.organizations.updateFeatures(orgId, features);
     setState({ features: res.data.features });
+    window.gestionarCache?.set(`features:${orgId}`, res, CACHE_TTL.FEATURES);
+    window.setupNav?.();
     toast('Módulos guardados correctamente', 'success');
   } catch (err) {
     toast(err.message, 'error');
@@ -93,7 +104,7 @@ export async function renderAdminSettings() {
   const el = document.getElementById('page-admin-settings');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
   try {
-    const res = await api.config.get();
+    const res = await getCachedConfig();
     const cfg = res.data.config;
     _allPeriods = cfg.paymentPeriods || [];
 
@@ -333,7 +344,7 @@ export async function openPeriodsModal() {
   `);
 
   try {
-    const res = await api.config.get();
+    const res = await getCachedConfig();
     _allPeriods = res.data.config.paymentPeriods || [];
   } catch (err) {
     const loading = document.getElementById('modal-periods-loading');

@@ -3,6 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
 import { svgIcon } from '../../ui/icons.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 let _notices = [];
 let _noticeFilter = 'all';
@@ -64,7 +65,11 @@ export async function renderOwnerNotices() {
   const el = document.getElementById('page-owner-notices');
   el.innerHTML = `<div style="padding:16px">${skeleton(4)}</div>`;
   try {
-    const res  = await api.notices.getAll({ limit: 100 });
+    const res  = await getCachedOrFetch(
+      'notices:owner:limit=100',
+      CACHE_TTL.NOTICES,
+      () => api.notices.getAll({ limit: 100 })
+    );
     _notices   = res.data.notices;
     _noticeFilter = 'all';
     _renderInbox();

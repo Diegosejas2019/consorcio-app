@@ -1,4 +1,5 @@
 import { state, setState, cache } from '../core/state.js';
+import { CACHE_TTL, getCachedOrFetch } from '../core/cacheHelpers.js';
 import { showLoading, showSessionRestoreError } from '../ui/loading.js';
 import { toast } from '../ui/toast.js';
 import { SVG, svgIcon } from '../ui/icons.js';
@@ -19,7 +20,11 @@ async function loadFeatures() {
   const orgId = getOrgId();
   if (!orgId) return;
   try {
-    const res = await api.organizations.getFeatures(orgId);
+    const res = await getCachedOrFetch(
+      `features:${orgId}`,
+      CACHE_TTL.FEATURES,
+      () => api.organizations.getFeatures(orgId)
+    );
     setState({ features: res.data.features });
   } catch (_) {
     // Sin features configuradas → todos habilitados por defecto
@@ -111,8 +116,9 @@ async function selectOrg(membershipId) {
     setState({ role: res.data.user.role, user: res.data.user,
                membership: res.data.membership || null,
                organization: res.data.membership?.organization || null });
-    await loadFeatures();
     cache.clear();
+    cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
+    await loadFeatures();
     enterApp();
     await handlePendingMPNavigation();
   } catch (err) {
@@ -152,10 +158,11 @@ export async function submitResetPassword() {
     setState({ role: res.data.user.role, user: res.data.user,
                membership: res.data.membership || null,
                organization: res.data.membership?.organization || null });
+    cache.clear();
+    cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
     window.history.replaceState({}, '', window.location.pathname);
     document.getElementById('reset-screen').style.display = 'none';
-    cache.clear();
     toast('Contraseña actualizada correctamente', 'success');
     enterApp();
   } catch (err) {
@@ -185,8 +192,9 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     setState({ role: res.data.user.role, user: res.data.user,
                membership: res.data.membership || null,
                organization: res.data.membership?.organization || null });
-    await loadFeatures();
     cache.clear();
+    cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
+    await loadFeatures();
     enterApp();
     await handlePendingMPNavigation();
   } catch (err) {
@@ -286,8 +294,9 @@ async function continueFromMPResult() {
     setState({ role: res.data.user.role, user: res.data.user,
                membership: res.data.membership || null,
                organization: res.data.membership?.organization || null });
-    await loadFeatures();
     cache.clear();
+    cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
+    await loadFeatures();
     document.getElementById('mp-result-screen').style.display = 'none';
     enterApp();
     await handlePendingMPNavigation();
@@ -329,8 +338,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     setState({ role: res.data.user.role, user: res.data.user,
                membership: res.data.membership || null,
                organization: res.data.membership?.organization || null });
-    await loadFeatures();
     cache.clear();
+    cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
+    await loadFeatures();
     enterApp();
     await handlePendingMPNavigation();
   } catch (err) {
@@ -589,4 +599,5 @@ window.submitForgotPassword = submitForgotPassword;
 window.submitResetPassword  = submitResetPassword;
 window.enterApp             = enterApp;
 window.setupTopBar          = setupTopBar;
+window.setupNav             = setupNav;
 window.logout               = logout;

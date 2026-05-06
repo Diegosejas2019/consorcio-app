@@ -1,6 +1,7 @@
 import { state } from '../../core/state.js';
 import { getOrgId } from '../../services/authService.js';
 import { showPage } from '../../core/router.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
 import { formatMonth, errorState, downloadReceipt } from '../../ui/helpers.js';
@@ -34,12 +35,19 @@ export async function renderAdminHome() {
   const el = document.getElementById('page-admin-home');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
   try {
-    const [statsRes, pendingRes, cfgRes, claimsRes] = await Promise.all([
-      api.owners.getStats(),
-      api.payments.getAll({ status: 'pending', limit: 20 }),
-      api.config.get(),
-      api.claims.getAll({ status: 'open', limit: 10 }),
-    ]);
+    const { statsRes, pendingRes, cfgRes, claimsRes } = await getCachedOrFetch(
+      'admin-home',
+      CACHE_TTL.ADMIN_HOME,
+      async () => {
+        const [statsRes, pendingRes, cfgRes, claimsRes] = await Promise.all([
+          api.owners.getStats(),
+          api.payments.getAll({ status: 'pending', limit: 20 }),
+          api.config.get(),
+          api.claims.getAll({ status: 'open', limit: 10 }),
+        ]);
+        return { statsRes, pendingRes, cfgRes, claimsRes };
+      }
+    );
 
     const stats      = statsRes.data;
     const pending    = pendingRes.data.payments;

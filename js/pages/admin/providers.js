@@ -2,6 +2,7 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { errorState, downloadAttachment } from '../../ui/helpers.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 const SERVICE_LABELS = {
   cleaning:       'Limpieza',
@@ -17,7 +18,11 @@ export async function renderAdminProviders() {
   const el = document.getElementById('page-admin-providers');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
   try {
-    const res = await api.providers.getAll({ includeInactive: 'true' });
+    const res = await getCachedOrFetch(
+      'providers:admin:includeInactive=true',
+      CACHE_TTL.PROVIDERS,
+      () => api.providers.getAll({ includeInactive: 'true' })
+    );
     _renderProvidersList(el, res.data.providers);
   } catch (err) {
     el.innerHTML = errorState(err.message, 'renderAdminProviders()');
@@ -109,7 +114,11 @@ export function openNewProviderModal() {
 export async function openEditProviderModal(id) {
   let provider;
   try {
-    const res = await api.providers.getAll({ includeInactive: 'true' });
+    const res = await getCachedOrFetch(
+      'providers:admin:includeInactive=true',
+      CACHE_TTL.PROVIDERS,
+      () => api.providers.getAll({ includeInactive: 'true' })
+    );
     provider  = res.data.providers.find(p => p._id === id);
   } catch { return toast('Error al cargar proveedor.', 'error'); }
   if (!provider) return;

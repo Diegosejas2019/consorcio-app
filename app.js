@@ -4,6 +4,7 @@
 
 // ── Core ──────────────────────────────────────────────────────
 import './js/core/state.js';
+import './js/core/cacheHelpers.js';
 import { PAGE_RENDERERS } from './js/core/router.js';
 import './js/core/apiWrapper.js';
 

@@ -1,6 +1,7 @@
 import { toast }                      from '../../ui/toast.js';
 import { errorState, currentMonth }   from '../../ui/helpers.js';
 import { SVG }                        from '../../ui/icons.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 // ── Estado ────────────────────────────────────────────────────
 const reportState = { month: currentMonth(), data: null };
@@ -93,7 +94,11 @@ export async function loadReport() {
   </div>`;
 
   try {
-    const res = await api.reports.getMonthlySummary(month);
+    const res = await getCachedOrFetch(
+      `reports:monthly:${month}`,
+      CACHE_TTL.REPORTS,
+      () => api.reports.getMonthlySummary(month)
+    );
     reportState.data = res.data;
     area.innerHTML = _renderReportTable(res.data);
   } catch (err) {

@@ -1,6 +1,7 @@
 import { skeleton } from '../../ui/skeleton.js';
 import { svgIcon } from '../../ui/icons.js';
 import { errorState } from '../../ui/helpers.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 const CATEGORY_COLORS = {
   cleaning:       '#00D68F',
@@ -73,7 +74,11 @@ async function _loadAndRender() {
   document.getElementById('exp-next').onclick = () => { if (_currentMonth < today) { _currentMonth = _nextMonth(_currentMonth); _loadAndRender(); } };
 
   try {
-    const res = await api.expenses.getSummary(_currentMonth);
+    const res = await getCachedOrFetch(
+      `owner-expenses:${_currentMonth}`,
+      CACHE_TTL.EXPENSES,
+      () => api.expenses.getSummary(_currentMonth)
+    );
     const { total, categories } = res.data;
 
     const content = document.getElementById('exp-content');

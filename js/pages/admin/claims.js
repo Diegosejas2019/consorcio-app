@@ -3,6 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
 import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 export const CLAIM_CATEGORIES = {
   infrastructure: 'Infraestructura',
@@ -35,7 +36,11 @@ export async function renderAdminClaims() {
   const el = document.getElementById('page-admin-claims');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
   try {
-    const res    = await api.claims.getAll({ limit: 100 });
+    const res    = await getCachedOrFetch(
+      'claims:admin:limit=100',
+      CACHE_TTL.CLAIMS,
+      () => api.claims.getAll({ limit: 100 })
+    );
     const claims = res.data.claims;
 
     const open       = claims.filter(c => c.status === 'open');

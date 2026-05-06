@@ -2,6 +2,7 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { formatDate, errorState, buildWhatsAppLink, downloadAttachment } from '../../ui/helpers.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 let _notices      = [];
 let _noticeFiles  = [];
@@ -42,7 +43,11 @@ export async function renderAdminNotices() {
   const el = document.getElementById('page-admin-notices');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
   try {
-    const res = await api.notices.getAll({ limit: 50 });
+    const res = await getCachedOrFetch(
+      'notices:admin:limit=50',
+      CACHE_TTL.NOTICES,
+      () => api.notices.getAll({ limit: 50 })
+    );
     _notices   = res.data.notices;
     _renderInbox();
   } catch (err) {
@@ -250,7 +255,11 @@ async function _openNoticeWhatsAppModal(title, body) {
 
   let owners = [];
   try {
-    const res = await api.owners.getAll({ limit: 500 });
+    const res = await getCachedOrFetch(
+      'owners:notices-whatsapp:limit=500',
+      CACHE_TTL.OWNERS,
+      () => api.owners.getAll({ limit: 500 })
+    );
     owners = (res.data.owners || []).filter(o => o.phone);
   } catch { /* silent — mostrar igual el modal */ }
 

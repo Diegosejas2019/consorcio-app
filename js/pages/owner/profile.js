@@ -1,8 +1,9 @@
-import { state, setState } from '../../core/state.js';
+import { state, setState, cache } from '../../core/state.js';
 import { toast } from '../../ui/toast.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { errorState } from '../../ui/helpers.js';
 import { svgIcon } from '../../ui/icons.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 // ── Helpers ───────────────────────────────────────────────────
 function escapeHtml(str) {
@@ -15,7 +16,7 @@ export async function renderOwnerProfile() {
   el.innerHTML = `<div style="padding:16px">${skeleton(4)}</div>`;
 
   try {
-    const res   = await api.auth.getMe();
+    const res   = await getCachedOrFetch('auth:me', CACHE_TTL.AUTH_ME, () => api.auth.getMe());
     const user  = res.data.user;
     const units = res.data.units ?? [];
     setState({ user });
@@ -119,6 +120,7 @@ window.saveOwnerProfile = async function () {
 
   try {
     await api.owners.update(state.user._id, { name, phone });
+    cache.del('auth:me');
     setState({ user: { ...state.user, name, phone } });
     window.setupTopBar();
     toast('Perfil actualizado correctamente', 'success');
