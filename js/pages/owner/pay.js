@@ -423,6 +423,15 @@ export function updatePayTotal() {
   if (balanceInput) balanceInput.value = hasBalance ? _balanceDebtAmount : '';
 }
 
+function getSelectedPaymentConcepts() {
+  const selected = [...document.querySelectorAll('.period-card.is-selected')];
+  return {
+    periods: selected.filter(c => c.dataset.type === 'period').map(c => c.dataset.value),
+    extras: selected.filter(c => c.dataset.type === 'extra').map(c => c.dataset.value),
+    balanceAmount: selected.some(c => c.dataset.type === 'balance') ? _balanceDebtAmount : 0,
+  };
+}
+
 export function updateDebtTotal() {
   const checks  = document.querySelectorAll('.op-debt-check:checked');
   const total   = checks.length * _ownerFee;
@@ -498,14 +507,13 @@ export function clearFile() {
 }
 
 export async function submitReceipt() {
-  const month  = document.getElementById('pay-month')?.value;
-  const amount = document.getElementById('pay-amount')?.value;
-  const balanceAmount = Number(document.getElementById('pay-balance-amount')?.value || 0);
+  const { periods, extras, balanceAmount } = getSelectedPaymentConcepts();
+  const month  = periods[0] || document.getElementById('pay-month')?.value;
+  const amount = periods.length > 0 ? document.getElementById('pay-amount')?.value : '';
   const note   = document.getElementById('pay-note')?.value?.trim();
-  const extras = [..._selectedExtras];
   const isBalanceOnly = balanceAmount > 0 && !month && extras.length === 0;
 
-  if (balanceAmount > 0 && (month || extras.length > 0)) {
+  if (balanceAmount > 0 && (periods.length > 0 || extras.length > 0)) {
     toast('Para subir comprobante, paga la deuda inicial en un comprobante separado.', 'error');
     return;
   }
@@ -538,6 +546,7 @@ export async function submitReceipt() {
   if (!selectedFile)                    { toast('Adjuntá el comprobante (PDF o imagen)', 'error'); return; }
 
   const formData = new FormData();
+  periods.forEach(period => formData.append('periods', period));
   if (month) formData.append('month', month);
   if (month) formData.append('amount', amount);
   if (note)  formData.append('ownerNote', note);
