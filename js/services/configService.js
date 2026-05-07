@@ -37,6 +37,7 @@ const FEATURE_LABELS = {
   votes:        'Votaciones',
   expenses:     'Gastos',
   providers:    'Proveedores',
+  documents:    'Documentacion',
 };
 
 async function _renderFeaturesCard() {

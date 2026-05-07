@@ -15,6 +15,7 @@ export const CACHE_TTL = {
   PAYMENTS_SHORT: 15 * 1000,
   REPORTS:        60 * 1000,
   PROVIDERS:      60 * 1000,
+  DOCUMENTS:      60 * 1000,
   UNITS:          60 * 1000,
 };
 
@@ -46,6 +47,7 @@ export function invalidateAppCaches(scope) {
     owners:   ['owners:', 'units:', 'owner-home', 'owner-pay', 'admin-home', 'dashboard:'],
     units:    ['units:', 'owners:', 'owner-home', 'owner-pay', 'admin-home', 'dashboard:'],
     providers:['providers:', 'expenses:'],
+    documents:['documents:'],
     reports:  ['reports:'],
     all:      [''],
   };

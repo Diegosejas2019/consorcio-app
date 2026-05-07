@@ -2969,3 +2969,79 @@ body.is-offline #app-shell { padding-top: 36px; }
 
 /* ── Divider ── */
 .divider { height: 1px; background: var(--border); margin: 12px 0; }
+/* Organization documents */
+.admin-docs-head { align-items: flex-start; gap: .75rem; }
+.doc-filters {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: .6rem;
+}
+.doc-grid {
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+}
+.doc-card {
+  padding: .9rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: .9rem;
+  align-items: flex-start;
+}
+.doc-card-main {
+  display: flex;
+  gap: .75rem;
+  min-width: 0;
+  flex: 1;
+}
+.doc-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--accent);
+  background: rgba(156,242,123,.1);
+}
+.doc-content { min-width: 0; display: flex; flex-direction: column; gap: .25rem; }
+.doc-title-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.doc-actions {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.doc-chip-row {
+  display: flex;
+  gap: .45rem;
+  overflow-x: auto;
+  padding: 14px 0 2px;
+}
+.doc-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: .45rem .7rem;
+  white-space: nowrap;
+  font: var(--t-sm);
+}
+.doc-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(156,242,123,.1);
+}
+
+@media (max-width: 720px) {
+  .doc-filters { grid-template-columns: 1fr; }
+  .doc-card { flex-direction: column; }
+  .doc-actions { width: 100%; justify-content: stretch; }
+  .doc-actions .btn,
+  .owner-doc-card > .btn { flex: 1; }
+}

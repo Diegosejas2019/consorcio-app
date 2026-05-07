@@ -460,9 +460,10 @@ const ADMIN_NAV_GROUPS = {
   },
   mas: {
     label: 'Más',
-    pages: ['page-admin-providers', 'page-admin-settings'],
+    pages: ['page-admin-providers', 'page-admin-documents', 'page-admin-settings'],
     items: [
       { page: 'page-admin-providers', label: 'Proveedores',   fn: 'renderAdminProviders', icon: SVG_S_PROV },
+      { page: 'page-admin-documents', label: 'Documentacion', fn: 'renderAdminDocuments', icon: SVG_S_REPORT },
       { page: 'page-admin-settings',  label: 'Configuración', fn: 'renderAdminSettings',  icon: SVG_S_SETT },
     ],
   },
@@ -471,9 +472,10 @@ const ADMIN_NAV_GROUPS = {
 const OWNER_NAV_GROUPS = {
   comunidad: {
     label: 'Comunidad',
-    pages: ['page-owner-notices', 'page-owner-claims', 'page-owner-expenses', 'page-owner-votes', 'page-owner-visits', 'page-owner-reservations'],
+    pages: ['page-owner-notices', 'page-owner-claims', 'page-owner-expenses', 'page-owner-documents', 'page-owner-votes', 'page-owner-visits', 'page-owner-reservations'],
     items: [
       { page: 'page-owner-expenses',     label: 'Gastos',      fn: 'renderOwnerExpenses',     icon: SVG_S_EXP   },
+      { page: 'page-owner-documents',    label: 'Documentos',  fn: 'renderOwnerDocuments',    icon: SVG_S_REPORT },
       { page: 'page-owner-notices',      label: 'Comunicados', fn: 'renderOwnerNotices',      icon: SVG_S_BELL  },
       { page: 'page-owner-claims',       label: 'Reclamos',    fn: 'renderOwnerClaims',       icon: SVG_S_CLAIM },
       { page: 'page-owner-votes',        label: 'Votaciones',  fn: 'renderOwnerVotes',        icon: SVG_S_VOTE  },
@@ -575,6 +577,11 @@ export function setupNav() {
       <button class="bn-item" data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations" onclick="navToggleGroup('comunidad')">${svgIcon('community',22)}<span>Comunidad</span></button>
       <button class="bn-item" data-page="page-owner-profile" onclick="showPage('page-owner-profile');renderOwnerProfile()">${svgIcon('profile',22)}<span>Perfil</span></button>`;
   }
+
+  nav.querySelector('[data-pages="page-admin-providers,page-admin-settings"]')
+    ?.setAttribute('data-pages', 'page-admin-providers,page-admin-documents,page-admin-settings');
+  nav.querySelector('[data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations"]')
+    ?.setAttribute('data-pages', 'page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-documents,page-owner-votes,page-owner-visits,page-owner-reservations');
 }
 
 // ── Logout ────────────────────────────────────────────────────

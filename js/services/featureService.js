@@ -12,6 +12,8 @@ export const PAGE_FEATURE_MAP = {
   'page-admin-expenses':     'expenses',
   'page-owner-expenses':     'expenses',
   'page-admin-providers':    'providers',
+  'page-admin-documents':    'documents',
+  'page-owner-documents':    'documents',
 };
 
 /**

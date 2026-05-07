@@ -74,6 +74,7 @@ function inferInvalidationScope(endpoint, method) {
   if (endpoint.startsWith('/owners')) return 'owners';
   if (endpoint.startsWith('/units')) return 'units';
   if (endpoint.startsWith('/providers')) return 'providers';
+  if (endpoint.startsWith('/organization-documents')) return 'documents';
   return null;
 }
 
@@ -407,6 +408,15 @@ const api = {
   },
 
   // ── Gastos ────────────────────────────────────────────────────
+  organizationDocuments: {
+    getAll:      (params = {}) => request(`/organization-documents?${new URLSearchParams(params)}`),
+    getOne:      (id)          => request(`/organization-documents/${id}`),
+    create:      (data)        => request('/organization-documents', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
+    update:      (id, data)    => request(`/organization-documents/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
+    delete:      (id)          => request(`/organization-documents/${id}`, { method: 'DELETE' }),
+    downloadUrl: (id)          => `${API_BASE}/organization-documents/${id}/download`,
+  },
+
   expenses: {
     getSummary:       (month) => request(`/expenses/summary${month ? `?month=${encodeURIComponent(month)}` : ''}`),
     getAll:           (params = {}) => request(`/expenses?${new URLSearchParams(params)}`),
