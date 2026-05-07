@@ -27,6 +27,12 @@ const PERIOD_STATUS_LABELS = {
   not_chargeable: 'No corresponde',
 };
 
+const PAYMENT_TYPE_LABELS = {
+  monthly: 'Mensual',
+  extraordinary: 'Extraordinario',
+  balance: 'Saldo anterior',
+};
+
 export const adminPaymentsState = {
   page: 1,
   limit: 10,
@@ -63,6 +69,15 @@ function periodStatusBadge(status) {
     not_chargeable: 'badge-neutral',
   }[status] || 'badge-neutral';
   return `<span class="badge ${cls}">${PERIOD_STATUS_LABELS[status] || status}</span>`;
+}
+
+function paymentPeriodLabel(payment) {
+  if (payment.month) return formatMonth(payment.month);
+  return PAYMENT_TYPE_LABELS[payment.type] || 'Pago manual';
+}
+
+function paymentTypeLabel(payment) {
+  return PAYMENT_TYPE_LABELS[payment.type] || payment.type || 'Mensual';
 }
 
 function buildParams() {
@@ -108,8 +123,8 @@ function renderPendingPayments(owner) {
   return owner.pendingPayments.map(payment => `
     <div class="admin-payment-pending">
       <div>
-        <strong>${formatMonth(payment.month)}</strong>
-        <span>${money(payment.amount)} · ${payment.type || 'monthly'}</span>
+        <strong>${paymentPeriodLabel(payment)}</strong>
+        <span>${money(payment.amount)} - ${paymentTypeLabel(payment)}</span>
       </div>
       <div class="admin-payment-actions">
         ${payment.hasReceipt ? `
@@ -141,7 +156,7 @@ function renderOwnerCard(owner) {
         <div class="owner-avatar">${initial}</div>
         <div class="owner-info">
           <p class="name">${escapeHtml(owner.name)}</p>
-          <p class="unit">${escapeHtml(units)}${owner.email ? ` · ${escapeHtml(owner.email)}` : ''}</p>
+          <p class="unit">${escapeHtml(units)}${owner.email ? ` - ${escapeHtml(owner.email)}` : ''}</p>
         </div>
         <div class="admin-payment-owner-side">
           <span class="badge ${hasDebt ? 'badge-danger' : 'badge-success'}">${hasDebt ? 'Moroso' : 'Al dia'}</span>
@@ -176,7 +191,7 @@ function renderOwnerCard(owner) {
       </div>
 
       <div class="admin-payment-footer">
-        <span>${owner.lastPayment ? `Ultimo pago: ${formatMonth(owner.lastPayment.month)} · ${money(owner.lastPayment.amount)}` : 'Sin pagos aprobados'}</span>
+        <span>${owner.lastPayment ? `Ultimo pago: ${paymentPeriodLabel(owner.lastPayment)} - ${money(owner.lastPayment.amount)}` : 'Sin pagos aprobados'}</span>
         <div>
           <button class="btn btn-ghost btn-sm" onclick="viewOwnerDetail('${owner.id}')">Ver detalle</button>
           <button class="btn btn-primary btn-sm" onclick="openRegisterPaymentModal('${owner.id}', '${jsString(owner.name)}')">Registrar pago</button>
