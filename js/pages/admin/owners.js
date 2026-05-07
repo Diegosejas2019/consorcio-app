@@ -36,6 +36,13 @@ function _ownerUnitDisplay(owner) {
   return _ownerUnitNames(owner).join(', ');
 }
 
+function _paymentPeriodLabel(payment) {
+  if (payment.month) return formatMonth(payment.month);
+  if (payment.type === 'balance') return 'Saldo anterior';
+  if (payment.type === 'extraordinary') return 'Extraordinario';
+  return 'Pago manual';
+}
+
 export async function renderOwnersList() {
   const el = document.getElementById('page-admin-owners');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(4)}</div>`;
@@ -223,7 +230,7 @@ export async function viewOwnerDetail(ownerId) {
             <thead><tr><th>Período</th><th>Importe</th><th>Estado</th><th></th></tr></thead>
             <tbody>${payments.map(p => `
               <tr>
-                <td>${formatMonth(p.month)}</td>
+                <td>${_paymentPeriodLabel(p)}</td>
                 <td>$${p.amount.toLocaleString('es-AR')}</td>
                 <td>${statusBadge(p.status)}</td>
                 <td>
