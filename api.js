@@ -311,7 +311,8 @@ const api = {
 
     sendReminders: () => request('/payments/send-reminders', { method: 'POST' }),
 
-    getAvailableItems: () => request('/payments/available-items'),
+    getAvailableItems: (params = {}) =>
+      request(`/payments/available-items?${new URLSearchParams(params)}`),
   },
 
   // ── Avisos ───────────────────────────────────────────────────

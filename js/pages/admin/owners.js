@@ -1,6 +1,6 @@
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
-import { showLoading } from '../../ui/loading.js';
+import { showLoading, setBtnLoading } from '../../ui/loading.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG, svgIcon } from '../../ui/icons.js';
 import { formatMonth, statusBadge, errorState, downloadReceipt, downloadSystemReceipt, debounce, formatPhone, buildWhatsAppLink, escapeHtml } from '../../ui/helpers.js';
@@ -19,6 +19,13 @@ let _newOwnerSelectedUnitIds = new Set();
 let _newOwnerUnitFilter = '';
 let _lastCheckedEmail = '';
 let _emailCheckResult = null;
+let _registerPaymentOwners = [];
+let _registerPaymentSelectedOwnerId = '';
+let _registerPaymentFile = null;
+let _registerPaymentOwnerFee = 0;
+let _registerPaymentBalanceAmount = 0;
+
+const PAYMENT_FILE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 function _ownerUnitNames(owner) {
   if (!owner?.units?.length) return owner?.unit ? [owner.unit] : [];
@@ -597,11 +604,11 @@ export async function openNewOwnerModal() {
         </small>
       </div>
       <div class="flex gap-1 mt-1">
-        <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cerrar</button>
         <button class="btn btn-primary w-full" id="no-submit-btn" data-requires-network onclick="saveNewOwner()">Crear</button>
       </div>
     </div>`;
-  openModal();
+  openModal(null, undefined, { closeOnBackdrop: false });
   _renderNewOwnerUnitSelect();
 }
 
@@ -696,7 +703,7 @@ export async function saveNewOwner() {
 }
 
 // ── Registrar pago manual (admin) ────────────────────────────
-export async function openRegisterPaymentModal(ownerId, ownerName) {
+export async function openRegisterPaymentModalLegacy(ownerId, ownerName) {
   _ownerDetailCfg = cache.get('config');
   if (!_ownerDetailCfg) {
     try {
@@ -750,7 +757,7 @@ export async function openRegisterPaymentModal(ownerId, ownerName) {
   openModal();
 }
 
-export async function submitRegisterPayment(ownerId) {
+export async function submitRegisterPaymentLegacy(ownerId) {
   const month  = document.getElementById('rp-month')?.value;
   const amount = document.getElementById('rp-amount')?.value;
   const note   = document.getElementById('rp-note')?.value?.trim();
@@ -775,6 +782,346 @@ export async function submitRegisterPayment(ownerId) {
 }
 
 // ── Descargar plantilla Excel (generada en el cliente) ────────
+// Registrar pago manual con conceptos (admin)
+function _money(value) {
+  return `$${Number(value || 0).toLocaleString('es-AR')}`;
+}
+
+function _registerPaymentOwnerOptions() {
+  return _registerPaymentOwners
+    .map(owner => {
+      const id = owner._id || owner.id;
+      const label = [owner.name, _ownerUnitDisplay(owner)].filter(Boolean).join(' - ');
+      return `<option value="${id}" ${String(id) === String(_registerPaymentSelectedOwnerId) ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+    })
+    .join('');
+}
+
+function _selectedRegisterPaymentOwner() {
+  return _registerPaymentOwners.find(owner => String(owner._id || owner.id) === String(_registerPaymentSelectedOwnerId));
+}
+
+function _renderRegisterPaymentShell(bodyHtml = '') {
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:.25rem">Registrar pago</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1rem">Selecciona el propietario y los conceptos a registrar.</p>
+    <div class="flex col gap-2">
+      <div class="form-group">
+        <label>Propietario</label>
+        <select class="select" id="rp-owner" onchange="loadRegisterPaymentOwner(this.value)">
+          <option value="">Seleccionar propietario</option>
+          ${_registerPaymentOwnerOptions()}
+        </select>
+      </div>
+      <div id="rp-owner-context">
+        ${bodyHtml || '<div class="empty" style="padding:1rem 0"><p class="empty-title">Selecciona un propietario</p><p class="empty-sub">Los conceptos disponibles se cargaran despues de elegirlo.</p></div>'}
+      </div>
+      <div class="flex gap-1 mt-1">
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cerrar</button>
+      </div>
+    </div>`;
+  openModal();
+}
+
+function _renderRegisterPaymentLoading() {
+  const target = document.getElementById('rp-owner-context');
+  if (target) target.innerHTML = `<div class="flex col gap-2">${skeleton(4)}</div>`;
+}
+
+function _registerPaymentCard({ type, value, amount, title, subtitle, badge, selected = false }) {
+  return `
+    <label class="period-card${selected ? ' is-selected' : ''}" data-type="${type}" data-value="${escapeHtml(value)}" data-amount="${amount}" onclick="toggleRegisterPaymentCard(this)">
+      <span class="pc-check${selected ? ' is-on' : ''}">${selected ? svgIcon('check', 12) : ''}</span>
+      <div style="flex:1;min-width:0">
+        <div class="row" style="gap:6px">
+          <span class="bright" style="font:var(--t-body-md)">${escapeHtml(title)}</span>
+          ${badge}
+        </div>
+        <div class="muted" style="font:var(--t-sm);margin-top:2px">${escapeHtml(subtitle)}</div>
+      </div>
+      <span class="bright tnum" style="font:var(--t-body-md)">${_money(amount)}</span>
+    </label>`;
+}
+
+function _renderRegisterPaymentContext({ cfg, available, payments, units }) {
+  const owner = _selectedRegisterPaymentOwner();
+  const monthlyFee = cfg?.monthlyFee || 0;
+  _registerPaymentOwnerFee = units.length > 0
+    ? units.reduce((sum, unit) => sum + Number(unit.finalFee ?? monthlyFee), 0)
+    : monthlyFee;
+
+  const pendingBalance = payments.some(payment => payment.type === 'balance' && payment.status === 'pending');
+  _registerPaymentBalanceAmount = owner?.balance < 0 && !pendingBalance ? Math.abs(Number(owner.balance || 0)) : 0;
+  const periods = (available.periods || []).map((period, index) => ({ period, selected: index === 0 }));
+  const extras = (available.extraordinary || []).map(extra => ({
+    id: extra.id || extra._id,
+    title: extra.title || extra.description || 'Concepto extraordinario',
+    amount: Number(extra.amount || 0),
+  }));
+
+  const cards = [
+    _registerPaymentBalanceAmount > 0 ? _registerPaymentCard({
+      type: 'balance',
+      value: 'initial-balance',
+      amount: _registerPaymentBalanceAmount,
+      title: 'Saldo anterior',
+      subtitle: 'Deuda pendiente del propietario',
+      badge: '<span class="badge badge-danger">Saldo</span>',
+    }) : '',
+    ...periods.map(item => _registerPaymentCard({
+      type: 'period',
+      value: item.period,
+      amount: _registerPaymentOwnerFee,
+      title: formatPeriodLabel(item.period),
+      subtitle: 'Expensa ordinaria pendiente',
+      badge: '<span class="badge badge-accent">Periodo</span>',
+      selected: item.selected,
+    })),
+    ...extras.map(extra => _registerPaymentCard({
+      type: 'extra',
+      value: extra.id,
+      amount: extra.amount,
+      title: extra.title,
+      subtitle: 'Concepto extraordinario cobrable',
+      badge: '<span class="badge badge-warning">Extra</span>',
+    })),
+  ].filter(Boolean).join('');
+
+  const target = document.getElementById('rp-owner-context');
+  if (!target) return;
+  target.innerHTML = `
+    <div class="card" style="padding:14px">
+      <div class="row-between" style="align-items:flex-start;gap:12px">
+        <div style="min-width:0">
+          <p class="bright" style="font-weight:700">${escapeHtml(owner?.name || '')}</p>
+          <p class="text-sm text-muted">${escapeHtml(owner?.email || '')}</p>
+          <p class="text-sm text-muted">${escapeHtml(_ownerUnitDisplay(owner) || 'Sin unidades asignadas')}</p>
+        </div>
+        <span class="badge ${owner?.balance < 0 ? 'badge-danger' : 'badge-success'}">${owner?.balance < 0 ? `Debe ${_money(Math.abs(owner.balance))}` : 'Sin saldo anterior'}</span>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:14px">
+      <h3>Conceptos a registrar</h3>
+      <span class="muted" style="font:var(--t-xs)" id="rp-count">0 conceptos</span>
+    </div>
+    ${cards ? `<div class="stack-2" id="rp-cards-list">${cards}</div>` : `
+      <div class="empty" style="padding:1.25rem 0">
+        <p class="empty-title">No hay conceptos pendientes</p>
+        <p class="empty-sub">Este propietario no tiene periodos, extraordinarios ni saldo anterior disponibles.</p>
+      </div>`}
+
+    ${cards ? `
+    <div class="card" style="margin-top:14px;padding:14px">
+      <div class="row-between">
+        <div>
+          <div class="muted" style="font:var(--t-xs);letter-spacing:.12em;text-transform:uppercase">Total a registrar</div>
+          <div class="muted" style="font:var(--t-xs);margin-top:4px" id="rp-count-label">0 conceptos</div>
+        </div>
+        <span class="h-amount tnum accent" style="font-size:30px" id="rp-total">$0</span>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:14px">
+      <label>Comprobante opcional</label>
+      <p class="text-sm text-muted" style="margin:.25rem 0 .6rem">Podés registrar el pago sin comprobante si fue recibido en efectivo u otro medio externo.</p>
+      <div class="upload-area" id="rp-upload-zone" onclick="document.getElementById('rp-file').click()">
+        <div style="width:46px;height:46px;border-radius:50%;background:var(--accent-lt);color:var(--accent);display:grid;place-items:center">${svgIcon('upload', 22)}</div>
+        <div class="bright" style="font-weight:700;margin-top:8px">Adjuntar comprobante</div>
+        <div class="muted text-sm">PDF o imagen - max. 10 MB</div>
+      </div>
+      <input type="file" id="rp-file" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic" class="hidden" onchange="handleRegisterPaymentFile(event)">
+      <div id="rp-file-preview" class="hidden"></div>
+    </div>
+    <div class="form-group">
+      <label>Nota (opcional)</label>
+      <textarea class="input textarea" id="rp-note" placeholder="Ej: Pago recibido en efectivo"></textarea>
+    </div>
+    <button class="btn btn-primary btn-lg w-full" id="rp-submit" data-requires-network onclick="submitRegisterPayment()">
+      ${svgIcon('check', 18)} Registrar pago
+    </button>` : ''}
+  `;
+  updateRegisterPaymentTotal();
+}
+
+export async function openRegisterPaymentModal(ownerId) {
+  _registerPaymentFile = null;
+  _registerPaymentSelectedOwnerId = ownerId || '';
+
+  if (!ownersListState.all.length) {
+    _renderRegisterPaymentShell(`<div class="flex col gap-2">${skeleton(4)}</div>`);
+    try {
+      const res = await getCachedOrFetch(
+        'owners:list:limit=500',
+        CACHE_TTL.OWNERS,
+        () => api.owners.getAll({ limit: 500 })
+      );
+      ownersListState.all = res.data.owners || [];
+    } catch (err) {
+      document.getElementById('rp-owner-context').innerHTML = errorState(err.message);
+      return;
+    }
+  }
+
+  _registerPaymentOwners = ownersListState.all;
+  _renderRegisterPaymentShell();
+  if (_registerPaymentSelectedOwnerId) {
+    await loadRegisterPaymentOwner(_registerPaymentSelectedOwnerId);
+  }
+}
+
+export async function loadRegisterPaymentOwner(ownerId) {
+  _registerPaymentSelectedOwnerId = ownerId || '';
+  _registerPaymentFile = null;
+  if (!_registerPaymentSelectedOwnerId) {
+    _renderRegisterPaymentShell();
+    return;
+  }
+
+  _renderRegisterPaymentLoading();
+  try {
+    const [cfgRes, availableRes, paymentsRes, unitsRes] = await Promise.all([
+      api.config.get(),
+      api.payments.getAvailableItems({ ownerId: _registerPaymentSelectedOwnerId }),
+      api.payments.getAll({ ownerId: _registerPaymentSelectedOwnerId, limit: 50 }),
+      api.units.getAll({ ownerId: _registerPaymentSelectedOwnerId }),
+    ]);
+    _renderRegisterPaymentContext({
+      cfg:       cfgRes.data.config || {},
+      available: availableRes.data || {},
+      payments:  paymentsRes.data.payments || [],
+      units:     unitsRes.data.units || [],
+    });
+  } catch (err) {
+    const target = document.getElementById('rp-owner-context');
+    if (target) target.innerHTML = errorState(err.message, `loadRegisterPaymentOwner('${_registerPaymentSelectedOwnerId}')`);
+  }
+}
+
+export function toggleRegisterPaymentCard(el) {
+  const card = el.closest('.period-card') || el;
+  const isOn = card.classList.toggle('is-selected');
+  const check = card.querySelector('.pc-check');
+  if (check) {
+    check.classList.toggle('is-on', isOn);
+    check.innerHTML = isOn ? svgIcon('check', 12) : '';
+  }
+  updateRegisterPaymentTotal();
+}
+
+export function updateRegisterPaymentTotal() {
+  const selected = [...document.querySelectorAll('#rp-cards-list .period-card.is-selected')];
+  const total = selected.reduce((sum, card) => sum + Number(card.dataset.amount || 0), 0);
+  const count = selected.length;
+  const totalEl = document.getElementById('rp-total');
+  const countEl = document.getElementById('rp-count');
+  const labelEl = document.getElementById('rp-count-label');
+  if (totalEl) totalEl.textContent = _money(total);
+  if (countEl) countEl.textContent = `${count} concepto${count !== 1 ? 's' : ''}`;
+  if (labelEl) labelEl.textContent = count > 0 ? `${count} concepto${count !== 1 ? 's' : ''} seleccionado${count !== 1 ? 's' : ''}` : '0 conceptos';
+}
+
+export function handleRegisterPaymentFile(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!PAYMENT_FILE_TYPES.has(file.type)) {
+    toast('Solo se aceptan PDF o imagenes JPG, PNG, WebP o HEIC.', 'error');
+    clearRegisterPaymentFile();
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    toast('El comprobante no puede superar los 10 MB.', 'error');
+    clearRegisterPaymentFile();
+    return;
+  }
+  _registerPaymentFile = file;
+  document.getElementById('rp-upload-zone')?.classList.add('hidden');
+  const preview = document.getElementById('rp-file-preview');
+  if (!preview) return;
+  preview.classList.remove('hidden');
+  preview.innerHTML = `
+    <div class="upload-preview">
+      <div class="upload-preview-icon">${file.type.startsWith('image/') ? SVG.upload : SVG.pdf}</div>
+      <div style="flex:1;min-width:0">
+        <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(file.name)}</p>
+        <small class="text-muted">${(file.size / 1024).toFixed(1)} KB</small>
+      </div>
+      <button class="btn-icon" onclick="clearRegisterPaymentFile()" title="Quitar">x</button>
+    </div>`;
+}
+
+export function clearRegisterPaymentFile() {
+  _registerPaymentFile = null;
+  const input = document.getElementById('rp-file');
+  if (input) input.value = '';
+  document.getElementById('rp-file-preview')?.classList.add('hidden');
+  document.getElementById('rp-upload-zone')?.classList.remove('hidden');
+}
+
+export async function submitRegisterPayment() {
+  const ownerId = document.getElementById('rp-owner')?.value;
+  const selected = [...document.querySelectorAll('#rp-cards-list .period-card.is-selected')];
+  const periods = selected.filter(card => card.dataset.type === 'period').map(card => card.dataset.value);
+  const extras = selected.filter(card => card.dataset.type === 'extra').map(card => card.dataset.value);
+  const hasBalance = selected.some(card => card.dataset.type === 'balance');
+  const total = selected.reduce((sum, card) => sum + Number(card.dataset.amount || 0), 0);
+  const note = document.getElementById('rp-note')?.value?.trim();
+
+  if (!ownerId) {
+    toast('Selecciona un propietario.', 'error');
+    return;
+  }
+  if (selected.length === 0) {
+    toast('Seleccioná al menos un período, concepto extraordinario o saldo a registrar.', 'error');
+    return;
+  }
+  if (hasBalance && (periods.length > 0 || extras.length > 0)) {
+    toast('El saldo anterior debe registrarse en un pago separado.', 'error');
+    return;
+  }
+  if (total <= 0) {
+    toast('El importe debe ser mayor a cero.', 'error');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('ownerId', ownerId);
+  if (hasBalance) {
+    formData.append('balanceAmount', String(_registerPaymentBalanceAmount));
+  } else {
+    periods.forEach(period => formData.append('periods', period));
+    if (periods.length === 1) formData.append('month', periods[0]);
+    if (periods.length > 0) formData.append('amount', String(_registerPaymentOwnerFee));
+    extras.forEach(id => formData.append('extraordinaryIds', id));
+  }
+  if (note) formData.append('ownerNote', note);
+  if (_registerPaymentFile) formData.append('receipt', _registerPaymentFile);
+
+  const btn = document.getElementById('rp-submit');
+  setBtnLoading(btn, true);
+  try {
+    const res = await api.payments.create(formData);
+    const payment = res.data.payment || res.data.payments?.[0];
+    const status = payment?.status || 'pending';
+    toast(
+      status === 'approved'
+        ? 'Pago registrado y aprobado correctamente.'
+        : status === 'pending'
+          ? 'Pago registrado correctamente y quedó pendiente de aprobación.'
+          : 'Pago registrado correctamente.',
+      'success'
+    );
+    _registerPaymentFile = null;
+    window.gestionarInvalidateCaches?.('payments');
+    await viewOwnerDetail(ownerId);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+// Descargar plantilla Excel (generada en el cliente)
 export function downloadBulkTemplate() {
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([
@@ -956,6 +1303,11 @@ window.openNewOwnerModal           = openNewOwnerModal;
 window.checkNewOwnerEmail          = checkNewOwnerEmail;
 window.saveNewOwner                = saveNewOwner;
 window.openRegisterPaymentModal    = openRegisterPaymentModal;
+window.loadRegisterPaymentOwner    = loadRegisterPaymentOwner;
+window.toggleRegisterPaymentCard   = toggleRegisterPaymentCard;
+window.updateRegisterPaymentTotal  = updateRegisterPaymentTotal;
+window.handleRegisterPaymentFile   = handleRegisterPaymentFile;
+window.clearRegisterPaymentFile    = clearRegisterPaymentFile;
 window.submitRegisterPayment       = submitRegisterPayment;
 window.downloadBulkTemplate        = downloadBulkTemplate;
 window.openBulkOwnerModal          = openBulkOwnerModal;
