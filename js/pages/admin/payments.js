@@ -142,13 +142,28 @@ function renderPendingPayments(owner) {
   `).join('');
 }
 
+function renderDebtTags(owner) {
+  const monthly = (owner.unpaidPeriods || []).slice(0, 4)
+    .map(period => `<span>${formatMonth(period)}</span>`);
+  const balance = Number(owner.balanceOwed || 0) > 0
+    ? [`<span>Saldo anterior ${money(owner.balanceOwed)}</span>`]
+    : [];
+  const extras = (owner.extraordinaryOwed || []).slice(0, 4)
+    .map(expense => `<span>${escapeHtml(expense.title || 'Extraordinario')} ${money(expense.amount)}</span>`);
+  const hiddenCount = Math.max(0, (owner.unpaidPeriods || []).length - 4)
+    + Math.max(0, (owner.extraordinaryOwed || []).length - 4);
+  const more = hiddenCount > 0 ? [`<span>+${hiddenCount} mas</span>`] : [];
+  const tags = [...monthly, ...balance, ...extras, ...more];
+
+  return tags.length ? tags.join('') : '<em>Sin deuda registrada</em>';
+}
+
 function renderOwnerCard(owner) {
   const units = ownerUnits(owner) || 'Sin unidad';
   const totalOwed = Number(owner.totalOwed || 0);
   const hasDebt = totalOwed > 0;
   const initial = (owner.name || '?').trim().slice(0, 1).toUpperCase();
   const visiblePaid = owner.paidPeriods?.slice(-4).reverse() || [];
-  const visibleUnpaid = owner.unpaidPeriods?.slice(0, 4) || [];
 
   return `
     <article class="admin-payment-card">
@@ -178,9 +193,9 @@ function renderOwnerCard(owner) {
           </div>
         </div>
         <div>
-          <span class="admin-payment-label">Periodos adeudados</span>
+          <span class="admin-payment-label">Conceptos adeudados</span>
           <div class="admin-payment-tags is-debt">
-            ${visibleUnpaid.length ? visibleUnpaid.map(p => `<span>${formatMonth(p)}</span>`).join('') : '<em>Sin deuda mensual</em>'}
+            ${renderDebtTags(owner)}
           </div>
         </div>
       </div>
