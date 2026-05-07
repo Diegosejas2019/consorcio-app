@@ -300,6 +300,9 @@ const api = {
 
     getDashboard: (year) => request(`/payments/dashboard${year ? `?year=${year}` : ''}`),
 
+    getAdminOwners: (params = {}) =>
+      request(`/payments/admin/owners?${new URLSearchParams(params)}`),
+
     getReceiptUrl: (id) => `${API_BASE}/payments/${id}/receipt`,
 
     getSystemReceipt: (id) => request(`/payments/${id}/system-receipt`),

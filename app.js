@@ -29,6 +29,7 @@ import './js/services/configService.js';
 
 // ── Admin pages ───────────────────────────────────────────────
 import { renderAdminHome }         from './js/pages/admin/home.js';
+import { renderAdminPayments }     from './js/pages/admin/payments.js';
 import { renderAdminDashboard }    from './js/pages/admin/dashboard.js';
 import { renderOwnersList }        from './js/pages/admin/owners.js';
 import { renderAdminUnits }        from './js/pages/admin/units.js';
@@ -62,6 +63,7 @@ import { renderTermsPage }         from './js/pages/legal/terms.js';
 
 // ── Registrar renderers en el router ─────────────────────────
 PAGE_RENDERERS['page-admin-home']      = () => renderAdminHome();
+PAGE_RENDERERS['page-admin-payments']  = () => renderAdminPayments();
 PAGE_RENDERERS['page-admin-dashboard'] = () => renderAdminDashboard();
 PAGE_RENDERERS['page-admin-owners']    = () => renderOwnersList();
 PAGE_RENDERERS['page-admin-units']     = () => renderAdminUnits();

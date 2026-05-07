@@ -411,6 +411,7 @@ const SVG_GRID4 = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" st
 
 // Submenu-sized icons (19px)
 const SVG_S_DASH  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`;
+const SVG_S_PAY   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12.5a1.5 1.5 0 1 0 0 3H21v-3z"/><path d="M6 9h9"/></svg>`;
 const SVG_S_EXP   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>`;
 const SVG_S_USERS = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`;
 const SVG_S_BELL  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`;
@@ -433,9 +434,10 @@ const SVG_PROFILE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"
 const ADMIN_NAV_GROUPS = {
   finanzas: {
     label: 'Finanzas',
-    pages: ['page-admin-dashboard', 'page-admin-expenses', 'page-admin-report', 'page-admin-employees', 'page-admin-salaries'],
+    pages: ['page-admin-dashboard', 'page-admin-payments', 'page-admin-expenses', 'page-admin-report', 'page-admin-employees', 'page-admin-salaries'],
     items: [
       { page: 'page-admin-dashboard', label: 'Dashboard', fn: 'renderAdminDashboard', icon: SVG_S_DASH   },
+      { page: 'page-admin-payments',  label: 'Pagos',     fn: 'renderAdminPayments',  icon: SVG_S_PAY    },
       { page: 'page-admin-expenses',  label: 'Gastos',    fn: 'renderAdminExpenses',  icon: SVG_S_EXP    },
       { page: 'page-admin-report',    label: 'Informe',   fn: 'renderAdminReport',    icon: SVG_S_REPORT },
       { page: 'page-admin-employees', label: 'Empleados', fn: 'renderAdminEmployees', icon: SVG_S_EMP    },
@@ -562,7 +564,7 @@ export function setupNav() {
     _navCurrentGroups = ADMIN_NAV_GROUPS;
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-admin-home" onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
-      <button class="nav-item" data-pages="page-admin-dashboard,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
+      <button class="nav-item" data-pages="page-admin-dashboard,page-admin-payments,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
       <button class="nav-item" data-pages="page-admin-owners,page-admin-units,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
       <button class="nav-item" data-pages="page-admin-providers,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
   } else {

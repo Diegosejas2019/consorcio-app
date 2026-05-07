@@ -37,7 +37,7 @@ export function invalidateCachePrefixes(prefixes = []) {
 
 export function invalidateAppCaches(scope) {
   const groups = {
-    payments: ['payments:', 'owner-home', 'admin-home', 'dashboard:', 'reports:'],
+    payments: ['payments:', 'admin-payments:', 'owner-home', 'admin-home', 'dashboard:', 'reports:'],
     notices:  ['notices:', 'owner-home', 'admin-home'],
     claims:   ['claims:', 'owner-home', 'admin-home'],
     config:   ['config', 'owner-home', 'admin-home', 'dashboard:', 'reports:', 'owner-pay'],

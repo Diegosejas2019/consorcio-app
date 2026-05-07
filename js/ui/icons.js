@@ -39,6 +39,7 @@ export function svgIcon(name, size = 22, stroke = 1.75) {
     gym:         `<path d="M3 12h18M5 8v8M19 8v8M9 5v14M15 5v14"/>`,
     pie:         `<path d="M12 3v9h9a9 9 0 1 1-9-9z"/><path d="M14 3a7 7 0 0 1 7 7h-7V3z"/>`,
     building:    `<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h2M13 8h2M9 12h2M13 12h2M9 16h2M13 16h2"/>`,
+    'refresh-cw': `<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/>`,
   };
   const inner = paths[name] || '';
   return `<svg ${a}>${inner}</svg>`;
