@@ -95,6 +95,7 @@ export function renderUnitsView() {
                 <div class="flex col" style="align-items:flex-end;gap:.25rem">
                   ${statusLabel(u)}
                   <small>$${(u.finalFee || 0).toLocaleString('es-AR')}</small>
+                  ${Number(u.balance || 0) < 0 ? `<small style="color:var(--danger)">Debe $${Math.abs(Number(u.balance || 0)).toLocaleString('es-AR')}</small>` : ''}
                 </div>
               </div>`).join('')}
         </div>

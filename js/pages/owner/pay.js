@@ -13,6 +13,7 @@ let _ownerFee     = 0;
 let _selectedExtras = new Set();
 let _extraAmounts   = {};
 let _balanceDebtAmount = 0;
+let _balanceDebtUnitId = '';
 const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 function currentPeriodCode() {
@@ -92,7 +93,16 @@ export async function renderUploadPage() {
     const hasDebt  = isDebtor && unpaidPeriods.length > 0;
     const hasPendingBalancePayment = payments.some(p => p.type === 'balance' && p.status === 'pending');
     const hasBalanceDebt = (owner?.balance || 0) < 0 && !hasPendingBalancePayment;
+    const unitDebts = (owner?.unitDebts || []).filter(u => Number(u.balanceOwed || 0) > 0);
     _balanceDebtAmount = hasBalanceDebt ? Math.abs(Number(owner.balance || 0)) : 0;
+    _balanceDebtUnitId = unitDebts.length === 1 ? String(unitDebts[0]._id || unitDebts[0].id || '') : '';
+    const unitDebtHtml = unitDebts.length > 1
+      ? `<div class="flex col gap-1">${unitDebts.map(u => `
+          <div class="flex between text-sm" style="padding:.4rem .55rem;background:rgba(255,255,255,.04);border-radius:8px">
+            <span>${u.name || 'Unidad'}</span>
+            <strong style="color:#f87171">-$${Number(u.balanceOwed || 0).toLocaleString('es-AR')}</strong>
+          </div>`).join('')}</div>`
+      : '';
 
     // ── Sección de saldo anterior ────────────────────────────────
     let balanceDebtHtml = '';
@@ -108,6 +118,7 @@ export async function renderUploadPage() {
               <span class="text-sm text-muted">Saldo pendiente</span>
               <strong style="color:#f87171">-$${Math.abs(owner.balance).toLocaleString('es-AR')}</strong>
             </div>
+            ${unitDebtHtml}
             <div class="form-group">
               <label>Importe a pagar ($)</label>
               <input class="input" type="number" id="balance-amount" value="${Math.abs(owner.balance)}" min="1" placeholder="Ingresá el importe">
@@ -523,6 +534,7 @@ export async function submitReceipt() {
     if (!selectedFile) { toast('Adjunta el comprobante (PDF o imagen)', 'error'); return; }
     const formData = new FormData();
     formData.append('balanceAmount', String(balanceAmount));
+    if (_balanceDebtUnitId) formData.append('balanceUnitId', _balanceDebtUnitId);
     if (note) formData.append('ownerNote', note);
     formData.append('receipt', selectedFile);
 
@@ -617,6 +629,7 @@ export async function submitBalancePayment() {
 
   const formData = new FormData();
   formData.append('amount', amount);
+  if (_balanceDebtUnitId) formData.append('balanceUnitId', _balanceDebtUnitId);
   formData.append('receipt', _selectedBalanceFile);
 
   const btn = document.getElementById('btn-submit-balance');
