@@ -429,6 +429,7 @@ function getSelectedPaymentConcepts() {
     periods: selected.filter(c => c.dataset.type === 'period').map(c => c.dataset.value),
     extras: selected.filter(c => c.dataset.type === 'extra').map(c => c.dataset.value),
     balanceAmount: selected.some(c => c.dataset.type === 'balance') ? _balanceDebtAmount : 0,
+    totalAmount: selected.reduce((sum, c) => sum + Number(c.dataset.amount || 0), 0),
   };
 }
 
@@ -507,9 +508,9 @@ export function clearFile() {
 }
 
 export async function submitReceipt() {
-  const { periods, extras, balanceAmount } = getSelectedPaymentConcepts();
+  const { periods, extras, balanceAmount, totalAmount } = getSelectedPaymentConcepts();
   const month  = periods[0] || document.getElementById('pay-month')?.value;
-  const amount = periods.length > 0 ? document.getElementById('pay-amount')?.value : '';
+  const amount = totalAmount > 0 ? String(totalAmount) : '';
   const note   = document.getElementById('pay-note')?.value?.trim();
   const isBalanceOnly = balanceAmount > 0 && !month && extras.length === 0;
 
@@ -547,8 +548,8 @@ export async function submitReceipt() {
 
   const formData = new FormData();
   periods.forEach(period => formData.append('periods', period));
-  if (month) formData.append('month', month);
-  if (month) formData.append('amount', amount);
+  if (periods.length === 1) formData.append('month', periods[0]);
+  if (periods.length > 0) formData.append('amount', amount);
   if (note)  formData.append('ownerNote', note);
   extras.forEach(id => formData.append('extraordinaryIds', id));
   formData.append('receipt', selectedFile);
