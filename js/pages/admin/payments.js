@@ -162,11 +162,12 @@ function renderOwnerCard(owner) {
   const units = ownerUnits(owner) || 'Sin unidad';
   const totalOwed = Number(owner.totalOwed || 0);
   const hasDebt = totalOwed > 0;
+  const hasPendingReview = (owner.pendingPayments || []).length > 0;
   const initial = (owner.name || '?').trim().slice(0, 1).toUpperCase();
   const visiblePaid = owner.paidPeriods?.slice(-4).reverse() || [];
 
   return `
-    <article class="admin-payment-card">
+    <article class="admin-payment-card ${hasPendingReview ? 'has-pending-review' : ''}">
       <div class="admin-payment-owner">
         <div class="owner-avatar">${initial}</div>
         <div class="owner-info">

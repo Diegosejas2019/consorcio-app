@@ -925,10 +925,29 @@ body.is-offline #app-shell { padding-top: 36px; }
 }
 .admin-payments-list { display: flex; flex-direction: column; gap: .75rem; }
 .admin-payment-card {
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: 8px;
   padding: .85rem;
+}
+.admin-payment-card.has-pending-review {
+  border-color: color-mix(in srgb, var(--warning) 56%, var(--border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--warning) 10%, transparent), transparent 42%),
+    var(--surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--warning) 18%, transparent),
+    0 14px 34px color-mix(in srgb, var(--warning) 16%, transparent);
+}
+.admin-payment-card.has-pending-review::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--warning);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--warning) 55%, transparent);
 }
 .admin-payment-owner { display: flex; align-items: center; gap: .75rem; }
 .admin-payment-owner-side {
