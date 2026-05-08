@@ -289,23 +289,24 @@ export async function renderUploadPage() {
         <!-- Tab content: Subir comprobante -->
         <div id="panel-upload">
           <div class="section-head"><h3>Comprobante</h3></div>
-          <div class="upload-area" id="upload-zone" onclick="document.getElementById('file-input').click()">
-            <div style="width:52px;height:52px;border-radius:50%;background:var(--accent-lt);color:var(--accent);display:grid;place-items:center">
-              ${svgIcon('upload', 24)}
-            </div>
-            <div class="bright" style="font:var(--t-h3);margin-top:10px">Arrastrá tu archivo</div>
-            <div class="muted" style="font:var(--t-sm);margin-top:4px">o tocá para seleccionar</div>
-            <span class="badge" style="margin-top:12px;background:var(--surface-3)">PDF o imagen · máx. 10 MB</span>
-          </div>
+          <button class="upload-tile" id="upload-zone" onclick="document.getElementById('file-input').click()">
+            <span class="ut-icon">${svgIcon('upload', 18)}</span>
+            <span class="ut-body">
+              <span class="ut-title">Tocá para seleccionar</span>
+              <span class="ut-sub">PDF o imagen · máx. 10 MB</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex-shrink:0"><polyline points="6 4 10 8 6 12"/></svg>
+          </button>
           <input type="file" id="file-input" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic" class="hidden" onchange="handleFileSelect(event)">
           <div id="file-preview" class="hidden"></div>
-          <div class="field" style="margin-top:16px">
-            <label class="field-label">Nota (opcional)</label>
-            <textarea class="input textarea" id="pay-note" placeholder="Ej: Transferencia Nº 12345…"></textarea>
-          </div>
-          <button class="btn btn-primary btn-lg pay-submit-inline pay-submit-btn" id="btn-submit-receipt-inline" data-requires-network onclick="submitReceipt()">
-            ${svgIcon('check', 18)} Enviar comprobante · $${initTotal.toLocaleString('es-AR')}
-          </button>
+          <details class="note-toggle">
+            <summary>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Agregar nota (opcional)
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><polyline points="4 6 8 10 12 6"/></svg>
+            </summary>
+            <textarea class="input textarea" id="pay-note" placeholder="Ej: Transferencia Nº 12345…" style="margin-top:8px;min-height:72px"></textarea>
+          </details>
         </div>
 
         ${hasMercadoPago ? `
@@ -494,20 +495,18 @@ function showFilePreview(file) {
     return;
   }
   document.getElementById('upload-zone').classList.add('hidden');
-  const preview    = document.getElementById('file-preview');
-  const isImage    = file.type.startsWith('image/');
-  const iconOrThumb = isImage
-    ? `<img src="${URL.createObjectURL(file)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">`
-    : `<div class="upload-preview-icon">${SVG.pdf}</div>`;
+  const preview = document.getElementById('file-preview');
   preview.classList.remove('hidden');
   preview.innerHTML = `
-    <div class="upload-preview">
-      ${iconOrThumb}
-      <div style="flex:1;min-width:0">
-        <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${file.name}</p>
-        <small class="text-muted">${(file.size / 1024).toFixed(1)} KB · PDF</small>
-      </div>
-      <button class="btn-icon" onclick="clearFile()" title="Quitar">✕</button>
+    <div class="upload-tile is-attached">
+      <span class="ut-icon ut-icon-ok">${svgIcon('check', 18)}</span>
+      <span class="ut-body">
+        <span class="ut-title bright" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${file.name}</span>
+        <span class="ut-sub">${(file.size / 1024).toFixed(0)} KB · listo para enviar</span>
+      </span>
+      <button class="ut-x" onclick="clearFile()" aria-label="Quitar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>`;
 }
 
