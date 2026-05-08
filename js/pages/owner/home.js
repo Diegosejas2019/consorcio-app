@@ -16,11 +16,14 @@ export function renderOwnerView() {
 
 // ─── Helpers ──────────────────────────────────────────────────
 
-function deriveStatus(payments, cfg, owner) {
+function deriveStatus(payments, cfg, owner, availablePeriods = []) {
   const code    = cfg.expenseMonthCode;
   const paid    = code ? payments.find(p => p.month === code && p.status === 'approved') : null;
   const pending = code ? payments.find(p => p.month === code && p.status === 'pending')  : null;
-  if (pending) return { kind: 'pending', tone: 'yellow', label: 'Pago en revisión', pendingId: pending._id };
+  const latestPendingMonthly = payments.find(p => p.status === 'pending' && p.type === 'monthly');
+  const currentPeriodHidden = code && !availablePeriods.includes(code);
+  const fallbackPending = !paid && !pending && (!code || currentPeriodHidden) ? latestPendingMonthly : null;
+  if (pending || fallbackPending) return { kind: 'pending', tone: 'yellow', label: 'Comprobante enviado', payment: pending || fallbackPending };
   if (paid)    return { kind: 'paid',    tone: 'green',  label: 'Al día',           payment: paid };
   if (owner.isDebtor) return { kind: 'overdue', tone: 'red', label: 'Tenés deuda' };
   return { kind: 'due', tone: 'green', label: 'Próximo a vencer' };
@@ -113,11 +116,41 @@ function noticePreview(n) {
 function heroStatusBadge(status) {
   const map = {
     paid:    { cls: 'badge-success', dot: 's-success', label: 'Al día' },
-    pending: { cls: 'badge-warning', dot: 's-warning', label: 'Pago en revisión' },
+    pending: { cls: 'badge-warning', dot: 's-warning', label: 'Comprobante enviado' },
     overdue: { cls: 'badge-danger',  dot: 's-danger',  label: 'Vencido' },
     due:     { cls: 'badge-warning', dot: 's-warning', label: 'Próximo a vencer' },
   };
   return map[status.kind] || map.due;
+}
+
+function heroInfoHtml(status, due, progressPct) {
+  if (status.kind === 'pending') {
+    const sentDate = status.payment?.createdAt ? formatDate(status.payment.createdAt) : null;
+    return `
+      <div style="display:flex;align-items:center;gap:12px;margin-top:16px;margin-bottom:16px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px">
+        <div style="width:44px;height:44px;border-radius:12px;background:var(--warning-bg);color:var(--warning);display:grid;place-items:center;flex-shrink:0">
+          ${svgIcon('check', 20)}
+        </div>
+        <div style="flex:1">
+          <div class="bright" style="font:var(--t-body-md)">Comprobante en revisión</div>
+          <div class="muted" style="font:var(--t-sm);margin-top:2px">${sentDate ? `Enviado el ${sentDate}. ` : ''}Te avisamos cuando el administrador lo apruebe.</div>
+        </div>
+      </div>`;
+  }
+
+  if (due.days === null) return `<div style="height:20px"></div>`;
+
+  return `
+    <div style="display:flex;align-items:center;gap:12px;margin-top:16px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px">
+      <div style="width:44px;height:44px;border-radius:12px;background:var(--warning-bg);color:var(--warning);display:grid;place-items:center;flex-shrink:0">
+        ${svgIcon('calendar', 20)}
+      </div>
+      <div style="flex:1">
+        <div class="bright" style="font:var(--t-body-md)">Vence el <span style="color:var(--warning)">${due.label}</span></div>
+        <div class="muted tnum" style="font:var(--t-sm);margin-top:2px">en ${due.days} días · 23:59hs</div>
+      </div>
+    </div>
+    <div class="progress" style="margin-top:14px;margin-bottom:16px"><span style="width:${progressPct}%"></span></div>`;
 }
 
 function heroCtaHtml(status, amount, cfg) {
@@ -131,7 +164,7 @@ function heroCtaHtml(status, amount, cfg) {
   if (status.kind === 'pending') {
     return `
       <button class="btn btn-primary btn-lg btn-block" style="height:52px;font-size:15px;background:var(--warning);border-color:var(--warning);color:#0a1408" onclick="showPage('page-owner-pay');renderUploadPage()">
-        ${svgIcon('check', 18)} Ver mi comprobante
+        ${svgIcon('check', 18)} Ver estado del comprobante
       </button>`;
   }
   if (status.kind === 'overdue') {
@@ -175,7 +208,7 @@ export async function renderOwnerHome() {
     const owner    = { ...state.user, ...(state.membership || {}) };
     const units    = unitsRes.data?.units || [];
 
-    const status       = deriveStatus(payments, cfg, owner);
+    const status       = deriveStatus(payments, cfg, owner, payRes.data.periods || []);
     const due          = nextDueInfo(cfg.dueDayOfMonth);
     const lastApproved = payments.find(p => p.status === 'approved');
     const firstName    = owner.name?.split(' ')[0] || 'Propietario';
@@ -227,18 +260,7 @@ export async function renderOwnerHome() {
           <div class="muted" style="font:var(--t-xs);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px">Tu cuota de este mes</div>
           <div class="h-amount-xl tnum" style="font-size:52px">$${amount.toLocaleString('es-AR')}</div>
 
-          ${due.days !== null ? `
-          <div style="display:flex;align-items:center;gap:12px;margin-top:16px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px">
-            <div style="width:44px;height:44px;border-radius:12px;background:var(--warning-bg);color:var(--warning);display:grid;place-items:center;flex-shrink:0">
-              ${svgIcon('calendar', 20)}
-            </div>
-            <div style="flex:1">
-              <div class="bright" style="font:var(--t-body-md)">Vence el <span style="color:var(--warning)">${due.label}</span></div>
-              <div class="muted tnum" style="font:var(--t-sm);margin-top:2px">en ${due.days} días · 23:59hs</div>
-            </div>
-          </div>
-          <div class="progress" style="margin-top:14px;margin-bottom:16px"><span style="width:${progressPct}%"></span></div>
-          ` : `<div style="height:20px"></div>`}
+          ${heroInfoHtml(status, due, progressPct)}
 
           ${heroCtaHtml(status, amount, cfg)}
         </div>
