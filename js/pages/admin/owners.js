@@ -851,8 +851,8 @@ function _registerPaymentCard({ type, value, amount, title, subtitle, badge, sel
     </label>`;
 }
 
-function _renderRegisterPaymentContext({ cfg, available, payments, units }) {
-  const owner = _selectedRegisterPaymentOwner();
+function _renderRegisterPaymentContext({ cfg, available, payments, units, owner: freshOwner }) {
+  const owner = freshOwner || _selectedRegisterPaymentOwner();
   const monthlyFee = cfg?.monthlyFee || 0;
   _registerPaymentOwnerFee = units.length > 0
     ? units.reduce((sum, unit) => sum + Number(unit.finalFee ?? monthlyFee), 0)
@@ -987,17 +987,19 @@ export async function loadRegisterPaymentOwner(ownerId) {
 
   _renderRegisterPaymentLoading();
   try {
-    const [cfgRes, availableRes, paymentsRes, unitsRes] = await Promise.all([
+    const [cfgRes, availableRes, paymentsRes, unitsRes, ownerRes] = await Promise.all([
       api.config.get(),
       api.payments.getAvailableItems({ ownerId: _registerPaymentSelectedOwnerId }),
       api.payments.getAll({ ownerId: _registerPaymentSelectedOwnerId, limit: 50 }),
       api.units.getAll({ ownerId: _registerPaymentSelectedOwnerId }),
+      api.owners.getOne(_registerPaymentSelectedOwnerId),
     ]);
     _renderRegisterPaymentContext({
       cfg:       cfgRes.data.config || {},
       available: availableRes.data || {},
       payments:  paymentsRes.data.payments || [],
       units:     unitsRes.data.units || [],
+      owner:     ownerRes.data.owner || null,
     });
   } catch (err) {
     const target = document.getElementById('rp-owner-context');
@@ -1120,6 +1122,7 @@ export async function submitRegisterPayment() {
     );
     _registerPaymentFile = null;
     window.gestionarInvalidateCaches?.('payments');
+    window.gestionarInvalidateCaches?.('owners');
     await viewOwnerDetail(ownerId);
   } catch (err) {
     toast(err.message, 'error');
