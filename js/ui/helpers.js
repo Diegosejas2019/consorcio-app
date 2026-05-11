@@ -26,6 +26,23 @@ export function formatMonth(m) {
   return `${months[parseInt(mo) - 1]} ${y}`;
 }
 
+export function paymentConceptLabel(payment) {
+  if (!payment) return 'â€”';
+  if (payment.type === 'balance') return 'Saldo anterior';
+
+  const extraordinaryNames = (payment.extraordinaryItems || [])
+    .map(item => {
+      const expense = item?.expense;
+      if (typeof expense === 'string') return '';
+      return expense?.description || expense?.title || item?.description || item?.title || '';
+    })
+    .filter(Boolean);
+
+  if (extraordinaryNames.length) return extraordinaryNames.join(', ');
+  if (payment.type === 'extraordinary') return 'Extraordinario';
+  return formatMonth(payment.month);
+}
+
 export function statusBadge(s) {
   return {
     pending:  '<span class="badge badge-warning">⏳ Pendiente</span>',

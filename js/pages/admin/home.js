@@ -4,7 +4,7 @@ import { showPage } from '../../core/router.js';
 import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
-import { formatMonth, errorState, downloadReceipt } from '../../ui/helpers.js';
+import { formatMonth, paymentConceptLabel, errorState, downloadReceipt } from '../../ui/helpers.js';
 import { CLAIM_CATEGORIES } from './claims.js';
 
 export function renderAdminView() {
@@ -170,7 +170,7 @@ export async function renderAdminHome() {
                   <div class="pending-meta">
                     <span>${p.owner?.unit || ''}</span>
                     <span>·</span>
-                    <span>${formatMonth(p.month)}</span>
+                    <span>${paymentConceptLabel(p)}</span>
                     <span>·</span>
                     <span class="amt">$${p.amount.toLocaleString('es-AR')}</span>
                   </div>

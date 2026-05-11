@@ -2,7 +2,7 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG, svgIcon } from '../../ui/icons.js';
-import { formatMonth, statusBadge, errorState, downloadReceipt, downloadSystemReceipt } from '../../ui/helpers.js';
+import { formatMonth, paymentConceptLabel, statusBadge, errorState, downloadReceipt, downloadSystemReceipt } from '../../ui/helpers.js';
 import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 let _dashYear    = new Date().getFullYear();
@@ -435,7 +435,7 @@ export async function openStatDetail(type, arg) {
                   <div class="flex between" style="align-items:center">
                     <div>
                       <p style="font-weight:600;font-size:.9rem">${p.owner?.name || '—'}</p>
-                      <p style="font-size:.78rem;color:var(--muted)">${p.owner?.unit || ''} · ${formatMonth(p.month)} · $${p.amount.toLocaleString('es-AR')}</p>
+                      <p style="font-size:.78rem;color:var(--muted)">${p.owner?.unit || ''} · ${paymentConceptLabel(p)} · $${p.amount.toLocaleString('es-AR')}</p>
                     </div>
                     <div class="flex gap-1">
                       ${p.receipt?.url ? `<button class="btn btn-ghost btn-sm" onclick="downloadReceipt('${p._id}')" title="Descargar" style="padding:.3rem .5rem">${SVG.download}</button>` : ''}
@@ -572,7 +572,7 @@ export async function openStatDetail(type, arg) {
             <div class="flex between" style="padding:.6rem .75rem;background:var(--bg);border-radius:8px;font-size:.84rem;align-items:center">
               <div>
                 <p style="font-weight:600">${p.owner?.name || '—'}</p>
-                <p style="font-size:.75rem;color:var(--muted)">${p.owner?.unit || ''} · ${p.type === 'balance' ? 'Saldo anterior' : p.type === 'extraordinary' ? 'Extraordinario' : formatMonth(p.month)} · $${(p.amount || 0).toLocaleString('es-AR')}</p>
+                <p style="font-size:.75rem;color:var(--muted)">${p.owner?.unit || ''} · ${paymentConceptLabel(p)} · $${(p.amount || 0).toLocaleString('es-AR')}</p>
               </div>
               <div class="flex gap-1" style="align-items:center">
                 ${statusBadge(p.status)}
@@ -626,7 +626,7 @@ export async function exportDashboardExcel() {
       ...allPayments.map(p => [
         p.owner?.name || '—',
         p.owner?.unit || '—',
-        p.month ? formatMonth(p.month) : (p.type === 'balance' ? 'Saldo anterior' : 'Extraordinario'),
+        paymentConceptLabel(p),
         p.amount || 0,
         p.status === 'approved' ? 'Aprobado' : p.status === 'pending' ? 'Pendiente' : 'Rechazado',
         p.paymentMethod === 'mercadopago' ? 'MercadoPago' : 'Manual',
