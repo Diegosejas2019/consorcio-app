@@ -3,6 +3,7 @@ import { skeleton } from '../../ui/skeleton.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { formatDate, errorState } from '../../ui/helpers.js';
 import { svgIcon } from '../../ui/icons.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 let _votesFilter = 'active';
 let _allVotes    = [];
@@ -53,7 +54,11 @@ export async function renderOwnerVotes() {
   const el = document.getElementById('page-owner-votes');
   el.innerHTML = `<div style="padding:16px">${skeleton(3)}</div>`;
   try {
-    const res   = await api.votes.getAll({ limit: PAGE_SIZE, page: 1 });
+    const res   = await getCachedOrFetch(
+      'votes:owner:limit=50',
+      CACHE_TTL.VOTES,
+      () => api.votes.getAll({ limit: PAGE_SIZE, page: 1 })
+    );
     _allVotes   = res.data.votes;
     _votesFilter = 'active';
 
@@ -124,6 +129,7 @@ export async function castOwnerVote(voteId, optionIndex, btn) {
   try {
     const res     = await api.votes.cast(voteId, optionIndex);
     const updated = res.data.vote;
+    window.gestionarInvalidateCaches?.('votes');
     toast('¡Voto registrado!', 'success');
     // Reemplazar la card con la versión de resultados
     _replaceCard(updated);

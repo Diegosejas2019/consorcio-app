@@ -1,5 +1,5 @@
 import { state } from '../../core/state.js';
-import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
+import { getOwnerSummary } from '../../services/ownerSummaryService.js';
 import { showPage, PAGE_RENDERERS } from '../../core/router.js';
 import { isFeatureEnabled } from '../../services/featureService.js';
 import { skeleton } from '../../ui/skeleton.js';
@@ -189,19 +189,7 @@ export async function renderOwnerHome() {
   el.innerHTML = `<div style="padding:16px">${skeleton(5)}</div>`;
 
   try {
-    const { cfgRes, payRes, unitsRes, notices } = await getCachedOrFetch(
-      'owner-home',
-      CACHE_TTL.OWNER_HOME,
-      async () => {
-        const [cfgRes, payRes, unitsRes, notRes] = await Promise.all([
-          api.config.get(),
-          api.payments.getAll({ limit: 20 }),
-          api.units.getAll(),
-          api.notices.getAll({ limit: 3 }).catch(() => ({ data: { notices: [] } })),
-        ]);
-        return { cfgRes, payRes, unitsRes, notices: notRes.data.notices || [] };
-      }
-    );
+    const { cfgRes, payRes, unitsRes, notices } = await getOwnerSummary();
 
     const cfg      = cfgRes.data.config;
     const payments = payRes.data.payments;

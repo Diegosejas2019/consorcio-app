@@ -1,5 +1,8 @@
 import { cache } from './state.js';
 
+const pendingFetches = new Map();
+let cacheEpoch = 0;
+
 export const CACHE_TTL = {
   AUTH_ME:        30 * 60 * 1000,
   FEATURES:       10 * 60 * 1000,
@@ -17,6 +20,10 @@ export const CACHE_TTL = {
   PROVIDERS:      60 * 1000,
   DOCUMENTS:      60 * 1000,
   UNITS:          60 * 1000,
+  VOTES:          60 * 1000,
+  VISITS:         60 * 1000,
+  RESERVATIONS:   60 * 1000,
+  SPACES:         60 * 1000,
 };
 
 export function stableParams(params = {}) {
@@ -26,10 +33,18 @@ export function stableParams(params = {}) {
 export async function getCachedOrFetch(key, ttlMs, fetcher, opts = {}) {
   const cached = cache.get(key);
   if (cached) return cached;
+  if (pendingFetches.has(key)) return pendingFetches.get(key);
 
-  const value = await fetcher();
-  if (!opts.skipCache) cache.set(key, value, ttlMs);
-  return value;
+  const startedEpoch = cacheEpoch;
+  const pending = Promise.resolve()
+    .then(fetcher)
+    .then(value => {
+      if (!opts.skipCache && startedEpoch === cacheEpoch) cache.set(key, value, ttlMs);
+      return value;
+    })
+    .finally(() => pendingFetches.delete(key));
+  pendingFetches.set(key, pending);
+  return pending;
 }
 
 export function invalidateCachePrefixes(prefixes = []) {
@@ -38,21 +53,29 @@ export function invalidateCachePrefixes(prefixes = []) {
 
 export function invalidateAppCaches(scope) {
   const groups = {
-    payments: ['payments:', 'admin-payments:', 'owner-home', 'admin-home', 'dashboard:', 'reports:'],
-    notices:  ['notices:', 'owner-home', 'admin-home'],
+    payments: ['payments:', 'admin-payments:', 'owner-home', 'owner-pay', 'owner-summary', 'admin-home', 'dashboard:', 'reports:'],
+    notices:  ['notices:', 'owner-home', 'owner-summary', 'admin-home'],
     claims:   ['claims:', 'owner-home', 'admin-home'],
-    config:   ['config', 'owner-home', 'admin-home', 'dashboard:', 'reports:', 'owner-pay'],
+    config:   ['config', 'owner-home', 'owner-pay', 'owner-summary', 'admin-home', 'dashboard:', 'reports:'],
     features: ['features:'],
-    expenses: ['expenses:', 'owner-expenses:', 'dashboard:', 'reports:', 'owner-pay'],
-    owners:   ['owners:', 'units:', 'owner-home', 'owner-pay', 'admin-home', 'dashboard:'],
-    units:    ['units:', 'owners:', 'owner-home', 'owner-pay', 'admin-home', 'dashboard:'],
+    expenses: ['expenses:', 'owner-expenses:', 'owner-summary', 'dashboard:', 'reports:', 'owner-pay'],
+    owners:   ['owners:', 'units:', 'owner-home', 'owner-pay', 'owner-summary', 'admin-home', 'dashboard:'],
+    units:    ['units:', 'owners:', 'owner-home', 'owner-pay', 'owner-summary', 'admin-home', 'dashboard:'],
     providers:['providers:', 'expenses:'],
     documents:['documents:'],
+    votes:    ['votes:'],
+    visits:   ['visits:'],
+    reservations: ['reservations:'],
+    spaces:   ['spaces:'],
     reports:  ['reports:'],
     all:      [''],
   };
 
   invalidateCachePrefixes(groups[scope] || []);
+  cacheEpoch += 1;
+  [...pendingFetches.keys()].forEach(key => {
+    if ((groups[scope] || []).some(prefix => key.startsWith(prefix))) pendingFetches.delete(key);
+  });
 }
 
 window.gestionarInvalidateCaches = invalidateAppCaches;

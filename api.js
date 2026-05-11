@@ -75,6 +75,10 @@ function inferInvalidationScope(endpoint, method) {
   if (endpoint.startsWith('/units')) return 'units';
   if (endpoint.startsWith('/providers')) return 'providers';
   if (endpoint.startsWith('/organization-documents')) return 'documents';
+  if (endpoint.startsWith('/votes')) return 'votes';
+  if (endpoint.startsWith('/visits')) return 'visits';
+  if (endpoint.startsWith('/reservations')) return 'reservations';
+  if (endpoint.startsWith('/spaces')) return 'spaces';
   return null;
 }
 
@@ -250,6 +254,9 @@ const api = {
   owners: {
     getAll: (params = {}) =>
       request(`/owners?${new URLSearchParams(params)}`),
+
+    getMySummary: (params = {}) =>
+      request(`/owners/me/summary?${new URLSearchParams(params)}`),
 
     getOne: (id) => request(`/owners/${id}`),
 

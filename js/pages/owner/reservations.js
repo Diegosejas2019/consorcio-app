@@ -4,6 +4,7 @@ import { skeleton } from '../../ui/skeleton.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { formatDate, errorState } from '../../ui/helpers.js';
 import { svgIcon } from '../../ui/icons.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 export function reservationStatusBadge(status) {
   if (status === 'pending')   return `<span class="badge" style="background:#e2e8f0;color:#64748b">Pendiente</span>`;
@@ -24,7 +25,11 @@ export async function renderOwnerReservations() {
   const el = document.getElementById('page-owner-reservations');
   el.innerHTML = `<div style="padding:16px">${skeleton(3)}</div>`;
   try {
-    const res          = await api.reservations.getMine();
+    const res          = await getCachedOrFetch(
+      'reservations:owner:limit=50',
+      CACHE_TTL.RESERVATIONS,
+      () => api.reservations.getMine()
+    );
     const reservations = res.data.reservations;
 
     el.innerHTML = `
@@ -79,7 +84,11 @@ export async function openNewReservationModal() {
 
   let spaces = [];
   try {
-    const res = await api.spaces.getAll();
+    const res = await getCachedOrFetch(
+      'spaces:all',
+      CACHE_TTL.SPACES,
+      () => api.spaces.getAll()
+    );
     spaces = res.data.spaces;
   } catch (err) {
     document.getElementById('reservation-form-inner').innerHTML =
@@ -144,6 +153,7 @@ export async function submitReservation() {
   setBtnLoading(btn, true);
   try {
     await api.reservations.create({ spaceId, date, startTime, endTime, note });
+    window.gestionarInvalidateCaches?.('reservations');
     closeModal();
     toast('Reserva creada correctamente.', 'success');
     renderOwnerReservations();
@@ -156,6 +166,7 @@ export async function submitReservation() {
 export async function cancelOwnerReservation(id) {
   try {
     await api.reservations.delete(id);
+    window.gestionarInvalidateCaches?.('reservations');
     toast('Reserva cancelada.', 'success');
     renderOwnerReservations();
   } catch (err) {

@@ -1,7 +1,7 @@
 import { skeleton } from '../../ui/skeleton.js';
 import { svgIcon } from '../../ui/icons.js';
 import { errorState } from '../../ui/helpers.js';
-import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
+import { getOwnerPayments } from '../../services/ownerSummaryService.js';
 
 let _payments = [];
 let _histFilter = 'all';
@@ -116,11 +116,7 @@ export async function renderOwnerHistory() {
   const el = document.getElementById('page-owner-history');
   el.innerHTML = `<div style="padding:16px">${skeleton(4)}</div>`;
   try {
-    const res = await getCachedOrFetch(
-      'payments:owner-history:limit=100',
-      CACHE_TTL.PAYMENTS,
-      () => api.payments.getAll({ limit: 100 })
-    );
+    const res = await getOwnerPayments(100);
     _payments   = res.data.payments;
     _histFilter = 'all';
     const { paidYTD, payCount, streak } = _computeStats(_payments);

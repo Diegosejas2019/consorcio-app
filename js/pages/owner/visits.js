@@ -3,6 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { errorState } from '../../ui/helpers.js';
+import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
 /* ── Type metadata ── */
 const RV_TYPES = {
@@ -148,7 +149,11 @@ export async function renderOwnerVisits() {
   el.innerHTML = `<div style="padding:16px">${skeleton(3)}</div>`;
 
   try {
-    const res = await api.visits.getMy();
+    const res = await getCachedOrFetch(
+      'visits:owner:limit=50',
+      CACHE_TTL.VISITS,
+      () => api.visits.getMy()
+    );
     _rvAll = res.data.visits || [];
     _rvFilter = 'all';
     _rvDay = -1;
@@ -414,6 +419,7 @@ export async function submitVisit() {
   setBtnLoading(btn, true);
   try {
     await api.visits.create({ name, type, expectedDate, note });
+    window.gestionarInvalidateCaches?.('visits');
     closeModal();
     toast('Visita registrada correctamente.', 'success');
     renderOwnerVisits();

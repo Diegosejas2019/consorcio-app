@@ -1,5 +1,5 @@
 import { state } from '../core/state.js';
-import { CACHE_TTL, getCachedOrFetch } from '../core/cacheHelpers.js';
+import { getOwnerSummary } from './ownerSummaryService.js';
 import { toast } from '../ui/toast.js';
 
 const FIREBASE_WEB_CONFIG = {
@@ -55,17 +55,12 @@ export async function checkMonthlyReminder() {
   const today = new Date().getDate();
   if (today > 5) return;
   try {
-    const cfgRes  = await getCachedOrFetch('config:api', CACHE_TTL.CONFIG, () => api.config.get());
-    const cfg     = cfgRes.data.config;
+    const summary = await getOwnerSummary();
+    const cfg     = summary.config;
     const month   = cfg.expenseMonthCode;
     const sentKey = `notif_sent_${state.user._id}_${month}`;
     if (localStorage.getItem(sentKey)) return;
-    const payRes = await getCachedOrFetch(
-      `payments:owner-reminder:${month}`,
-      CACHE_TTL.PAYMENTS_SHORT,
-      () => api.payments.getAll({ month })
-    );
-    const paid   = payRes.data.payments.find(p => p.status === 'approved');
+    const paid = summary.payments.find(p => p.month === month && p.status === 'approved');
     if (!paid) {
       new Notification('GestionAr 🏘️', {
         body: `Recordatorio: las expensas de ${cfg.expenseMonth} vencen el día ${cfg.dueDayOfMonth}. ¡No olvides pagar!`,

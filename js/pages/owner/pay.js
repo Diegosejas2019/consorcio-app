@@ -4,7 +4,7 @@ import { SVG, svgIcon } from '../../ui/icons.js';
 import { errorState } from '../../ui/helpers.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { state } from '../../core/state.js';
-import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
+import { getOwnerSummary } from '../../services/ownerSummaryService.js';
 
 let selectedFile  = null;
 let _selectedBalanceFile = null;
@@ -37,19 +37,7 @@ export async function renderUploadPage() {
   _balanceDebtAmount = 0;
 
   try {
-    const { cfgRes, availRes, payRes, unitsRes } = await getCachedOrFetch(
-      'owner-pay',
-      CACHE_TTL.PAYMENTS_SHORT,
-      async () => {
-        const [cfgRes, availRes, payRes, unitsRes] = await Promise.all([
-          api.config.get(),
-          api.payments.getAvailableItems(),
-          api.payments.getAll({ limit: 50 }),
-          api.units.getAll(),
-        ]);
-        return { cfgRes, availRes, payRes, unitsRes };
-      }
-    );
+    const { cfgRes, availRes, payRes, unitsRes } = await getOwnerSummary();
 
     const cfg      = cfgRes.data.config;
     const hasMercadoPago = !!cfg.hasMercadoPago;
