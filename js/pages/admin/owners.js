@@ -25,6 +25,12 @@ let _registerPaymentFile = null;
 let _registerPaymentOwnerFee = 0;
 let _registerPaymentBalanceAmount = 0;
 
+let _editAddUnitOwnerId = '';
+let _editAddUnitAvailable = [];
+let _editAddUnitSelectedIds = new Set();
+let _editAddUnitFilter = '';
+let _editCurrentUnitIds = new Set();
+
 const PAYMENT_FILE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 function _ownerUnitNames(owner) {
@@ -258,6 +264,7 @@ export async function viewOwnerDetail(ownerId) {
 
 // ── Sección de unidades dentro del modal de detalle ───────────
 function _renderUnitsSection(ownerId, units) {
+  _editCurrentUnitIds = new Set(units.map(u => u._id));
   const totalFee = units.reduce((sum, u) => sum + (u.finalFee || 0), 0);
   const unitRows = units.map(u => `
     <div class="flex between" style="padding:.5rem 0;border-bottom:1px solid var(--border)">
@@ -285,36 +292,96 @@ function _renderUnitsSection(ownerId, units) {
              </div>`}
       </div>
       <div id="add-unit-form-${ownerId}" style="display:none;margin-top:.75rem">
-        <div class="flex col gap-1">
-          <div class="form-group" style="margin-bottom:0">
-            <input class="input" id="new-unit-name-${ownerId}" placeholder="Nombre (ej: Lote 12)" style="margin-bottom:.4rem">
-          </div>
-          <div class="flex gap-1">
-            <button class="btn btn-secondary btn-sm" onclick="cancelAddUnit('${ownerId}')">Cancelar</button>
-            <button class="btn btn-primary btn-sm" onclick="submitAddUnit('${ownerId}')">Guardar</button>
-          </div>
+        <div id="add-unit-selector-${ownerId}"></div>
+        <div class="flex gap-1" style="margin-top:.6rem">
+          <button class="btn btn-secondary btn-sm" onclick="cancelAddUnit('${ownerId}')">Cancelar</button>
+          <button class="btn btn-primary btn-sm" onclick="submitAddUnit('${ownerId}')">Guardar</button>
         </div>
       </div>
     </div>`;
 }
 
-export function openAddUnitForm(ownerId) {
+export async function openAddUnitForm(ownerId) {
+  _editAddUnitOwnerId = ownerId;
+  _editAddUnitSelectedIds = new Set();
+  _editAddUnitFilter = '';
   const form = document.getElementById(`add-unit-form-${ownerId}`);
-  if (form) { form.style.display = ''; document.getElementById(`new-unit-name-${ownerId}`)?.focus(); }
+  if (!form) return;
+  form.style.display = '';
+  const selector = document.getElementById(`add-unit-selector-${ownerId}`);
+  if (selector) selector.innerHTML = '<p class="text-muted text-sm">Cargando unidades…</p>';
+  try {
+    const res = await api.units.getAll();
+    const allUnits = res.data.units || [];
+    _editAddUnitAvailable = allUnits
+      .filter(u => !u.owner && u.status !== 'occupied' && !_editCurrentUnitIds.has(u._id))
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' }));
+  } catch {
+    _editAddUnitAvailable = [];
+  }
+  _renderEditAddUnitSelect(ownerId);
+}
+
+function _renderEditAddUnitSelect(ownerId) {
+  const selector = document.getElementById(`add-unit-selector-${ownerId}`);
+  if (!selector) return;
+  const filter = _editAddUnitFilter.trim().toLowerCase();
+  const visible = filter
+    ? _editAddUnitAvailable.filter(u => String(u.name || '').toLowerCase().includes(filter))
+    : _editAddUnitAvailable;
+  const selected = _editAddUnitAvailable.filter(u => _editAddUnitSelectedIds.has(u._id));
+
+  selector.innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:.65rem;background:var(--surface,#111b16)">
+      <input class="input" type="search" placeholder="Buscar unidad..."
+        value="${escapeHtml(_editAddUnitFilter)}"
+        oninput="filterEditOwnerUnits(this.value)"
+        style="height:40px;margin-bottom:.55rem">
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:${selected.length ? '.55rem' : '0'}">
+        ${selected.map(u => `<button type="button" class="chip is-active" onclick="toggleEditOwnerUnit('${u._id}')" style="min-height:32px">${escapeHtml(u.name)} &times;</button>`).join('')}
+      </div>
+      <div style="display:grid;gap:.4rem;max-height:200px;overflow:auto;padding-right:.15rem">
+        ${visible.length
+          ? visible.map(u => {
+              const sel = _editAddUnitSelectedIds.has(u._id);
+              return `<button type="button" onclick="toggleEditOwnerUnit('${u._id}')"
+                style="display:flex;align-items:center;gap:.65rem;width:100%;min-height:44px;text-align:left;padding:.6rem .7rem;border:1px solid ${sel ? 'var(--primary)' : 'var(--border)'};border-radius:8px;background:${sel ? 'var(--accent-lt,rgba(156,242,123,.12))' : 'var(--bg)'};color:var(--text)">
+                <input type="checkbox" ${sel ? 'checked' : ''} tabindex="-1" style="width:18px;height:18px;accent-color:var(--primary);pointer-events:none;flex-shrink:0">
+                <span style="font-weight:${sel ? '700' : '500'}">${escapeHtml(u.name)}</span>
+              </button>`;
+            }).join('')
+          : `<div style="padding:.75rem;text-align:center;color:var(--text-muted);font-size:.85rem">
+              ${_editAddUnitAvailable.length ? 'No hay unidades con ese filtro.' : 'No hay unidades disponibles.'}
+            </div>`}
+      </div>
+    </div>
+    <small class="text-muted" style="display:block;margin-top:.4rem">${_editAddUnitAvailable.length} disponible${_editAddUnitAvailable.length !== 1 ? 's' : ''}.</small>`;
+}
+
+export function toggleEditOwnerUnit(unitId) {
+  if (_editAddUnitSelectedIds.has(unitId)) _editAddUnitSelectedIds.delete(unitId);
+  else _editAddUnitSelectedIds.add(unitId);
+  _renderEditAddUnitSelect(_editAddUnitOwnerId);
+}
+
+export function filterEditOwnerUnits(value) {
+  _editAddUnitFilter = value;
+  _renderEditAddUnitSelect(_editAddUnitOwnerId);
 }
 
 export function cancelAddUnit(ownerId) {
   const form = document.getElementById(`add-unit-form-${ownerId}`);
   if (form) form.style.display = 'none';
+  _editAddUnitSelectedIds = new Set();
 }
 
 export async function submitAddUnit(ownerId) {
-  const nameInput = document.getElementById(`new-unit-name-${ownerId}`);
-  const name = nameInput?.value.trim();
-  if (!name) { toast('El nombre de la unidad es obligatorio', 'error'); return; }
+  const ids = [..._editAddUnitSelectedIds];
+  if (!ids.length) { toast('Seleccioná al menos una unidad', 'error'); return; }
   try {
-    await api.units.create({ ownerId, name });
-    toast('Unidad agregada', 'success');
+    await Promise.all(ids.map(id => api.units.update(id, { ownerId })));
+    toast('Unidad/s agregada/s', 'success');
+    cache.del('units:available');
     viewOwnerDetail(ownerId);
   } catch (err) {
     toast(err.message, 'error');
@@ -1323,10 +1390,12 @@ window.downloadBulkTemplate        = downloadBulkTemplate;
 window.openBulkOwnerModal          = openBulkOwnerModal;
 window.submitBulkOwners            = submitBulkOwners;
 // Unidades (modal detalle)
-window.openAddUnitForm   = openAddUnitForm;
-window.cancelAddUnit     = cancelAddUnit;
-window.submitAddUnit     = submitAddUnit;
-window.deleteUnit        = deleteUnit;
+window.openAddUnitForm      = openAddUnitForm;
+window.cancelAddUnit        = cancelAddUnit;
+window.submitAddUnit        = submitAddUnit;
+window.deleteUnit           = deleteUnit;
+window.toggleEditOwnerUnit  = toggleEditOwnerUnit;
+window.filterEditOwnerUnits = filterEditOwnerUnits;
 // Unidades (formulario nuevo propietario)
 window.addNewOwnerUnit    = addNewOwnerUnit;
 window.removeNewOwnerUnit = removeNewOwnerUnit;
