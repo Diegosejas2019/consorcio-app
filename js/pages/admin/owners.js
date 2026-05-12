@@ -376,13 +376,15 @@ export function cancelAddUnit(ownerId) {
 }
 
 export async function submitAddUnit(ownerId) {
-  const ids = [..._editAddUnitSelectedIds];
-  if (!ids.length) { toast('Seleccioná al menos una unidad', 'error'); return; }
+  const newIds = [..._editAddUnitSelectedIds];
+  if (!newIds.length) { toast('Seleccioná al menos una unidad', 'error'); return; }
+  const unitIds = [..._editCurrentUnitIds, ...newIds];
   try {
-    await Promise.all(ids.map(id => api.units.update(id, { ownerId })));
+    await api.owners.update(ownerId, { unitIds });
     toast('Unidad/s agregada/s', 'success');
     cache.del('units:available');
     cache.del(`units:owner:${ownerId}`);
+    cache.del(`owners:detail:${ownerId}`);
     viewOwnerDetail(ownerId);
   } catch (err) {
     toast(err.message, 'error');
@@ -394,6 +396,7 @@ export async function deleteUnit(unitId, ownerId) {
     await api.units.delete(unitId);
     toast('Unidad eliminada', 'success');
     cache.del(`units:owner:${ownerId}`);
+    cache.del(`owners:detail:${ownerId}`);
     viewOwnerDetail(ownerId);
   } catch (err) {
     toast(err.message, 'error');
