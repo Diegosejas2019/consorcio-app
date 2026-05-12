@@ -63,7 +63,7 @@ function _renderEmployeesView() {
         : `<div class="table-wrap">
             <table class="table">
               <thead><tr>
-                <th>Nombre</th><th>Rol</th><th>DNI</th><th>Teléfono</th><th>Inicio</th><th>Archivos</th><th>Estado</th><th></th>
+                <th>Nombre</th><th>Rol</th><th>DNI</th><th>Teléfono</th><th>Inicio</th><th>Documentos</th><th>Estado</th><th></th>
               </tr></thead>
               <tbody>
                 ${items.map(e => `
@@ -73,7 +73,11 @@ function _renderEmployeesView() {
                     <td>${e.documentNumber || '—'}</td>
                     <td>${e.phone || '—'}</td>
                     <td>${e.startDate ? new Date(e.startDate).toLocaleDateString('es-AR') : '—'}</td>
-                    <td>${e.documents?.length ? `${e.documents.length} archivo${e.documents.length !== 1 ? 's' : ''}` : '—'}</td>
+                    <td>${e.documents?.length
+                      ? `<div class="flex col gap-1">${e.documents.map((d, i) => `
+                          <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;text-align:left;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="downloadEmployeeDoc('${e._id}',${i},'${_jsString(d.filename || 'archivo')}')" title="${escapeHtml(d.filename || `archivo-${i+1}`)}">${escapeHtml(d.filename || `archivo-${i+1}`)}</button>
+                        `).join('')}</div>`
+                      : '—'}</td>
                     <td><span class="badge ${e.isActive ? 'badge-green' : 'badge-gray'}">${e.isActive ? 'Activo' : 'Baja'}</span></td>
                     <td class="actions">
                       <button class="btn btn-sm btn-ghost" onclick="openEditEmployeeModal('${e._id}')">Editar</button>

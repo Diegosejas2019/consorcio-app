@@ -548,6 +548,7 @@ textarea { resize: vertical; min-height: 90px; }
 /* ── Page Content ── */
 .page { display: none; padding: 1.25rem 1.25rem 90px; max-width: 640px; margin: 0 auto; width: 100%; }
 .page.active { display: block; }
+#page-admin-employees { max-width: 100%; }
 
 body.legal-public-mode .topbar,
 body.legal-public-mode .bottom-nav,
