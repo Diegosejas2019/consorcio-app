@@ -382,6 +382,7 @@ export async function submitAddUnit(ownerId) {
     await Promise.all(ids.map(id => api.units.update(id, { ownerId })));
     toast('Unidad/s agregada/s', 'success');
     cache.del('units:available');
+    cache.del(`units:owner:${ownerId}`);
     viewOwnerDetail(ownerId);
   } catch (err) {
     toast(err.message, 'error');
@@ -392,6 +393,7 @@ export async function deleteUnit(unitId, ownerId) {
   try {
     await api.units.delete(unitId);
     toast('Unidad eliminada', 'success');
+    cache.del(`units:owner:${ownerId}`);
     viewOwnerDetail(ownerId);
   } catch (err) {
     toast(err.message, 'error');
