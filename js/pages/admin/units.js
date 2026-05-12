@@ -1,8 +1,12 @@
 import { toast } from '../../ui/toast.js';
 import { skeleton } from '../../ui/skeleton.js';
-import { errorState, escapeHtml } from '../../ui/helpers.js';
+import { debounce, errorState, escapeHtml } from '../../ui/helpers.js';
 
 let unitsState = { all: [], filter: '' };
+const debouncedUnitsFilter = debounce((value) => {
+  unitsState.filter = value;
+  renderUnitsView();
+}, 350);
 
 function statusLabel(unit) {
   if (!unit.active) return '<span class="badge badge-danger">Inactiva</span>';
@@ -12,6 +16,12 @@ function statusLabel(unit) {
 
 function unitOwnerName(unit) {
   return unit.owner?.name || '';
+}
+
+function unitStatusText(unit) {
+  if (!unit.active) return 'Inactiva';
+  if (unit.owner || unit.status === 'occupied') return 'Ocupada';
+  return 'Disponible';
 }
 
 function filteredUnits() {
@@ -40,6 +50,7 @@ export async function renderAdminUnits() {
 
 export function renderUnitsView() {
   const el = document.getElementById('page-admin-units');
+  const keepFilterFocus = document.activeElement?.id === 'units-filter';
   const units = filteredUnits();
   const occupied = unitsState.all.filter(u => u.owner || u.status === 'occupied').length;
   const available = unitsState.all.filter(u => !u.owner && u.status !== 'occupied').length;
@@ -48,7 +59,10 @@ export function renderUnitsView() {
     <div class="flex col gap-3">
       <div class="flex between">
         <h1>Unidades</h1>
-        <button class="btn btn-primary btn-sm" onclick="createUnitRange()">Crear rango</button>
+        <div class="flex gap-1">
+          <button class="btn btn-ghost btn-sm" onclick="downloadUnitsExcel()" ${unitsState.all.length ? '' : 'disabled'}>Exportar Excel</button>
+          <button class="btn btn-primary btn-sm" onclick="createUnitRange()">Crear rango</button>
+        </div>
       </div>
 
       <div class="card">
@@ -74,7 +88,8 @@ export function renderUnitsView() {
       <div class="owners-filter-bar">
         <input id="units-filter" class="input" type="search" placeholder="Buscar unidad o propietario..."
           value="${escapeHtml(unitsState.filter)}"
-          oninput="unitsState.filter=this.value;renderUnitsView()">
+          oninput="debouncedUnitsFilter(this.value)">
+        ${unitsState.filter ? `<button class="btn-clear-filter" onclick="unitsState.filter='';renderUnitsView()">Limpiar</button>` : ''}
       </div>
 
       <div class="owners-meta">
@@ -103,7 +118,7 @@ export function renderUnitsView() {
     </div>`;
 
   const input = document.getElementById('units-filter');
-  if (input && document.activeElement?.id === 'units-filter') {
+  if (input && keepFilterFocus) {
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
@@ -143,7 +158,50 @@ export async function createUnitRange() {
   }
 }
 
+export function downloadUnitsExcel() {
+  const units = unitsState.all;
+  if (!units.length) {
+    toast('No hay unidades para exportar.', 'warning');
+    return;
+  }
+  if (!window.XLSX) {
+    toast('No se pudo iniciar la descarga de Excel.', 'error');
+    return;
+  }
+
+  const rows = units.map(u => ({
+    Unidad: u.name || '',
+    Estado: unitStatusText(u),
+    Propietario: unitOwnerName(u) || 'Sin propietario',
+    Email: u.owner?.email || '',
+    Coeficiente: Number(u.coefficient ?? 1),
+    'Monto final': Number(u.finalFee || 0),
+    'Monto personalizado': u.customFee ?? '',
+    Saldo: Number(u.balance || 0),
+    'Periodo inicio': u.startBillingPeriod || '',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 26 },
+    { wch: 28 },
+    { wch: 12 },
+    { wch: 14 },
+    { wch: 20 },
+    { wch: 14 },
+    { wch: 14 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Unidades');
+  XLSX.writeFile(wb, 'unidades.xlsx');
+  toast('Listado de unidades descargado correctamente.', 'success');
+}
+
 window.renderAdminUnits = renderAdminUnits;
 window.renderUnitsView = renderUnitsView;
 window.unitsState = unitsState;
+window.debouncedUnitsFilter = debouncedUnitsFilter;
 window.createUnitRange = createUnitRange;
+window.downloadUnitsExcel = downloadUnitsExcel;
