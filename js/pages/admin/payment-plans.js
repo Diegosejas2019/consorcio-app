@@ -11,8 +11,6 @@ let _activeTab = 'all';
 let _plansAll   = [];
 let _plansQuery = '';
 
-const ALL_STATUSES = ['requested', 'approved', 'active', 'completed', 'rejected', 'cancelled', 'defaulted'];
-
 const TABS = [
   { key: 'all',                          label: 'Todos' },
   { key: 'requested',                    label: 'Solicitudes' },
@@ -112,12 +110,16 @@ export async function renderAdminPaymentPlans() {
 async function _loadPlans() {
   const el = document.getElementById('payment-plans-list');
   if (!el) return;
-  const statuses = _activeTab === 'all' ? ALL_STATUSES : _activeTab.split(',');
+  const statuses = _activeTab === 'all' ? [] : _activeTab.split(',');
 
-  const results = await Promise.all(
-    statuses.map(s => apiCall(() => api.paymentPlans.listAdmin({ status: s, limit: 50 }), { silent: true }))
-  );
-  _plansAll = results.flatMap(r => r?.data?.plans || []);
+  if (!statuses.length || statuses.length > 1) {
+    const res = await apiCall(() => api.paymentPlans.listAdmin({ limit: 200 }), { silent: true });
+    const plans = res?.data?.plans || [];
+    _plansAll = statuses.length ? plans.filter(plan => statuses.includes(plan.status)) : plans;
+  } else {
+    const res = await apiCall(() => api.paymentPlans.listAdmin({ status: statuses[0], limit: 200 }), { silent: true });
+    _plansAll = res?.data?.plans || [];
+  }
   _plansAll.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   _renderPlansList();
@@ -220,16 +222,16 @@ function _planCard(plan) {
 function _planActions(plan) {
   const id = plan._id;
   const btns = [];
-  btns.push(`<button class="btn-ghost btn-sm" onclick="adminPaymentPlanDetail('${id}')">Ver detalle</button>`);
+  btns.push(`<button type="button" class="btn-ghost btn-sm" onclick="adminPaymentPlanDetail('${id}')">Ver detalle</button>`);
   if (plan.status === 'requested') {
-    btns.push(`<button class="btn-primary btn-sm" onclick="adminPaymentPlanApproveModal('${id}', ${JSON.stringify(plan).replace(/"/g,'&quot;')})">Aprobar</button>`);
-    btns.push(`<button class="btn-danger btn-sm" onclick="adminPaymentPlanRejectModal('${id}')">Rechazar</button>`);
+    btns.push(`<button type="button" class="btn-primary btn-sm" onclick="adminPaymentPlanApproveModal('${id}', ${JSON.stringify(plan).replace(/"/g,'&quot;')})">Aprobar</button>`);
+    btns.push(`<button type="button" class="btn-danger btn-sm" onclick="adminPaymentPlanRejectModal('${id}')">Rechazar</button>`);
   }
   if (['active', 'defaulted'].includes(plan.status)) {
-    btns.push(`<button class="btn-danger btn-sm" onclick="adminPaymentPlanCancelConfirm('${id}')">Cancelar</button>`);
+    btns.push(`<button type="button" class="btn-danger btn-sm" onclick="adminPaymentPlanCancelConfirm('${id}')">Cancelar</button>`);
   }
   if (Number(plan.paidInstallments || 0) === 0 && Number(plan.totalPaid || 0) <= 0) {
-    btns.push(`<button class="btn-danger btn-sm" onclick="adminPaymentPlanDeleteConfirm('${id}')">Eliminar</button>`);
+    btns.push(`<button type="button" class="btn-danger btn-sm" onclick="adminPaymentPlanDeleteConfirm('${id}')">Eliminar</button>`);
   }
   return btns.join('');
 }
@@ -504,8 +506,9 @@ window.adminPaymentPlanDeleteConfirm = async function(planId) {
   if (!confirm('Â¿Eliminar este plan? Solo se puede eliminar si no tiene cuotas pagadas. La deuda volverÃ¡ a quedar disponible.')) return;
   const res = await apiCall(() => api.paymentPlans.delete(planId));
   if (!res?.success) return;
+  _plansAll = _plansAll.filter(plan => plan._id !== planId);
+  _renderPlansList();
   toast('Plan eliminado.', 'success');
-  await _loadPlans();
 };
 
 window.adminPaymentPlanCreateModal = async function() {
