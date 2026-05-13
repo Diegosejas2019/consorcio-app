@@ -38,12 +38,14 @@ export async function renderUploadPage() {
   _balanceDebtAmount = 0;
 
   try {
-    const [summaryData, debtItemsRes] = await Promise.all([
+    const [summaryData, debtItemsRes, myPlansRes] = await Promise.all([
       getOwnerSummary(),
       api.debtItems.getMine().catch(() => ({ data: { debtItems: [] } })),
+      api.paymentPlans.getMy().catch(() => ({ data: { plans: [] } })),
     ]);
     const { cfgRes, availRes, payRes, unitsRes } = summaryData;
     const manualDebts = (debtItemsRes.data?.debtItems || []).filter(d => d.status === 'pending');
+    const activePlan  = (myPlansRes.data?.plans || []).find(p => ['active', 'approved'].includes(p.status));
 
     const cfg      = cfgRes.data.config;
     const hasMercadoPago = !!cfg.hasMercadoPago;
@@ -258,6 +260,55 @@ export async function renderUploadPage() {
           <button class="seg-btn" id="tab-online" onclick="switchPayTab('online')">${svgIcon('wallet', 16)} Pago online</button>
           ` : ''}
         </div>
+
+        ${activePlan ? (() => {
+          const formatC = n => Number(n || 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
+          const formatD = d => d ? new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+          const formatM = m => { if (!m) return '—'; const [y, mo] = m.split('-'); const ns = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${ns[+mo-1]} ${y}`; };
+          const concepts = [
+            (activePlan.includedPeriods || []).map(p => formatM(p.month)).join(', '),
+            (activePlan.extraordinaryItems || []).map(e => e.title).join(', '),
+            activePlan.balanceDebt > 0 ? 'Saldo anterior' : '',
+          ].filter(Boolean).join(', ') || '—';
+          const next = activePlan.installments?.find(i => i.status === 'pending' || i.status === 'overdue');
+          const badgeCls = activePlan.status === 'active' ? 'badge-success' : 'badge-warning';
+          const statusLabel = activePlan.status === 'active' ? 'Activo' : 'Aprobado';
+          return `
+          <div class="section-head" style="margin-top:18px">
+            <h3>Plan de pagos</h3>
+            <span class="badge ${badgeCls}">${statusLabel}</span>
+          </div>
+          <div class="card" style="margin-top:8px;padding:14px 16px">
+            <div style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.2rem">Conceptos incluidos</div>
+            <div style="font-weight:600;color:var(--text-bright);font-size:.95rem;margin-bottom:12px">${concepts}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${next ? '12px' : '0'}">
+              <div>
+                <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.15rem">Deuda original</div>
+                <div style="font-weight:700;font-size:.9rem">${formatC(activePlan.originalDebtAmount)}</div>
+              </div>
+              <div>
+                <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.15rem">Total financiado</div>
+                <div style="font-weight:700;font-size:.9rem">${formatC(activePlan.totalAmount)}</div>
+              </div>
+              <div>
+                <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.15rem">Pagado</div>
+                <div style="font-weight:700;font-size:.9rem;color:var(--success)">${formatC(activePlan.totalPaid)}</div>
+              </div>
+              <div>
+                <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.15rem">Saldo restante</div>
+                <div style="font-weight:700;font-size:.9rem;color:var(--warning)">${formatC(activePlan.remainingBalance)}</div>
+              </div>
+            </div>
+            ${next ? `
+            <div style="padding:10px 12px;background:rgba(255,255,255,.04);border-radius:9px;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:.78rem;color:var(--muted)">Próxima cuota</div>
+                <div style="font-size:.85rem;font-weight:600;color:var(--text-bright)">Cuota ${next.installmentNumber} · vence ${formatD(next.dueDate)}</div>
+              </div>
+              <div style="font-weight:700;font-size:.95rem">${formatC(next.amount)}</div>
+            </div>` : ''}
+          </div>`;
+        })() : ''}
 
         ${hasForm ? `
         <!-- Conceptos a pagar -->
