@@ -7,9 +7,19 @@ import { toast }      from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton }   from '../../ui/skeleton.js';
 
-let _activeTab = 'requested';
+let _activeTab = 'all';
 let _plansAll   = [];
 let _plansQuery = '';
+
+const ALL_STATUSES = ['requested', 'approved', 'active', 'completed', 'rejected', 'cancelled', 'defaulted'];
+
+const TABS = [
+  { key: 'all',                          label: 'Todos' },
+  { key: 'requested',                    label: 'Solicitudes' },
+  { key: 'active',                       label: 'Activos' },
+  { key: 'completed',                    label: 'Finalizados' },
+  { key: 'rejected,cancelled,defaulted', label: 'Incumplidos/Cancelados' },
+];
 
 const STATUS_LABELS = {
   requested: 'Solicitado',
@@ -77,11 +87,16 @@ export async function renderAdminPaymentPlans() {
         <button class="btn btn-primary btn-sm" onclick="adminPaymentPlanCreateModal()">+ Nuevo plan</button>
       </div>
 
-      <div class="tabs">
-        <button class="tab-btn ${_activeTab === 'requested' ? 'active' : ''}" onclick="adminPaymentPlanTab('requested')">Solicitudes</button>
-        <button class="tab-btn ${_activeTab === 'active' ? 'active' : ''}" onclick="adminPaymentPlanTab('active')">Activos</button>
-        <button class="tab-btn ${_activeTab === 'completed' ? 'active' : ''}" onclick="adminPaymentPlanTab('completed')">Finalizados</button>
-        <button class="tab-btn ${_activeTab === 'rejected,cancelled,defaulted' ? 'active' : ''}" onclick="adminPaymentPlanTab('rejected,cancelled,defaulted')">Incumplidos/Cancelados</button>
+      <div style="display:flex;flex-wrap:wrap;gap:.35rem">
+        ${TABS.map(t => {
+          const active = _activeTab === t.key;
+          return `<button onclick="adminPaymentPlanTab('${t.key}')"
+            style="padding:.45rem .9rem;border-radius:999px;border:1.5px solid ${active ? 'var(--accent)' : 'var(--border-md)'};
+                   background:${active ? 'var(--accent-lt)' : 'transparent'};
+                   color:${active ? 'var(--accent)' : 'var(--muted)'};
+                   font-size:.82rem;font-weight:${active ? '700' : '500'};cursor:pointer;
+                   transition:all .15s;font-family:var(--font);white-space:nowrap">${t.label}</button>`;
+        }).join('')}
       </div>
 
       <input id="pp-search" class="input" type="search" placeholder="🔍 Buscar por propietario…"
@@ -97,7 +112,7 @@ export async function renderAdminPaymentPlans() {
 async function _loadPlans() {
   const el = document.getElementById('payment-plans-list');
   if (!el) return;
-  const statuses = _activeTab.split(',');
+  const statuses = _activeTab === 'all' ? ALL_STATUSES : _activeTab.split(',');
 
   const results = await Promise.all(
     statuses.map(s => apiCall(() => api.paymentPlans.listAdmin({ status: s, limit: 50 }), { silent: true }))
@@ -157,34 +172,36 @@ function _planCard(plan) {
   return `
     <div class="card" style="margin-bottom:.6rem">
       <div class="card-body" style="padding:1rem 1.25rem">
-        <div class="flex" style="gap:.85rem;align-items:flex-start">
-          <div class="owner-avatar" style="flex-shrink:0">${initials}</div>
+        <div style="display:flex;gap:.85rem;align-items:flex-start">
+          <div class="owner-avatar" style="flex-shrink:0;margin-top:.1rem">${initials}</div>
           <div style="flex:1;min-width:0">
-            <div class="flex between" style="gap:.5rem;flex-wrap:wrap;align-items:center">
+
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;flex-wrap:wrap">
               <div>
-                <span class="bold" style="color:var(--text-bright)">${ownerName}</span>
-                ${ownerUnit ? `<span class="text-muted text-sm"> · ${ownerUnit}</span>` : ''}
+                <div style="font-weight:700;color:var(--text-bright);font-size:.95rem;line-height:1.3">${ownerName}${ownerUnit ? `<span style="color:var(--muted);font-weight:400;font-size:.85rem"> · ${ownerUnit}</span>` : ''}</div>
+                <div style="color:var(--muted);font-size:.8rem;margin-top:.15rem">${periods || '—'}</div>
               </div>
-              <span class="badge ${badgeCls}">${label}</span>
+              <span class="badge ${badgeCls}" style="flex-shrink:0;margin-top:.1rem">${label}</span>
             </div>
-            <div class="text-muted text-sm" style="margin-top:.2rem">${periods || '—'}</div>
-            <div class="flex" style="gap:1.25rem;margin-top:.65rem;flex-wrap:wrap">
+
+            <div style="display:flex;gap:1.5rem;margin-top:.7rem;flex-wrap:wrap">
               <div>
-                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Deuda original</div>
-                <div class="bold" style="font-size:.95rem;color:var(--text-bright)">${formatCurrency(plan.originalDebtAmount)}</div>
+                <div style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.15rem">Deuda original</div>
+                <div style="font-weight:700;color:var(--text-bright);font-size:.9rem">${formatCurrency(plan.originalDebtAmount)}</div>
               </div>
               ${plan.status !== 'requested' ? `
               <div>
-                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Total financiado</div>
-                <div class="bold" style="font-size:.95rem;color:var(--text-bright)">${formatCurrency(plan.totalAmount)}</div>
+                <div style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.15rem">Total financiado</div>
+                <div style="font-weight:700;color:var(--text-bright);font-size:.9rem">${formatCurrency(plan.totalAmount)}</div>
               </div>
               <div>
-                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Cuotas</div>
-                <div class="bold" style="font-size:.95rem;color:var(--text-bright)">${plan.paidInstallments || 0}/${plan.totalInstallments || plan.installmentsCount || '—'}</div>
+                <div style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.15rem">Cuotas</div>
+                <div style="font-weight:700;color:var(--text-bright);font-size:.9rem">${plan.paidInstallments || 0}/${plan.totalInstallments || plan.installmentsCount || '—'}</div>
               </div>` : ''}
             </div>
-            ${plan.requestComment ? `<p class="text-muted text-sm" style="margin:.6rem 0 0;font-style:italic">"${plan.requestComment}"</p>` : ''}
-            ${actionBtns ? `<div class="flex" style="gap:.5rem;flex-wrap:wrap;margin-top:.85rem">${actionBtns}</div>` : ''}
+
+            ${plan.requestComment ? `<p style="margin:.6rem 0 0;color:var(--muted);font-size:.82rem;font-style:italic">"${plan.requestComment}"</p>` : ''}
+            ${actionBtns ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.85rem">${actionBtns}</div>` : ''}
           </div>
         </div>
       </div>
