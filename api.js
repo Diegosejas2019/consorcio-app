@@ -543,6 +543,8 @@ const api = {
     cancel:   (id)            => request(`/payment-plans/admin/${id}/cancel`, { method: 'PATCH' }),
     registerInstallmentPayment: (id) =>
       request(`/payment-plans/admin/installments/${id}/register-payment`, { method: 'POST' }),
+    submitInstallmentPayment: (id, formData) =>
+      request(`/payment-plans/installments/${id}/pay`, { method: 'POST', body: formData }),
   },
 
   // ── Deudas adicionales ────────────────────────────────────────

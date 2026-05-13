@@ -9,6 +9,8 @@ import { openRequestPlanModal } from './payment-plans.js';
 
 let selectedFile  = null;
 let _selectedBalanceFile = null;
+let _selectedInstallmentFile = null;
+let _pendingInstallmentId = null;
 let _monthlyFee   = 0;
 let _ownerFee     = 0;
 let _selectedExtras = new Set();
@@ -271,6 +273,7 @@ export async function renderUploadPage() {
             activePlan.balanceDebt > 0 ? 'Saldo anterior' : '',
           ].filter(Boolean).join(', ') || '—';
           const next = activePlan.installments?.find(i => i.status === 'pending' || i.status === 'overdue');
+          const nextHasPending = next && payments.some(p => p.type === 'installment' && p.status === 'pending');
           const badgeCls = activePlan.status === 'active' ? 'badge-success' : 'badge-warning';
           const statusLabel = activePlan.status === 'active' ? 'Activo' : 'Aprobado';
           return `
@@ -300,12 +303,31 @@ export async function renderUploadPage() {
               </div>
             </div>
             ${next ? `
-            <div style="padding:10px 12px;background:rgba(255,255,255,.04);border-radius:9px;display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div style="font-size:.78rem;color:var(--muted)">Próxima cuota</div>
-                <div style="font-size:.85rem;font-weight:600;color:var(--text-bright)">Cuota ${next.installmentNumber} · vence ${formatD(next.dueDate)}</div>
+            <div style="padding:10px 12px;background:rgba(255,255,255,.04);border-radius:9px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${nextHasPending ? '8px' : '0'}">
+                <div>
+                  <div style="font-size:.78rem;color:var(--muted)">Próxima cuota</div>
+                  <div style="font-size:.85rem;font-weight:600;color:var(--text-bright)">Cuota ${next.installmentNumber} · vence ${formatD(next.dueDate)}</div>
+                </div>
+                <div style="font-weight:700;font-size:.95rem">${formatC(next.amount)}</div>
               </div>
-              <div style="font-weight:700;font-size:.95rem">${formatC(next.amount)}</div>
+              ${nextHasPending ? `
+              <div style="display:flex;align-items:center;gap:6px;color:var(--warning);font-size:.8rem;font-weight:600">
+                <span>⏳</span><span>Comprobante pendiente de revisión</span>
+              </div>` : `
+              <div style="margin-top:8px">
+                <input type="file" id="installment-file-input" accept=".pdf,image/*" style="display:none" onchange="handleInstallmentFileSelect(event,'${next._id}')">
+                <div id="installment-upload-zone" onclick="document.getElementById('installment-file-input').click()" style="border:1.5px dashed var(--border-md);border-radius:9px;padding:10px 12px;cursor:pointer;text-align:center;font-size:.82rem;color:var(--muted)">
+                  ${svgIcon('upload', 14)} Adjuntar comprobante de cuota
+                </div>
+                <div id="installment-file-preview" class="hidden" style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;font-size:.82rem;padding:6px 10px;background:rgba(156,242,123,.06);border-radius:7px;border:1px solid rgba(156,242,123,.15)">
+                  <span id="installment-file-name" style="color:var(--accent)"></span>
+                  <button onclick="clearInstallmentFile()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 4px">×</button>
+                </div>
+                <button id="installment-submit-btn" onclick="submitInstallmentPayment('${next._id}')" class="btn-primary w-full" style="margin-top:8px;padding:10px" disabled>
+                  Enviar comprobante
+                </button>
+              </div>`}
             </div>` : ''}
           </div>`;
         })() : ''}
@@ -723,19 +745,71 @@ export async function submitBalancePayment() {
   }
 }
 
-window.renderUploadPage        = renderUploadPage;
-window.handleFileSelect        = handleFileSelect;
-window.handleFileDrop          = handleFileDrop;
-window.clearFile               = clearFile;
-window.submitReceipt           = submitReceipt;
-window.updateDebtTotal         = updateDebtTotal;
-window.payDebtWithMP           = payDebtWithMP;
-window.payBalanceWithMP        = payBalanceWithMP;
-window.toggleExtra             = toggleExtra;
-window.updatePayTotal          = updatePayTotal;
-window.handleBalanceFileSelect = handleBalanceFileSelect;
-window.clearBalanceFile        = clearBalanceFile;
-window.submitBalancePayment    = submitBalancePayment;
-window.togglePeriodCard        = togglePeriodCard;
-window.switchPayTab            = switchPayTab;
-window.initMercadoPagoNew      = initMercadoPagoNew;
+export function handleInstallmentFileSelect(e, installmentId) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!ALLOWED_TYPES.has(file.type)) {
+    toast('Solo se aceptan PDF o imágenes (JPG, PNG, WebP, HEIC).', 'error');
+    e.target.value = '';
+    return;
+  }
+  _selectedInstallmentFile = file;
+  _pendingInstallmentId    = installmentId;
+  const nameEl = document.getElementById('installment-file-name');
+  if (nameEl) nameEl.textContent = file.name;
+  document.getElementById('installment-upload-zone')?.classList.add('hidden');
+  document.getElementById('installment-file-preview')?.classList.remove('hidden');
+  const btn = document.getElementById('installment-submit-btn');
+  if (btn) btn.disabled = false;
+}
+
+export function clearInstallmentFile() {
+  _selectedInstallmentFile = null;
+  document.getElementById('installment-file-preview')?.classList.add('hidden');
+  document.getElementById('installment-upload-zone')?.classList.remove('hidden');
+  const input = document.getElementById('installment-file-input');
+  if (input) input.value = '';
+  const btn = document.getElementById('installment-submit-btn');
+  if (btn) btn.disabled = true;
+}
+
+export async function submitInstallmentPayment(installmentId) {
+  if (!_selectedInstallmentFile) { toast('Adjuntá el comprobante (PDF o imagen)', 'error'); return; }
+  const formData = new FormData();
+  formData.append('receipt', _selectedInstallmentFile);
+
+  const btn = document.getElementById('installment-submit-btn');
+  setBtnLoading(btn, true);
+  try {
+    await api.paymentPlans.submitInstallmentPayment(installmentId, formData);
+    toast('Comprobante enviado. Pendiente de revisión por el administrador.', 'success');
+    _selectedInstallmentFile = null;
+    _pendingInstallmentId    = null;
+    window.gestionarInvalidateCaches?.('payments');
+    await renderUploadPage();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+window.renderUploadPage              = renderUploadPage;
+window.handleFileSelect              = handleFileSelect;
+window.handleFileDrop                = handleFileDrop;
+window.clearFile                     = clearFile;
+window.submitReceipt                 = submitReceipt;
+window.updateDebtTotal               = updateDebtTotal;
+window.payDebtWithMP                 = payDebtWithMP;
+window.payBalanceWithMP              = payBalanceWithMP;
+window.toggleExtra                   = toggleExtra;
+window.updatePayTotal                = updatePayTotal;
+window.handleBalanceFileSelect       = handleBalanceFileSelect;
+window.clearBalanceFile              = clearBalanceFile;
+window.submitBalancePayment          = submitBalancePayment;
+window.togglePeriodCard              = togglePeriodCard;
+window.switchPayTab                  = switchPayTab;
+window.initMercadoPagoNew            = initMercadoPagoNew;
+window.handleInstallmentFileSelect   = handleInstallmentFileSelect;
+window.clearInstallmentFile          = clearInstallmentFile;
+window.submitInstallmentPayment      = submitInstallmentPayment;
