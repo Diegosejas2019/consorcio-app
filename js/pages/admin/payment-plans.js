@@ -8,6 +8,8 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton }   from '../../ui/skeleton.js';
 
 let _activeTab = 'requested';
+let _plansAll   = [];
+let _plansQuery = '';
 
 const STATUS_LABELS = {
   requested: 'Solicitado',
@@ -64,23 +66,30 @@ function formatMonth(m) {
 export async function renderAdminPaymentPlans() {
   const el = document.getElementById('page-admin-payment-plans');
   if (!el) return;
+  _plansQuery = '';
   el.innerHTML = `
-    <div class="page-header between" style="margin-bottom:1.5rem">
-      <div>
-        <h1 style="margin:0">Planes de Pago</h1>
-        <p style="color:var(--muted);margin:.25rem 0 0">Gestión de regularización de deuda</p>
+    <div class="flex col gap-3">
+      <div class="flex between">
+        <div>
+          <h1>Planes de Pago</h1>
+          <p class="text-muted text-sm" style="margin:.1rem 0 0">Gestión de regularización de deuda</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="adminPaymentPlanCreateModal()">+ Nuevo plan</button>
       </div>
-      <button class="btn-primary btn-sm" onclick="adminPaymentPlanCreateModal()">+ Nuevo plan</button>
-    </div>
 
-    <div class="tabs" style="margin-bottom:1.5rem">
-      <button class="tab-btn ${_activeTab === 'requested' ? 'active' : ''}" onclick="adminPaymentPlanTab('requested')">Solicitudes</button>
-      <button class="tab-btn ${_activeTab === 'active' ? 'active' : ''}" onclick="adminPaymentPlanTab('active')">Activos</button>
-      <button class="tab-btn ${_activeTab === 'completed' ? 'active' : ''}" onclick="adminPaymentPlanTab('completed')">Finalizados</button>
-      <button class="tab-btn ${_activeTab === 'rejected,cancelled,defaulted' ? 'active' : ''}" onclick="adminPaymentPlanTab('rejected,cancelled,defaulted')">Incumplidos/Cancelados</button>
-    </div>
+      <div class="tabs">
+        <button class="tab-btn ${_activeTab === 'requested' ? 'active' : ''}" onclick="adminPaymentPlanTab('requested')">Solicitudes</button>
+        <button class="tab-btn ${_activeTab === 'active' ? 'active' : ''}" onclick="adminPaymentPlanTab('active')">Activos</button>
+        <button class="tab-btn ${_activeTab === 'completed' ? 'active' : ''}" onclick="adminPaymentPlanTab('completed')">Finalizados</button>
+        <button class="tab-btn ${_activeTab === 'rejected,cancelled,defaulted' ? 'active' : ''}" onclick="adminPaymentPlanTab('rejected,cancelled,defaulted')">Incumplidos/Cancelados</button>
+      </div>
 
-    <div id="payment-plans-list">${skeleton(4)}</div>
+      <input id="pp-search" class="input" type="search" placeholder="🔍 Buscar por propietario…"
+        value=""
+        oninput="adminPlanSearch(this.value)">
+
+      <div id="payment-plans-list">${skeleton(4)}</div>
+    </div>
   `;
   await _loadPlans();
 }
@@ -93,15 +102,47 @@ async function _loadPlans() {
   const results = await Promise.all(
     statuses.map(s => apiCall(() => api.paymentPlans.listAdmin({ status: s, limit: 50 }), { silent: true }))
   );
-  const plans = results.flatMap(r => r?.data?.plans || []);
-  plans.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  _plansAll = results.flatMap(r => r?.data?.plans || []);
+  _plansAll.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  if (!plans.length) {
-    el.innerHTML = `<div class="card"><div class="card-body" style="text-align:center;color:var(--muted);padding:2.5rem">Sin planes en esta categoría.</div></div>`;
+  _renderPlansList();
+}
+
+function _renderPlansList() {
+  const el = document.getElementById('payment-plans-list');
+  if (!el) return;
+
+  const q = _plansQuery.toLowerCase().trim();
+  const plans = q
+    ? _plansAll.filter(p => (p.owner?.name || '').toLowerCase().includes(q))
+    : _plansAll;
+
+  if (!_plansAll.length) {
+    el.innerHTML = `
+      <div class="card">
+        <div class="card-body" style="text-align:center;color:var(--muted);padding:2.5rem">
+          Sin planes en esta categoría.
+        </div>
+      </div>`;
     return;
   }
 
-  el.innerHTML = plans.map(plan => _planCard(plan)).join('');
+  if (!plans.length) {
+    el.innerHTML = `
+      <div class="card">
+        <div class="card-body" style="text-align:center;padding:2rem 1rem">
+          <div style="font-size:2rem;margin-bottom:.5rem">🔍</div>
+          <p class="text-muted text-sm">No se encontraron planes para "<strong>${_plansQuery}</strong>".</p>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const meta = q
+    ? `<div class="owners-meta"><span>${plans.length} resultado${plans.length !== 1 ? 's' : ''} de ${_plansAll.length}</span></div>`
+    : `<div class="owners-meta"><span>${_plansAll.length} plan${_plansAll.length !== 1 ? 'es' : ''}</span></div>`;
+
+  el.innerHTML = meta + plans.map(plan => _planCard(plan)).join('');
 }
 
 function _planCard(plan) {
@@ -109,38 +150,43 @@ function _planCard(plan) {
   const ownerUnit = plan.owner?.unit || '';
   const badgeCls  = STATUS_BADGE[plan.status] || 'badge-neutral';
   const label     = STATUS_LABELS[plan.status] || plan.status;
-
   const actionBtns = _planActions(plan);
-
-  const periods = (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', ');
+  const periods   = (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', ');
+  const initials  = ownerName.split(' ').slice(0, 2).map(w => w[0]).join('');
 
   return `
-    <div class="card" style="margin-bottom:.85rem">
-      <div class="card-body">
-        <div class="between" style="gap:1rem;flex-wrap:wrap">
-          <div style="flex:1;min-width:200px">
-            <div class="bold" style="color:var(--text-bright)">${ownerName}${ownerUnit ? ` <span style="color:var(--muted);font-weight:400">· ${ownerUnit}</span>` : ''}</div>
-            <div style="color:var(--muted);font-size:.82rem;margin-top:.2rem">${periods || '—'}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-            <div style="text-align:right">
-              <div style="color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">Deuda original</div>
-              <div class="bold" style="color:var(--text-bright)">${formatCurrency(plan.originalDebtAmount)}</div>
+    <div class="card" style="margin-bottom:.6rem">
+      <div class="card-body" style="padding:1rem 1.25rem">
+        <div class="flex" style="gap:.85rem;align-items:flex-start">
+          <div class="owner-avatar" style="flex-shrink:0">${initials}</div>
+          <div style="flex:1;min-width:0">
+            <div class="flex between" style="gap:.5rem;flex-wrap:wrap;align-items:center">
+              <div>
+                <span class="bold" style="color:var(--text-bright)">${ownerName}</span>
+                ${ownerUnit ? `<span class="text-muted text-sm"> · ${ownerUnit}</span>` : ''}
+              </div>
+              <span class="badge ${badgeCls}">${label}</span>
             </div>
-            ${plan.status !== 'requested' ? `
-            <div style="text-align:right">
-              <div style="color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">Total financiado</div>
-              <div class="bold" style="color:var(--text-bright)">${formatCurrency(plan.totalAmount)}</div>
+            <div class="text-muted text-sm" style="margin-top:.2rem">${periods || '—'}</div>
+            <div class="flex" style="gap:1.25rem;margin-top:.65rem;flex-wrap:wrap">
+              <div>
+                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Deuda original</div>
+                <div class="bold" style="font-size:.95rem;color:var(--text-bright)">${formatCurrency(plan.originalDebtAmount)}</div>
+              </div>
+              ${plan.status !== 'requested' ? `
+              <div>
+                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Total financiado</div>
+                <div class="bold" style="font-size:.95rem;color:var(--text-bright)">${formatCurrency(plan.totalAmount)}</div>
+              </div>
+              <div>
+                <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Cuotas</div>
+                <div class="bold" style="font-size:.95rem;color:var(--text-bright)">${plan.paidInstallments || 0}/${plan.totalInstallments || plan.installmentsCount || '—'}</div>
+              </div>` : ''}
             </div>
-            <div style="text-align:right">
-              <div style="color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em">Cuotas</div>
-              <div class="bold" style="color:var(--text-bright)">${plan.paidInstallments || 0}/${plan.totalInstallments || plan.installmentsCount || '—'}</div>
-            </div>` : ''}
-            <span class="badge ${badgeCls}">${label}</span>
+            ${plan.requestComment ? `<p class="text-muted text-sm" style="margin:.6rem 0 0;font-style:italic">"${plan.requestComment}"</p>` : ''}
+            ${actionBtns ? `<div class="flex" style="gap:.5rem;flex-wrap:wrap;margin-top:.85rem">${actionBtns}</div>` : ''}
           </div>
         </div>
-        ${plan.requestComment ? `<p style="margin:.75rem 0 0;color:var(--muted);font-size:.85rem;font-style:italic">"${plan.requestComment}"</p>` : ''}
-        ${actionBtns ? `<div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">${actionBtns}</div>` : ''}
       </div>
     </div>
   `;
@@ -162,8 +208,14 @@ function _planActions(plan) {
 
 // ── Tabs ──────────────────────────────────────────────────────
 
+window.adminPlanSearch = function(val) {
+  _plansQuery = val;
+  _renderPlansList();
+};
+
 window.adminPaymentPlanTab = function(tab) {
-  _activeTab = tab;
+  _activeTab  = tab;
+  _plansQuery = '';
   renderAdminPaymentPlans();
 };
 
