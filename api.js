@@ -257,10 +257,10 @@ const api = {
         headers: { Authorization: `Bearer ${selectionToken}` },
       }),
 
-    changeTempPassword: (currentPassword, newPassword) =>
+    changeTempPassword: (currentPassword, newPassword, confirmPassword = newPassword) =>
       request('/auth/change-temporary-password', {
         method: 'POST',
-        body: JSON.stringify({ currentPassword, newPassword, confirmPassword: newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
       }),
   },
 
@@ -286,6 +286,12 @@ const api = {
 
     delete: (id) =>
       request(`/owners/${id}`, { method: 'DELETE' }),
+
+    requestEmailChange: (newEmail) =>
+      request('/owners/me/request-email-change', { method: 'POST', body: JSON.stringify({ newEmail }) }),
+
+    confirmEmailChange: (token) =>
+      request('/owners/me/confirm-email-change', { method: 'POST', body: JSON.stringify({ token }) }),
 
     notify: (id, title, body) =>
       request(`/owners/${id}/notify`, { method: 'POST', body: JSON.stringify({ title, body }) }),

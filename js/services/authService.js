@@ -120,9 +120,7 @@ async function selectOrg(membershipId) {
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
     if (res.mustChangePassword) {
-      enterApp();
-      window.showPage('page-change-temp-password');
-      window.renderChangeTemporaryPassword?.();
+      enterApp({ passwordChangeOnly: true });
       return;
     }
     enterApp();
@@ -202,9 +200,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
     if (res.mustChangePassword) {
-      enterApp();
-      window.showPage('page-change-temp-password');
-      window.renderChangeTemporaryPassword?.();
+      enterApp({ passwordChangeOnly: true });
       return;
     }
     enterApp();
@@ -354,9 +350,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
     if (res.data.user.mustChangePassword) {
-      enterApp();
-      window.showPage('page-change-temp-password');
-      window.renderChangeTemporaryPassword?.();
+      enterApp({ passwordChangeOnly: true });
       return;
     }
     enterApp();
@@ -387,12 +381,17 @@ window.addEventListener('auth:mustChangePassword', () => {
 });
 
 // ── enterApp ──────────────────────────────────────────────────
-export function enterApp() {
+export function enterApp(options = {}) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-shell').style.display    = 'flex';
   setupNav();
   setupTopBar();
   if (window.Sentry) Sentry.onLoad(() => Sentry.setUser({ id: state.user._id, email: state.user.email, role: state.role }));
+  if (options.passwordChangeOnly) {
+    window.showPage('page-change-temp-password');
+    window.renderChangeTemporaryPassword?.();
+    return;
+  }
   if (state.role === 'admin') {
     window.renderAdminView();
     setupPushNotifications();

@@ -6,9 +6,15 @@ import { toast } from '../ui/toast.js';
 // Poblado por app.js después de importar todos los módulos de páginas
 export const PAGE_RENDERERS = {};
 const PUBLIC_PAGES = new Set(['page-terms']);
+const PASSWORD_CHANGE_PAGES = new Set(['page-change-temp-password', 'page-terms']);
 
 export function showPage(id) {
   window.navCloseSubmenu?.();
+
+  if (state.user?.mustChangePassword && !PASSWORD_CHANGE_PAGES.has(id)) {
+    toast('Debés cambiar tu contraseña temporal antes de continuar.', 'warning');
+    id = 'page-change-temp-password';
+  }
 
   // Verificar feature flag antes de renderizar
   const feature = PAGE_FEATURE_MAP[id];

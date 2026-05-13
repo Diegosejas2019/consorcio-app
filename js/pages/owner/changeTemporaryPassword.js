@@ -1,4 +1,4 @@
-import { state, setState } from '../../core/state.js';
+import { state, setState, cache } from '../../core/state.js';
 import { toast } from '../../ui/toast.js';
 import { showLoading } from '../../ui/loading.js';
 
@@ -66,7 +66,7 @@ window.submitChangeTempPassword = async function () {
 
   try {
     showLoading(true);
-    const res = await api.auth.changeTempPassword(currentPass, newPass);
+    const res = await api.auth.changeTempPassword(currentPass, newPass, confirmPass);
 
     // Actualizar token con el nuevo emitido por el backend
     if (res.token) {
@@ -76,12 +76,14 @@ window.submitChangeTempPassword = async function () {
 
     // Actualizar estado: mustChangePassword ya no aplica
     setState({ user: { ...state.user, mustChangePassword: false } });
+    cache.del('auth:me');
 
     toast('Contraseña cambiada correctamente.', 'success');
 
-    // Redirigir al inicio del propietario
-    window.showPage('page-owner-home');
-    window.renderOwnerHome?.();
+    const homePage = state.role === 'admin' ? 'page-admin-home' : 'page-owner-home';
+    window.showPage(homePage);
+    if (state.role === 'admin') window.renderAdminHome?.();
+    else window.renderOwnerHome?.();
   } catch (err) {
     toast(err.message || 'No se pudo cambiar la contraseña. Intentá nuevamente.', 'error');
     if (btn) btn.disabled = false;
