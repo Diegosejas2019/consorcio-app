@@ -63,6 +63,7 @@ import { renderOwnerProfile }      from './js/pages/owner/profile.js';
 import { renderOwnerReservations } from './js/pages/owner/reservations.js';
 import { renderPaymentResult }       from './js/pages/owner/pago-resultado.js';
 import { renderOwnerPaymentPlans }   from './js/pages/owner/payment-plans.js';
+import { renderChangeTemporaryPassword } from './js/pages/owner/changeTemporaryPassword.js';
 import { renderTermsPage }         from './js/pages/legal/terms.js';
 
 // ── Registrar renderers en el router ─────────────────────────
@@ -99,6 +100,7 @@ PAGE_RENDERERS['page-owner-profile']       = () => renderOwnerProfile();
 PAGE_RENDERERS['page-owner-reservations']    = () => renderOwnerReservations();
 PAGE_RENDERERS['page-owner-pago-resultado']    = () => renderPaymentResult();
 PAGE_RENDERERS['page-owner-payment-plans']     = () => renderOwnerPaymentPlans();
+PAGE_RENDERERS['page-change-temp-password']    = () => renderChangeTemporaryPassword();
 PAGE_RENDERERS['page-terms']                 = () => renderTermsPage();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)

@@ -119,6 +119,12 @@ async function selectOrg(membershipId) {
     cache.clear();
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
+    if (res.mustChangePassword) {
+      enterApp();
+      window.showPage('page-change-temp-password');
+      window.renderChangeTemporaryPassword?.();
+      return;
+    }
     enterApp();
     await handlePendingMPNavigation();
   } catch (err) {
@@ -195,6 +201,12 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     cache.clear();
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
+    if (res.mustChangePassword) {
+      enterApp();
+      window.showPage('page-change-temp-password');
+      window.renderChangeTemporaryPassword?.();
+      return;
+    }
     enterApp();
     await handlePendingMPNavigation();
   } catch (err) {
@@ -341,11 +353,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     cache.clear();
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
+    if (res.data.user.mustChangePassword) {
+      enterApp();
+      window.showPage('page-change-temp-password');
+      window.renderChangeTemporaryPassword?.();
+      return;
+    }
     enterApp();
     await handlePendingMPNavigation();
   } catch (err) {
     if (err.status === 401 || err.message?.includes('Sesión expirada')) {
       clearToken();
+    } else if (err.status === 403 && err.mustChangePassword) {
+      // La sesión tiene mustChangePassword — ya redirigido por el backend
     } else {
       showSessionRestoreError();
     }
@@ -358,6 +378,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 window.addEventListener('auth:expired', () => {
   toast('Sesión expirada. Iniciá sesión nuevamente.', 'error');
   logout();
+});
+
+// ── auth:mustChangePassword ───────────────────────────────────
+window.addEventListener('auth:mustChangePassword', () => {
+  window.showPage('page-change-temp-password');
+  window.renderChangeTemporaryPassword?.();
 });
 
 // ── enterApp ──────────────────────────────────────────────────

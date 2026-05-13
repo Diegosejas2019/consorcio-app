@@ -167,10 +167,15 @@ async function request(endpoint, options = {}) {
   if (!response.ok) {
     const err = new Error(data.message || `Error ${response.status}`);
     err.status = response.status;
+    err.mustChangePassword = data.mustChangePassword || false;
     // Token expirado o inválido fuera del login → desloguear
     if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/select-organization') {
       clearToken();
       window.dispatchEvent(new CustomEvent('auth:expired'));
+    }
+    // Contraseña temporal pendiente → redirigir a cambio de contraseña
+    if (response.status === 403 && data.mustChangePassword) {
+      window.dispatchEvent(new CustomEvent('auth:mustChangePassword'));
     }
     logApiDebug({ method, endpoint, startedAt, status: `HTTP_${response.status}` });
     throw err;
@@ -250,6 +255,12 @@ const api = {
         method:  'POST',
         body:    JSON.stringify({ membershipId }),
         headers: { Authorization: `Bearer ${selectionToken}` },
+      }),
+
+    changeTempPassword: (currentPassword, newPassword) =>
+      request('/auth/change-temporary-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword: newPassword }),
       }),
   },
 
