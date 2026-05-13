@@ -169,6 +169,7 @@ function _planCard(plan) {
   const periods   = [
     (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', '),
     (plan.extraordinaryItems || []).map(e => e.title).join(', '),
+    plan.balanceDebt > 0 ? `Saldo anterior (${formatCurrency(plan.balanceDebt)})` : '',
   ].filter(Boolean).join(', ');
   const initials  = ownerName.split(' ').slice(0, 2).map(w => w[0]).join('');
 
@@ -267,7 +268,8 @@ window.adminPaymentPlanDetail = async function(id) {
 
   const periods = (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', ');
   const extrasText = (plan.extraordinaryItems || []).map(e => e.title).join(', ');
-  const conceptsText = [periods, extrasText].filter(Boolean).join(', ') || '—';
+  const balanceText = plan.balanceDebt > 0 ? `Saldo anterior (${formatCurrency(plan.balanceDebt)})` : '';
+  const conceptsText = [periods, extrasText, balanceText].filter(Boolean).join(', ') || '—';
   const ownerName = plan.owner?.name || '—';
   const badgeCls = STATUS_BADGE[plan.status] || 'badge-neutral';
 
@@ -351,6 +353,7 @@ window.adminPaymentPlanApproveModal = async function(planId, plan) {
   const periodsText = [
     (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', '),
     (plan.extraordinaryItems || []).map(e => e.title).join(', '),
+    plan.balanceDebt > 0 ? `Saldo anterior (${formatCurrency(plan.balanceDebt)})` : '',
   ].filter(Boolean).join(', ') || '—';
   openModal(`
     <div style="max-width:520px;padding:1.5rem">
@@ -660,6 +663,9 @@ window.adminPaymentPlanCreateConfirm = async function() {
     .filter(c => c.dataset.type === 'extra')
     .map(c => ({ expenseId: c.value, title: c.dataset.title || c.value, amount: Number(c.dataset.amount || 0) }));
 
+  const balanceCheck = checks.find(c => c.dataset.type === 'balance');
+  const balanceDebt  = balanceCheck ? Number(balanceCheck.dataset.amount || 0) : 0;
+
   if (!periods.length) {
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -670,6 +676,7 @@ window.adminPaymentPlanCreateConfirm = async function() {
     ownerId,
     includedPeriods:    periods,
     extraordinaryItems: extras,
+    balanceDebt,
     originalDebtAmount: debt,
     installmentsCount:  count,
     startDate:          start,
