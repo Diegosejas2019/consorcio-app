@@ -414,31 +414,34 @@ window.adminPaymentPlanCancelConfirm = async function(planId) {
 // ── Modal nuevo plan manual ───────────────────────────────────
 
 window.adminPaymentPlanCreateModal = async function() {
-  // Cargar propietarios
   const res = await apiCall(() => api.owners.getAll({ limit: 200 }), { silent: true });
   const owners = res?.data?.owners || [];
   const options = owners.map(o => `<option value="${o._id}">${o.name}${o.unit ? ` · ${o.unit}` : ''}</option>`).join('');
 
   openModal(`
-    <div style="max-width:560px;padding:1.5rem">
+    <div style="max-width:580px;padding:1.5rem">
       <h2 style="margin:0 0 1.25rem">Nuevo plan de pagos</h2>
 
       <div class="form-group" style="margin-bottom:1rem">
         <label>Propietario</label>
-        <select id="np-owner" class="select" style="width:100%">
+        <select id="np-owner" class="select" style="width:100%" onchange="adminLoadOwnerItems()">
           <option value="">— Seleccionar —</option>
           ${options}
         </select>
       </div>
 
-      <div class="form-group" style="margin-bottom:1rem">
-        <label>Períodos incluidos (formato YYYY-MM, separados por coma)</label>
-        <input id="np-periods" type="text" class="input" style="width:100%" placeholder="2025-01, 2025-02, 2025-03">
+      <div id="np-items-section" style="margin-bottom:1rem;display:none">
+        <label style="font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.5rem">Conceptos a incluir</label>
+        <div id="np-items-list"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem .75rem;background:rgba(255,255,255,.06);border-radius:8px;margin-top:.5rem">
+          <span style="font-size:.85rem;color:var(--muted)">Deuda total seleccionada</span>
+          <strong id="np-debt-display" style="color:var(--text-bright)">$0</strong>
+        </div>
+        <input type="hidden" id="np-debt">
       </div>
 
-      <div class="form-group" style="margin-bottom:1rem">
-        <label>Deuda original total ($)</label>
-        <input id="np-debt" type="number" min="1" class="input" style="width:100%">
+      <div id="np-items-empty" style="margin-bottom:1rem;display:none;padding:.75rem 1rem;background:rgba(255,255,255,.04);border-radius:8px;text-align:center;color:var(--muted);font-size:.875rem">
+        Este propietario no tiene períodos ni conceptos vencidos.
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
@@ -477,28 +480,112 @@ window.adminPaymentPlanCreateModal = async function() {
   `);
 };
 
-window.adminPaymentPlanCreateConfirm = async function() {
-  const ownerId  = document.getElementById('np-owner')?.value;
-  const periodsRaw = document.getElementById('np-periods')?.value?.trim();
-  const debt     = parseFloat(document.getElementById('np-debt')?.value || '0');
-  const count    = parseInt(document.getElementById('np-count')?.value || '1', 10);
-  const start    = document.getElementById('np-start')?.value;
-  const iType    = document.getElementById('np-interest-type')?.value;
-  const iVal     = parseFloat(document.getElementById('np-interest-val')?.value || '0');
-  const comment  = document.getElementById('np-comment')?.value?.trim();
+window.adminLoadOwnerItems = async function() {
+  const ownerId = document.getElementById('np-owner')?.value;
+  const section  = document.getElementById('np-items-section');
+  const emptyEl  = document.getElementById('np-items-empty');
+  const listEl   = document.getElementById('np-items-list');
+  if (!section || !listEl) return;
 
-  if (!ownerId)     { toast('Seleccioná un propietario.', 'error'); return; }
-  if (!periodsRaw)  { toast('Ingresá al menos un período.', 'error'); return; }
-  if (!debt || debt <= 0) { toast('El monto de deuda debe ser mayor a cero.', 'error'); return; }
+  if (!ownerId) {
+    section.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'none';
+  if (emptyEl) emptyEl.style.display = 'none';
+  listEl.innerHTML = `<div style="padding:.5rem 0;color:var(--muted);font-size:.875rem">Cargando conceptos...</div>`;
+  section.style.display = 'block';
+
+  const res = await apiCall(() => api.owners.getAvailableItems(ownerId), { silent: true });
+  const data = res?.data;
+  if (!data) { listEl.innerHTML = ''; section.style.display = 'none'; return; }
+
+  const { periods = [], periodFee = 0, extraordinary = [], balanceDebt = 0 } = data;
+
+  const rows = [];
+
+  if (balanceDebt > 0) {
+    rows.push(`
+      <label class="np-item-row" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer;margin-bottom:.35rem">
+        <input type="checkbox" class="np-item-check" value="balance" data-amount="${balanceDebt}" data-type="balance" checked onchange="adminUpdatePlanDebt()">
+        <span style="flex:1;font-size:.9rem">Saldo anterior pendiente</span>
+        <span class="badge badge-danger" style="font-size:.72rem">Deuda</span>
+        <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(balanceDebt)}</span>
+      </label>`);
+  }
+
+  periods.forEach(p => {
+    const [year, month] = p.split('-');
+    const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const label = `${names[parseInt(month) - 1]} ${year}`;
+    rows.push(`
+      <label class="np-item-row" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer;margin-bottom:.35rem">
+        <input type="checkbox" class="np-item-check" value="${p}" data-amount="${periodFee}" data-type="period" checked onchange="adminUpdatePlanDebt()">
+        <span style="flex:1;font-size:.9rem">${label}</span>
+        <span class="badge badge-danger" style="font-size:.72rem">Vencida</span>
+        <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(periodFee)}</span>
+      </label>`);
+  });
+
+  extraordinary.forEach(e => {
+    rows.push(`
+      <label class="np-item-row" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer;margin-bottom:.35rem">
+        <input type="checkbox" class="np-item-check" value="${e.id || e._id}" data-amount="${e.amount}" data-type="extra" checked onchange="adminUpdatePlanDebt()">
+        <span style="flex:1;font-size:.9rem">${e.title}</span>
+        <span class="badge badge-warning" style="font-size:.72rem">Extraordinario</span>
+        <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(e.amount)}</span>
+      </label>`);
+  });
+
+  if (!rows.length) {
+    section.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+
+  listEl.innerHTML = rows.join('');
+  section.style.display = 'block';
+  adminUpdatePlanDebt();
+};
+
+window.adminUpdatePlanDebt = function() {
+  const checks  = document.querySelectorAll('.np-item-check:checked');
+  const total   = [...checks].reduce((s, c) => s + Number(c.dataset.amount || 0), 0);
+  const display = document.getElementById('np-debt-display');
+  const hidden  = document.getElementById('np-debt');
+  if (display) display.textContent = formatCurrency(total);
+  if (hidden)  hidden.value = total;
+};
+
+window.adminPaymentPlanCreateConfirm = async function() {
+  const ownerId = document.getElementById('np-owner')?.value;
+  const debt    = parseFloat(document.getElementById('np-debt')?.value || '0');
+  const count   = parseInt(document.getElementById('np-count')?.value || '1', 10);
+  const start   = document.getElementById('np-start')?.value;
+  const iType   = document.getElementById('np-interest-type')?.value;
+  const iVal    = parseFloat(document.getElementById('np-interest-val')?.value || '0');
+  const comment = document.getElementById('np-comment')?.value?.trim();
+
+  if (!ownerId)          { toast('Seleccioná un propietario.', 'error'); return; }
+  if (!debt || debt <= 0) { toast('Seleccioná al menos un concepto vencido.', 'error'); return; }
   if (!count || count < 1) { toast('La cantidad de cuotas debe ser al menos 1.', 'error'); return; }
   if (!start) { toast('Ingresá la fecha del primer vencimiento.', 'error'); return; }
 
-  const periods = periodsRaw.split(',')
-    .map(s => s.trim())
-    .filter(Boolean)
-    .map(m => ({ month: m, originalAmount: 0 }));
+  // Construir includedPeriods desde checkboxes seleccionados
+  const checks  = [...document.querySelectorAll('.np-item-check:checked')];
+  const periods = checks
+    .filter(c => c.dataset.type === 'period')
+    .map(c => ({ month: c.value, originalAmount: Number(c.dataset.amount || 0) }));
 
-  if (!periods.length) { toast('Ingresá al menos un período válido.', 'error'); return; }
+  if (!periods.length) {
+    // Si solo hay balance o extras, necesitamos un período dummy o manejar el caso
+    // Usar un período con el mes actual como referencia para el plan
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    periods.push({ month: currentMonth, originalAmount: debt });
+  }
 
   const res = await apiCall(() => api.paymentPlans.create({
     ownerId,

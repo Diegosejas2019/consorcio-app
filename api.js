@@ -274,6 +274,8 @@ const api = {
 
     getOne: (id) => request(`/owners/${id}`),
 
+    getAvailableItems: (id) => request(`/owners/${id}/available-items`),
+
     getStats: () => request('/owners/stats'),
 
     create: (data) =>
