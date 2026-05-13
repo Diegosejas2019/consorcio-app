@@ -80,6 +80,8 @@ function inferInvalidationScope(endpoint, method) {
   if (endpoint.startsWith('/reservations')) return 'reservations';
   if (endpoint.startsWith('/spaces')) return 'spaces';
   if (endpoint.startsWith('/payment-plans')) return 'payment-plans';
+  if (endpoint.startsWith('/debt-items')) return 'owners';
+  if (/^\/owners\/[^/]+\/debt-items/.test(endpoint)) return 'owners';
   return null;
 }
 
@@ -528,6 +530,14 @@ const api = {
     cancel:   (id)            => request(`/payment-plans/admin/${id}/cancel`, { method: 'PATCH' }),
     registerInstallmentPayment: (id) =>
       request(`/payment-plans/admin/installments/${id}/register-payment`, { method: 'POST' }),
+  },
+
+  // ── Deudas adicionales ────────────────────────────────────────
+  debtItems: {
+    create:     (ownerId, data) => request(`/owners/${ownerId}/debt-items`, { method: 'POST', body: JSON.stringify(data) }),
+    getByOwner: (ownerId)       => request(`/owners/${ownerId}/debt-items`),
+    cancel:     (id, reason)    => request(`/debt-items/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ cancellationReason: reason }) }),
+    getMine:    ()              => request('/debt-items/mine'),
   },
 
   // ── Votaciones ────────────────────────────────────────────────

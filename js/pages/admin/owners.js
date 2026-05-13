@@ -196,13 +196,15 @@ export async function viewOwnerDetail(ownerId) {
   openModal();
   document.getElementById('modal').innerHTML = `<div class="modal-handle"></div>${skeleton(4)}`;
   try {
-    const [ownerRes, unitsRes] = await Promise.all([
+    const [ownerRes, unitsRes, debtItemsRes] = await Promise.all([
       getCachedOrFetch(`owners:detail:${ownerId}`, CACHE_TTL.OWNERS, () => api.owners.getOne(ownerId)),
       getCachedOrFetch(`units:owner:${ownerId}`, CACHE_TTL.UNITS, () => api.units.getAll({ ownerId })),
+      api.debtItems.getByOwner(ownerId).catch(() => ({ data: { debtItems: [] } })),
     ]);
-    const owner    = ownerRes.data.owner;
-    const payments = ownerRes.data.payments || [];
-    const units    = unitsRes.data.units || [];
+    const owner     = ownerRes.data.owner;
+    const payments  = ownerRes.data.payments || [];
+    const units     = unitsRes.data.units || [];
+    const debtItems = debtItemsRes.data?.debtItems || [];
 
     const unitsHtml = _renderUnitsSection(ownerId, units);
 
@@ -246,6 +248,9 @@ export async function viewOwnerDetail(ownerId) {
               </tr>`).join('')}
             </tbody>
           </table></div>`}
+
+      ${_renderDebtItemsSection(ownerId, debtItems)}
+
       <div class="flex gap-1 mt-3" style="flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
         <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}', '${owner.startBillingPeriod || ''}', ${owner.balance || 0})">Editar</button>
@@ -259,6 +264,143 @@ export async function viewOwnerDetail(ownerId) {
       </div>`;
   } catch (err) {
     document.getElementById('modal').innerHTML = `<div class="modal-handle"></div><p style="color:var(--danger)">${err.message}</p>`;
+  }
+}
+
+// ── Sección de deudas adicionales ──────────────────────────────
+function _debtItemTypeLabel(type) {
+  return type === 'previous_balance' ? 'Saldo anterior' : 'Ajuste manual';
+}
+
+function _debtItemStatusBadge(status) {
+  const map = {
+    pending:               '<span class="badge badge-warning">Pendiente</span>',
+    cancelled:             '<span class="badge badge-danger">Anulado</span>',
+    paid:                  '<span class="badge badge-success">Pagado</span>',
+    includedInPaymentPlan: '<span class="badge badge-neutral">En plan de pagos</span>',
+  };
+  return map[status] || `<span class="badge">${status}</span>`;
+}
+
+function _renderDebtItemsSection(ownerId, debtItems) {
+  const rows = debtItems.map(d => `
+    <tr>
+      <td>${_debtItemTypeLabel(d.type)}</td>
+      <td>${escapeHtml(d.description)}</td>
+      <td>$${Number(d.amount).toLocaleString('es-AR')} ${d.currency}</td>
+      <td>${d.originDate ? new Date(d.originDate).toLocaleDateString('es-AR') : '—'}</td>
+      <td>${d.dueDate ? new Date(d.dueDate).toLocaleDateString('es-AR') : '—'}</td>
+      <td>${_debtItemStatusBadge(d.status)}</td>
+      <td>
+        ${d.status === 'pending'
+          ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="promptCancelDebtItem('${d._id}', '${ownerId}')">Anular</button>`
+          : ''}
+      </td>
+    </tr>`).join('');
+
+  return `
+    <div style="margin-top:1.5rem;margin-bottom:.5rem">
+      <div class="flex between" style="align-items:center;margin-bottom:.75rem">
+        <h3>Saldos anteriores y ajustes</h3>
+        <button class="btn btn-ghost btn-sm" onclick="openDebtItemModal('${ownerId}')">+ Agregar</button>
+      </div>
+      ${debtItems.length === 0
+        ? '<p class="text-muted text-sm">Sin deudas adicionales registradas.</p>'
+        : `<div class="table-wrap"><table>
+            <thead><tr><th>Tipo</th><th>Descripción</th><th>Importe</th><th>Fecha origen</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>`}
+    </div>`;
+}
+
+// ── Modal crear deuda adicional ────────────────────────────────
+export function openDebtItemModal(ownerId) {
+  const html = `
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1.25rem">Agregar saldo / ajuste</h2>
+    <div class="flex col gap-2">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select class="select" id="di-type">
+          <option value="previous_balance">Saldo anterior</option>
+          <option value="manual_adjustment">Ajuste manual</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Descripción *</label>
+        <input class="input" type="text" id="di-description" placeholder="Ej: Saldo migrado desde administración anterior">
+      </div>
+      <div class="flex gap-1">
+        <div class="form-group" style="flex:1">
+          <label>Importe *</label>
+          <input class="input" type="number" id="di-amount" min="0.01" step="0.01" placeholder="0">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Moneda *</label>
+          <select class="select" id="di-currency">
+            <option value="ARS">ARS</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-1">
+        <div class="form-group" style="flex:1">
+          <label>Fecha de origen</label>
+          <input class="input" type="date" id="di-origin-date">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Fecha de vencimiento</label>
+          <input class="input" type="date" id="di-due-date">
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-1 mt-3">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-debt-item" onclick="submitDebtItem('${ownerId}')">Guardar</button>
+    </div>`;
+  document.getElementById('modal').innerHTML = html;
+}
+
+export async function submitDebtItem(ownerId) {
+  const type        = document.getElementById('di-type')?.value;
+  const description = document.getElementById('di-description')?.value?.trim();
+  const amount      = parseFloat(document.getElementById('di-amount')?.value);
+  const currency    = document.getElementById('di-currency')?.value;
+  const originDate  = document.getElementById('di-origin-date')?.value;
+  const dueDate     = document.getElementById('di-due-date')?.value;
+
+  if (!description) return toast('La descripción es obligatoria.', 'error');
+  if (!amount || amount <= 0) return toast('El importe debe ser mayor a cero.', 'error');
+  if (!currency) return toast('Seleccioná una moneda.', 'error');
+
+  const btn = document.getElementById('btn-save-debt-item');
+  setBtnLoading(btn, true);
+  try {
+    await api.debtItems.create(ownerId, {
+      type, description, amount, currency,
+      originDate: originDate || undefined,
+      dueDate:    dueDate    || undefined,
+    });
+    toast('Deuda adicional registrada correctamente.', 'success');
+    cache.del(`owners:detail:${ownerId}`);
+    viewOwnerDetail(ownerId);
+  } catch (err) {
+    toast(err.message, 'error');
+    setBtnLoading(btn, false);
+  }
+}
+
+export async function promptCancelDebtItem(debtItemId, ownerId) {
+  const reason = window.prompt('Motivo de anulación (obligatorio):');
+  if (reason === null) return;
+  if (!reason.trim()) return toast('El motivo de anulación es obligatorio.', 'error');
+  try {
+    await api.debtItems.cancel(debtItemId, reason.trim());
+    toast('Deuda anulada correctamente.', 'success');
+    cache.del(`owners:detail:${ownerId}`);
+    viewOwnerDetail(ownerId);
+  } catch (err) {
+    toast(err.message, 'error');
   }
 }
 
@@ -1412,3 +1554,7 @@ window.sendWhatsAppOwner       = sendWhatsAppOwner;
 window.openWelcomeWhatsAppModal = openWelcomeWhatsAppModal;
 window.sendWelcomeWhatsApp     = sendWelcomeWhatsApp;
 window.downloadOwnersExcel     = downloadOwnersExcel;
+// Deudas adicionales
+window.openDebtItemModal      = openDebtItemModal;
+window.submitDebtItem         = submitDebtItem;
+window.promptCancelDebtItem   = promptCancelDebtItem;

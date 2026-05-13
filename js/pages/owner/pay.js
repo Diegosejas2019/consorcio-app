@@ -1,7 +1,7 @@
 import { toast } from '../../ui/toast.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG, svgIcon } from '../../ui/icons.js';
-import { errorState } from '../../ui/helpers.js';
+import { errorState, escapeHtml } from '../../ui/helpers.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { state } from '../../core/state.js';
 import { getOwnerSummary } from '../../services/ownerSummaryService.js';
@@ -38,7 +38,12 @@ export async function renderUploadPage() {
   _balanceDebtAmount = 0;
 
   try {
-    const { cfgRes, availRes, payRes, unitsRes } = await getOwnerSummary();
+    const [summaryData, debtItemsRes] = await Promise.all([
+      getOwnerSummary(),
+      api.debtItems.getMine().catch(() => ({ data: { debtItems: [] } })),
+    ]);
+    const { cfgRes, availRes, payRes, unitsRes } = summaryData;
+    const manualDebts = (debtItemsRes.data?.debtItems || []).filter(d => d.status === 'pending');
 
     const cfg      = cfgRes.data.config;
     const hasMercadoPago = !!cfg.hasMercadoPago;
@@ -328,6 +333,26 @@ export async function renderUploadPage() {
           <p class="empty-sub">No hay períodos pendientes de pago en este momento.</p>
         </div>
         `}
+
+        ${manualDebts.length > 0 ? `
+        <!-- Saldos anteriores y ajustes -->
+        <div class="section-head" style="margin-top:18px">
+          <h3>Saldos anteriores y ajustes</h3>
+        </div>
+        <div class="stack-2">
+          ${manualDebts.map(d => `
+            <div class="card" style="padding:14px 16px">
+              <div class="flex between" style="align-items:center;margin-bottom:6px">
+                <span class="bold" style="font-size:.95rem">${d.type === 'previous_balance' ? 'Saldo anterior' : 'Ajuste manual'}</span>
+                <span class="badge badge-warning">Pendiente</span>
+              </div>
+              <p class="text-sm text-muted" style="margin-bottom:6px">${escapeHtml(d.description)}</p>
+              <div class="flex between" style="align-items:center">
+                <span class="text-sm text-muted">${d.dueDate ? 'Vence: ' + new Date(d.dueDate).toLocaleDateString('es-AR') : ''}</span>
+                <strong style="color:var(--danger)">$${Number(d.amount).toLocaleString('es-AR')} ${d.currency}</strong>
+              </div>
+            </div>`).join('')}
+        </div>` : ''}
 
         <!-- Hidden inputs for submit compat -->
         <select id="pay-month" class="hidden">
