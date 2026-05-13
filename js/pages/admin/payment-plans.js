@@ -199,6 +199,10 @@ function _planCard(plan) {
                 <div style="font-weight:700;color:var(--text-bright);font-size:.9rem">${formatCurrency(plan.totalAmount)}</div>
               </div>
               <div>
+                <div style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.15rem">Monto pagado</div>
+                <div style="font-weight:700;color:var(--success);font-size:.9rem">${formatCurrency(plan.totalPaid || 0)}</div>
+              </div>
+              <div>
                 <div style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.15rem">Cuotas</div>
                 <div style="font-weight:700;color:var(--text-bright);font-size:.9rem">${plan.paidInstallments || 0}/${plan.totalInstallments || plan.installmentsCount || '—'}</div>
               </div>` : ''}
@@ -223,6 +227,9 @@ function _planActions(plan) {
   }
   if (['active', 'defaulted'].includes(plan.status)) {
     btns.push(`<button class="btn-danger btn-sm" onclick="adminPaymentPlanCancelConfirm('${id}')">Cancelar</button>`);
+  }
+  if (Number(plan.paidInstallments || 0) === 0 && Number(plan.totalPaid || 0) <= 0) {
+    btns.push(`<button class="btn-danger btn-sm" onclick="adminPaymentPlanDeleteConfirm('${id}')">Eliminar</button>`);
   }
   return btns.join('');
 }
@@ -492,6 +499,14 @@ window.adminPaymentPlanCancelConfirm = async function(planId) {
 };
 
 // ── Modal nuevo plan manual ───────────────────────────────────
+
+window.adminPaymentPlanDeleteConfirm = async function(planId) {
+  if (!confirm('Â¿Eliminar este plan? Solo se puede eliminar si no tiene cuotas pagadas. La deuda volverÃ¡ a quedar disponible.')) return;
+  const res = await apiCall(() => api.paymentPlans.delete(planId));
+  if (!res?.success) return;
+  toast('Plan eliminado.', 'success');
+  await _loadPlans();
+};
 
 window.adminPaymentPlanCreateModal = async function() {
   const res = await apiCall(() => api.owners.getAll({ limit: 200 }), { silent: true });

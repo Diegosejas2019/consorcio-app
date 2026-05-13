@@ -541,6 +541,7 @@ const api = {
     reject:   (id, data)      => request(`/payment-plans/admin/${id}/reject`, { method: 'POST', body: JSON.stringify(data) }),
     create:   (data)          => request('/payment-plans/admin', { method: 'POST', body: JSON.stringify(data) }),
     cancel:   (id)            => request(`/payment-plans/admin/${id}/cancel`, { method: 'PATCH' }),
+    delete:   (id)            => request(`/payment-plans/admin/${id}`, { method: 'DELETE' }),
     registerInstallmentPayment: (id) =>
       request(`/payment-plans/admin/installments/${id}/register-payment`, { method: 'POST' }),
     submitInstallmentPayment: (id, formData) =>
