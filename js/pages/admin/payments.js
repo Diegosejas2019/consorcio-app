@@ -31,6 +31,7 @@ const PAYMENT_TYPE_LABELS = {
   monthly: 'Mensual',
   extraordinary: 'Extraordinario',
   balance: 'Saldo anterior',
+  installment: 'Cuota plan de pagos',
 };
 
 export const adminPaymentsState = {

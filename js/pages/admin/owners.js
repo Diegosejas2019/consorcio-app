@@ -46,6 +46,7 @@ function _paymentPeriodLabel(payment) {
   if (payment.month) return formatMonth(payment.month);
   if (payment.type === 'balance') return 'Saldo anterior';
   if (payment.type === 'extraordinary') return 'Extraordinario';
+  if (payment.type === 'installment') return 'Cuota plan de pagos';
   return 'Pago manual';
 }
 
