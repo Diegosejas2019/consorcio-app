@@ -139,7 +139,7 @@ export function _renderOwnersView() {
                   <p class="unit">${_highlightMatch(_ownerUnitDisplay(o) || '—', ownersListState.filterUnit)}${o.phone ? ` · ${escapeHtml(o.phone)}` : ''}</p>
                 </div>
                 <div class="flex col" style="align-items:flex-end;gap:.25rem">
-                  <span class="badge ${(o.totalOwed || 0) > 0 ? 'badge-danger' : 'badge-success'}">${(o.totalOwed || 0) > 0 ? 'Deuda' : 'Al día'}</span>
+                  <span class="badge ${(o.totalOwed||0)>0 && !o.hasActivePlan ? 'badge-danger' : ((o.totalOwed||0)>0 && o.hasActivePlan ? 'badge-warning' : 'badge-success')}">${(o.totalOwed||0)>0 && !o.hasActivePlan ? 'Deuda' : ((o.totalOwed||0)>0 && o.hasActivePlan ? 'Plan' : 'Al día')}</span>
                   ${o.lastPayment ? `<small>${formatMonth(o.lastPayment.month)}</small>` : '<small class="text-muted">Sin pagos</small>'}
                 </div>
                 ${o.phone ? `<button class="btn btn-ghost btn-sm" style="color:#25D366" onclick="openWhatsAppOwnerModal('${o.name.replace(/'/g, "\\'")}','${o.phone}')" title="Enviar WhatsApp">💬</button>` : ''}
