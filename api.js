@@ -79,6 +79,7 @@ function inferInvalidationScope(endpoint, method) {
   if (endpoint.startsWith('/visits')) return 'visits';
   if (endpoint.startsWith('/reservations')) return 'reservations';
   if (endpoint.startsWith('/spaces')) return 'spaces';
+  if (endpoint.startsWith('/payment-plans')) return 'payment-plans';
   return null;
 }
 
@@ -513,6 +514,20 @@ const api = {
 
     delete: (id) =>
       request(`/units/${id}`, { method: 'DELETE' }),
+  },
+
+  // ── Planes de pago ────────────────────────────────────────────
+  paymentPlans: {
+    request:  (data)          => request('/payment-plans/request', { method: 'POST', body: JSON.stringify(data) }),
+    getMy:    ()               => request('/payment-plans/my'),
+    listAdmin: (params = {})  => request(`/payment-plans/admin?${new URLSearchParams(params)}`),
+    getAdmin: (id)             => request(`/payment-plans/admin/${id}`),
+    approve:  (id, data)      => request(`/payment-plans/admin/${id}/approve`, { method: 'POST', body: JSON.stringify(data) }),
+    reject:   (id, data)      => request(`/payment-plans/admin/${id}/reject`, { method: 'POST', body: JSON.stringify(data) }),
+    create:   (data)          => request('/payment-plans/admin', { method: 'POST', body: JSON.stringify(data) }),
+    cancel:   (id)            => request(`/payment-plans/admin/${id}/cancel`, { method: 'PATCH' }),
+    registerInstallmentPayment: (id) =>
+      request(`/payment-plans/admin/installments/${id}/register-payment`, { method: 'POST' }),
   },
 
   // ── Votaciones ────────────────────────────────────────────────

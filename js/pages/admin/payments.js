@@ -244,9 +244,14 @@ function renderAdminPaymentsView(res) {
           <p class="page-eyebrow">Administracion</p>
           <h1>Pagos</h1>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="renderAdminPayments(true)">
-          ${svgIcon('refresh-cw', 15)} Actualizar
-        </button>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button class="btn btn-ghost btn-sm" onclick="showPage('page-admin-payment-plans');renderAdminPaymentPlans()">
+            Planes de pago
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="renderAdminPayments(true)">
+            ${svgIcon('refresh-cw', 15)} Actualizar
+          </button>
+        </div>
       </div>
 
       <div class="admin-payments-filters">

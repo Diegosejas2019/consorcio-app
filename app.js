@@ -47,6 +47,7 @@ import { renderAdminSpaces }       from './js/pages/admin/spaces.js';
 import { renderAdminSupport }      from './js/pages/admin/support.js';
 import { renderAdminEmployees }    from './js/pages/admin/employees.js';
 import { renderAdminSalaries }     from './js/pages/admin/salaries.js';
+import { renderAdminPaymentPlans } from './js/pages/admin/payment-plans.js';
 
 // ── Owner pages ───────────────────────────────────────────────
 import { renderOwnerHome }         from './js/pages/owner/home.js';
@@ -60,7 +61,8 @@ import { renderOwnerVotes }        from './js/pages/owner/votes.js';
 import { renderOwnerVisits }       from './js/pages/owner/visits.js';
 import { renderOwnerProfile }      from './js/pages/owner/profile.js';
 import { renderOwnerReservations } from './js/pages/owner/reservations.js';
-import { renderPaymentResult }     from './js/pages/owner/pago-resultado.js';
+import { renderPaymentResult }       from './js/pages/owner/pago-resultado.js';
+import { renderOwnerPaymentPlans }   from './js/pages/owner/payment-plans.js';
 import { renderTermsPage }         from './js/pages/legal/terms.js';
 
 // ── Registrar renderers en el router ─────────────────────────
@@ -82,7 +84,8 @@ PAGE_RENDERERS['page-admin-reservations']  = () => renderAdminReservations();
 PAGE_RENDERERS['page-admin-spaces']        = () => renderAdminSpaces();
 PAGE_RENDERERS['page-admin-support']       = () => renderAdminSupport();
 PAGE_RENDERERS['page-admin-employees']     = () => renderAdminEmployees();
-PAGE_RENDERERS['page-admin-salaries']      = () => renderAdminSalaries();
+PAGE_RENDERERS['page-admin-salaries']        = () => renderAdminSalaries();
+PAGE_RENDERERS['page-admin-payment-plans']   = () => renderAdminPaymentPlans();
 PAGE_RENDERERS['page-owner-home']          = () => renderOwnerHome();
 PAGE_RENDERERS['page-owner-pay']       = () => renderUploadPage();
 PAGE_RENDERERS['page-owner-history']   = () => renderOwnerHistory();
@@ -94,11 +97,14 @@ PAGE_RENDERERS['page-owner-votes']     = () => renderOwnerVotes();
 PAGE_RENDERERS['page-owner-visits']    = () => renderOwnerVisits();
 PAGE_RENDERERS['page-owner-profile']       = () => renderOwnerProfile();
 PAGE_RENDERERS['page-owner-reservations']    = () => renderOwnerReservations();
-PAGE_RENDERERS['page-owner-pago-resultado']  = () => renderPaymentResult();
+PAGE_RENDERERS['page-owner-pago-resultado']    = () => renderPaymentResult();
+PAGE_RENDERERS['page-owner-payment-plans']     = () => renderOwnerPaymentPlans();
 PAGE_RENDERERS['page-terms']                 = () => renderTermsPage();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)
 window.PAGE_RENDERERS = PAGE_RENDERERS;
+window.renderAdminPaymentPlans  = renderAdminPaymentPlans;
+window.renderOwnerPaymentPlans  = renderOwnerPaymentPlans;
 
 // ── Service Worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {

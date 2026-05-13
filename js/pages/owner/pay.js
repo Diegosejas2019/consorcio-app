@@ -5,6 +5,7 @@ import { errorState } from '../../ui/helpers.js';
 import { setBtnLoading } from '../../ui/loading.js';
 import { state } from '../../core/state.js';
 import { getOwnerSummary } from '../../services/ownerSummaryService.js';
+import { openRequestPlanModal } from './payment-plans.js';
 
 let selectedFile  = null;
 let _selectedBalanceFile = null;
@@ -344,9 +345,21 @@ export async function renderUploadPage() {
         <button class="btn btn-primary btn-lg btn-block pay-submit-btn" id="btn-submit-receipt-sticky" style="box-shadow:var(--glow-accent)" data-requires-network onclick="submitReceipt()">
           ${svgIcon('check', 18)} Enviar comprobante · $${initTotal.toLocaleString('es-AR')}
         </button>
+      </div>` : ''}
+      ${months.length > 0 ? `
+      <div style="padding:0 16px 16px;text-align:center">
+        <button class="btn btn-ghost btn-sm" id="btn-request-plan" style="font-size:.82rem;color:var(--muted)">
+          ¿Necesitás financiar tu deuda? Solicitar plan de pagos
+        </button>
       </div>` : ''}`;
 
     updatePayTotal();
+
+    // Botón de solicitar plan de pagos
+    document.getElementById('btn-request-plan')?.addEventListener('click', () => {
+      const periodsWithAmounts = months.map(m => ({ month: m.value, amount: _ownerFee }));
+      openRequestPlanModal(periodsWithAmounts);
+    });
 
     const zone = document.getElementById('upload-zone');
     if (zone) {
