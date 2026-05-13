@@ -166,7 +166,10 @@ function _planCard(plan) {
   const badgeCls  = STATUS_BADGE[plan.status] || 'badge-neutral';
   const label     = STATUS_LABELS[plan.status] || plan.status;
   const actionBtns = _planActions(plan);
-  const periods   = (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', ');
+  const periods   = [
+    (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', '),
+    (plan.extraordinaryItems || []).map(e => e.title).join(', '),
+  ].filter(Boolean).join(', ');
   const initials  = ownerName.split(' ').slice(0, 2).map(w => w[0]).join('');
 
   return `
@@ -263,6 +266,8 @@ window.adminPaymentPlanDetail = async function(id) {
   }).join('');
 
   const periods = (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', ');
+  const extrasText = (plan.extraordinaryItems || []).map(e => e.title).join(', ');
+  const conceptsText = [periods, extrasText].filter(Boolean).join(', ') || '—';
   const ownerName = plan.owner?.name || '—';
   const badgeCls = STATUS_BADGE[plan.status] || 'badge-neutral';
 
@@ -279,8 +284,8 @@ window.adminPaymentPlanDetail = async function(id) {
           <div class="bold">${ownerName}</div>
         </div>
         <div class="card" style="padding:.85rem 1rem">
-          <div style="color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem">Períodos incluidos</div>
-          <div class="bold">${periods || '—'}</div>
+          <div style="color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem">Conceptos incluidos</div>
+          <div class="bold">${conceptsText}</div>
         </div>
         <div class="card" style="padding:.85rem 1rem">
           <div style="color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem">Deuda original</div>
@@ -343,7 +348,10 @@ window.adminPayInstallment = async function(installmentId) {
 // ── Modal aprobar plan ────────────────────────────────────────
 
 window.adminPaymentPlanApproveModal = async function(planId, plan) {
-  const periodsText = (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', ') || '—';
+  const periodsText = [
+    (plan.includedPeriods || []).map(p => formatMonth(p.month)).join(', '),
+    (plan.extraordinaryItems || []).map(e => e.title).join(', '),
+  ].filter(Boolean).join(', ') || '—';
   openModal(`
     <div style="max-width:520px;padding:1.5rem">
       <h2 style="margin:0 0 1rem">Aprobar plan de pagos</h2>
@@ -601,7 +609,7 @@ window.adminLoadOwnerItems = async function() {
   extraordinary.forEach(e => {
     rows.push(`
       <label class="np-item-row" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer;margin-bottom:.35rem">
-        <input type="checkbox" class="np-item-check" value="${e.id || e._id}" data-amount="${e.amount}" data-type="extra" checked onchange="adminUpdatePlanDebt()">
+        <input type="checkbox" class="np-item-check" value="${e.id || e._id}" data-amount="${e.amount}" data-type="extra" data-title="${(e.title || '').replace(/"/g, '&quot;')}" checked onchange="adminUpdatePlanDebt()">
         <span style="flex:1;font-size:.9rem">${e.title}</span>
         <span class="badge badge-warning" style="font-size:.72rem">Extraordinario</span>
         <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(e.amount)}</span>
@@ -642,15 +650,17 @@ window.adminPaymentPlanCreateConfirm = async function() {
   if (!count || count < 1) { toast('La cantidad de cuotas debe ser al menos 1.', 'error'); return; }
   if (!start) { toast('Ingresá la fecha del primer vencimiento.', 'error'); return; }
 
-  // Construir includedPeriods desde checkboxes seleccionados
+  // Construir includedPeriods y extraordinaryItems desde checkboxes seleccionados
   const checks  = [...document.querySelectorAll('.np-item-check:checked')];
   const periods = checks
     .filter(c => c.dataset.type === 'period')
     .map(c => ({ month: c.value, originalAmount: Number(c.dataset.amount || 0) }));
 
+  const extras = checks
+    .filter(c => c.dataset.type === 'extra')
+    .map(c => ({ expenseId: c.value, title: c.dataset.title || c.value, amount: Number(c.dataset.amount || 0) }));
+
   if (!periods.length) {
-    // Si solo hay balance o extras, necesitamos un período dummy o manejar el caso
-    // Usar un período con el mes actual como referencia para el plan
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     periods.push({ month: currentMonth, originalAmount: debt });
@@ -659,6 +669,7 @@ window.adminPaymentPlanCreateConfirm = async function() {
   const res = await apiCall(() => api.paymentPlans.create({
     ownerId,
     includedPeriods:    periods,
+    extraordinaryItems: extras,
     originalDebtAmount: debt,
     installmentsCount:  count,
     startDate:          start,
