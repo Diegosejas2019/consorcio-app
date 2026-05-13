@@ -195,16 +195,23 @@ function _planView(plan) {
 // ── Modal para solicitar plan (llamado desde pay.js) ──────────
 
 export async function openRequestPlanModal(availablePeriods, totalDebt) {
-  const periodOptions = (availablePeriods || []).map(p => `
+  const items = (availablePeriods || []).map(p =>
+    typeof p === 'string' ? { type: 'period', month: p, id: p, amount: 0 } : p
+  );
+  const labelFor = item => {
+    if (item.type === 'period') return formatMonth(item.month || item.id);
+    if (item.type === 'extra') return `Extraordinario - ${formatCurrency(item.amount)}`;
+    if (item.type === 'balance') return `Saldo anterior - ${formatCurrency(item.amount)}`;
+    return `Concepto - ${formatCurrency(item.amount)}`;
+  };
+  const periodOptions = items.map((item, index) => `
     <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:.4rem">
-      <input type="checkbox" name="plan-period" value="${p}" checked style="accent-color:var(--accent)">
-      <span>${formatMonth(p)}</span>
+      <input type="checkbox" name="plan-period" value="${index}" checked style="accent-color:var(--accent)">
+      <span>${labelFor(item)}</span>
     </label>
   `).join('');
 
-  const periodsWithAmounts = (availablePeriods || []).map(p =>
-    typeof p === 'string' ? { month: p, amount: 0 } : p
-  );
+  const periodsWithAmounts = items;
 
   openModal(`
     <div style="max-width:480px;padding:1.5rem">
@@ -237,19 +244,28 @@ export async function openRequestPlanModal(availablePeriods, totalDebt) {
 }
 
 window.ownerSubmitPlanRequest = async function(periodsWithAmounts) {
-  const checked = [...document.querySelectorAll('input[name="plan-period"]:checked')].map(el => el.value);
+  const checked = [...document.querySelectorAll('input[name="plan-period"]:checked')]
+    .map(el => periodsWithAmounts[Number(el.value)])
+    .filter(Boolean);
   if (!checked.length) { toast('Seleccioná al menos un período.', 'error'); return; }
 
   const comment = document.getElementById('rp-comment')?.value?.trim();
 
-  const includedPeriods = checked.map(m => {
-    const found = periodsWithAmounts.find(p => p.month === m);
-    return { month: m, originalAmount: found?.amount || 0 };
-  });
-  const originalDebtAmount = includedPeriods.reduce((sum, p) => sum + (p.originalAmount || 0), 0) || 1;
+  const includedPeriods = checked
+    .filter(item => item.type === 'period')
+    .map(item => ({ month: item.month || item.id, originalAmount: item.amount || 0 }));
+  const extraordinaryItems = checked
+    .filter(item => item.type === 'extra')
+    .map(item => ({ id: item.id, amount: item.amount || 0 }));
+  const balanceDebt = checked
+    .filter(item => item.type === 'balance')
+    .reduce((sum, item) => sum + (item.amount || 0), 0);
+  const originalDebtAmount = checked.reduce((sum, item) => sum + (item.amount || 0), 0) || 1;
 
   const res = await apiCall(() => api.paymentPlans.request({
     includedPeriods,
+    extraordinaryItems,
+    balanceDebt,
     originalDebtAmount,
     requestComment: comment || undefined,
   }));

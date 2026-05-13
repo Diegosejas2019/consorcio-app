@@ -162,6 +162,7 @@ function renderDebtTags(owner) {
 function renderOwnerCard(owner) {
   const units = ownerUnits(owner) || 'Sin unidad';
   const totalOwed = Number(owner.totalOwed || 0);
+  const plannedDebt = Number(owner.plannedDebtAmount || 0);
   const hasActivePlan = !!owner.hasActivePlan;
   const hasDebt = totalOwed > 0 && !hasActivePlan;
   const hasPendingReview = (owner.pendingPayments || []).length > 0;
@@ -177,8 +178,9 @@ function renderOwnerCard(owner) {
           <p class="unit">${escapeHtml(units)}${owner.email ? ` - ${escapeHtml(owner.email)}` : ''}</p>
         </div>
         <div class="admin-payment-owner-side">
-          <span class="badge ${hasDebt ? 'badge-danger' : (hasActivePlan && totalOwed > 0 ? 'badge-warning' : 'badge-success')}">${hasDebt ? 'Moroso' : (hasActivePlan && totalOwed > 0 ? 'Plan de pagos' : 'Al dia')}</span>
-          <strong class="${hasDebt ? 'debt' : (hasActivePlan && totalOwed > 0 ? '' : 'ok')}">${money(totalOwed)}</strong>
+          <span class="badge ${hasDebt ? 'badge-danger' : (hasActivePlan ? 'badge-warning' : 'badge-success')}">${hasDebt ? 'Moroso' : (hasActivePlan ? 'Plan de pagos' : 'Al dia')}</span>
+          <strong class="${hasDebt ? 'debt' : (hasActivePlan ? '' : 'ok')}">${money(totalOwed)}</strong>
+          ${plannedDebt > 0 ? `<small class="text-muted">En plan: ${money(plannedDebt)}</small>` : ''}
         </div>
       </div>
 

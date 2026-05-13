@@ -582,14 +582,15 @@ window.adminLoadOwnerItems = async function() {
   const data = res?.data;
   if (!data) { listEl.innerHTML = ''; section.style.display = 'none'; return; }
 
-  const { periods = [], periodFee = 0, extraordinary = [], balanceDebt = 0 } = data;
+  const { periods = [], periodItems = [], periodFee = 0, extraordinary = [], balanceDebt = 0, balanceUnits = [], debtItems = [] } = data;
+  const periodAmounts = new Map(periodItems.map(p => [p.month, Number(p.amount || periodFee || 0)]));
 
   const rows = [];
 
   if (balanceDebt > 0) {
     rows.push(`
       <label class="np-item-row" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer;margin-bottom:.35rem">
-        <input type="checkbox" class="np-item-check" value="balance" data-amount="${balanceDebt}" data-type="balance" checked onchange="adminUpdatePlanDebt()">
+        <input type="checkbox" class="np-item-check" value="balance" data-unit-ids="${balanceUnits.map(u => u._id || u.id).join(',')}" data-amount="${balanceDebt}" data-type="balance" checked onchange="adminUpdatePlanDebt()">
         <span style="flex:1;font-size:.9rem">Saldo anterior pendiente</span>
         <span class="badge badge-danger" style="font-size:.72rem">Deuda</span>
         <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(balanceDebt)}</span>
@@ -602,10 +603,10 @@ window.adminLoadOwnerItems = async function() {
     const label = `${names[parseInt(month) - 1]} ${year}`;
     rows.push(`
       <label class="np-item-row" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer;margin-bottom:.35rem">
-        <input type="checkbox" class="np-item-check" value="${p}" data-amount="${periodFee}" data-type="period" checked onchange="adminUpdatePlanDebt()">
+        <input type="checkbox" class="np-item-check" value="${p}" data-amount="${periodAmounts.get(p) || periodFee}" data-type="period" checked onchange="adminUpdatePlanDebt()">
         <span style="flex:1;font-size:.9rem">${label}</span>
         <span class="badge badge-danger" style="font-size:.72rem">Vencida</span>
-        <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(periodFee)}</span>
+        <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(periodAmounts.get(p) || periodFee)}</span>
       </label>`);
   });
 
@@ -616,6 +617,16 @@ window.adminLoadOwnerItems = async function() {
         <span style="flex:1;font-size:.9rem">${e.title}</span>
         <span class="badge badge-warning" style="font-size:.72rem">Extraordinario</span>
         <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(e.amount)}</span>
+      </label>`);
+  });
+
+  debtItems.forEach(d => {
+    rows.push(`
+      <label class="np-item-row" style="display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:9px;background:rgba(255,255,255,.04);cursor:pointer;margin-bottom:.35rem">
+        <input type="checkbox" class="np-item-check" value="${d.id || d._id}" data-amount="${d.amount}" data-type="debtItem" checked onchange="adminUpdatePlanDebt()">
+        <span style="flex:1;font-size:.9rem">${d.description || 'Deuda adicional'}</span>
+        <span class="badge badge-warning" style="font-size:.72rem">Ajuste</span>
+        <span style="font-size:.875rem;color:var(--text-bright);font-weight:600">${formatCurrency(d.amount)}</span>
       </label>`);
   });
 
@@ -665,6 +676,12 @@ window.adminPaymentPlanCreateConfirm = async function() {
 
   const balanceCheck = checks.find(c => c.dataset.type === 'balance');
   const balanceDebt  = balanceCheck ? Number(balanceCheck.dataset.amount || 0) : 0;
+  const balanceUnitIds = balanceCheck?.dataset.unitIds
+    ? balanceCheck.dataset.unitIds.split(',').filter(Boolean)
+    : [];
+  const debtItemIds = checks
+    .filter(c => c.dataset.type === 'debtItem')
+    .map(c => c.value);
 
   if (!periods.length) {
     const now = new Date();
@@ -677,6 +694,8 @@ window.adminPaymentPlanCreateConfirm = async function() {
     includedPeriods:    periods,
     extraordinaryItems: extras,
     balanceDebt,
+    balanceUnitIds,
+    debtItemIds,
     originalDebtAmount: debt,
     installmentsCount:  count,
     startDate:          start,

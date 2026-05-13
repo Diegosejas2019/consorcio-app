@@ -17,6 +17,7 @@ let _selectedExtras = new Set();
 let _extraAmounts   = {};
 let _balanceDebtAmount = 0;
 let _balanceDebtUnitId = '';
+let _balanceDebtUnitIds = [];
 const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
 function currentPeriodCode() {
@@ -38,6 +39,7 @@ export async function renderUploadPage() {
   _selectedExtras = new Set();
   _extraAmounts   = {};
   _balanceDebtAmount = 0;
+  _balanceDebtUnitIds = [];
 
   try {
     const [summaryData, debtItemsRes, myPlansRes] = await Promise.all([
@@ -65,8 +67,10 @@ export async function renderUploadPage() {
 
     // Usar períodos del endpoint available-items (ya filtrados por el backend)
     const currentPeriod = currentPeriodCode();
+    const periodAmounts = new Map((available.periodItems || []).map(p => [p.month, Number(p.amount || _ownerFee)]));
     const months = (available.periods || []).filter(v => v <= currentPeriod).map(v => ({
       value: v,
+      amount: periodAmounts.get(v) || _ownerFee,
       label: `${formatPeriodLabel(v)}${feeLabel}`,
     }));
 
@@ -92,8 +96,10 @@ export async function renderUploadPage() {
     const hasPendingBalancePayment = payments.some(p => p.type === 'balance' && p.status === 'pending');
     const hasBalanceDebt = (owner?.balance || 0) < 0 && !hasPendingBalancePayment;
     const unitDebts = (owner?.unitDebts || []).filter(u => Number(u.balanceOwed || 0) > 0);
-    _balanceDebtAmount = hasBalanceDebt ? Math.abs(Number(owner.balance || 0)) : 0;
-    _balanceDebtUnitId = unitDebts.length === 1 ? String(unitDebts[0]._id || unitDebts[0].id || '') : '';
+    const availableBalanceUnits = available.balanceUnits || [];
+    _balanceDebtAmount = available.balanceDebt > 0 ? Number(available.balanceDebt || 0) : (hasBalanceDebt ? Math.abs(Number(owner.balance || 0)) : 0);
+    _balanceDebtUnitIds = availableBalanceUnits.map(u => String(u._id || u.id)).filter(Boolean);
+    _balanceDebtUnitId = _balanceDebtUnitIds.length === 1 ? _balanceDebtUnitIds[0] : (unitDebts.length === 1 ? String(unitDebts[0]._id || unitDebts[0].id || '') : '');
     const unitDebtHtml = unitDebts.length > 1
       ? `<div class="flex col gap-1">${unitDebts.map(u => `
           <div class="flex between text-sm" style="padding:.4rem .55rem;background:rgba(255,255,255,.04);border-radius:8px">
@@ -215,7 +221,7 @@ export async function renderUploadPage() {
           ? `<span class="badge badge-danger">Vencida</span>`
           : `<span class="badge badge-accent">Disponible</span>`;
         return `
-          <label class="period-card${i === 0 ? ' is-selected' : ''}" data-type="period" data-value="${m.value}" data-amount="${_ownerFee}" onclick="togglePeriodCard(this)">
+          <label class="period-card${i === 0 ? ' is-selected' : ''}" data-type="period" data-value="${m.value}" data-amount="${m.amount}" onclick="togglePeriodCard(this)">
             <span class="pc-check${i === 0 ? ' is-on' : ''}">${i === 0 ? svgIcon('check', 12) : ''}</span>
             <div style="flex:1;min-width:0">
               <div class="row" style="gap:6px">
@@ -224,7 +230,7 @@ export async function renderUploadPage() {
               </div>
               <div class="muted" style="font:var(--t-sm);margin-top:2px">Expensa ${isDebt ? 'vencida' : 'ordinaria'}</div>
             </div>
-            <span class="bright tnum" style="font:var(--t-body-md)">$${_ownerFee.toLocaleString('es-AR')}</span>
+            <span class="bright tnum" style="font:var(--t-body-md)">$${Number(m.amount || 0).toLocaleString('es-AR')}</span>
           </label>`;
       }),
       ...extras.map(e => `
@@ -273,7 +279,11 @@ export async function renderUploadPage() {
             activePlan.balanceDebt > 0 ? 'Saldo anterior' : '',
           ].filter(Boolean).join(', ') || '—';
           const next = activePlan.installments?.find(i => i.status === 'pending' || i.status === 'overdue');
-          const nextHasPending = next && payments.some(p => p.type === 'installment' && p.status === 'pending');
+          const nextHasPending = next && payments.some(p =>
+            p.type === 'installment'
+            && p.status === 'pending'
+            && String(p.installmentId?._id || p.installmentId || '') === String(next._id)
+          );
           const badgeCls = activePlan.status === 'active' ? 'badge-success' : 'badge-warning';
           const statusLabel = activePlan.status === 'active' ? 'Activo' : 'Aprobado';
           return `
@@ -444,7 +454,7 @@ export async function renderUploadPage() {
           ${svgIcon('check', 18)} Enviar comprobante · $${initTotal.toLocaleString('es-AR')}
         </button>
       </div>` : ''}
-      ${months.length > 0 ? `
+      ${hasForm ? `
       <div style="padding:0 16px 16px;text-align:center">
         <button class="btn btn-ghost btn-sm" id="btn-request-plan" style="font-size:.82rem;color:var(--muted)">
           ¿Necesitás financiar tu deuda? Solicitar plan de pagos
@@ -455,8 +465,18 @@ export async function renderUploadPage() {
 
     // Botón de solicitar plan de pagos
     document.getElementById('btn-request-plan')?.addEventListener('click', () => {
-      const periodsWithAmounts = months.map(m => ({ month: m.value, amount: _ownerFee }));
-      openRequestPlanModal(periodsWithAmounts);
+      const selected = [...document.querySelectorAll('.period-card.is-selected')];
+      if (!selected.length) {
+        toast('SeleccionÃ¡ los conceptos que querÃ©s financiar.', 'error');
+        return;
+      }
+      const selectedItems = selected.map(card => ({
+        type: card.dataset.type,
+        id: card.dataset.value,
+        month: card.dataset.type === 'period' ? card.dataset.value : undefined,
+        amount: Number(card.dataset.amount || 0),
+      }));
+      openRequestPlanModal(selectedItems, selectedItems.reduce((sum, item) => sum + item.amount, 0));
     });
 
     const zone = document.getElementById('upload-zone');
