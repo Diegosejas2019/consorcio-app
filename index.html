@@ -168,6 +168,29 @@
 <!-- ══════════════════════════════════════
      PAYMENT RESULT SCREEN (MercadoPago redirect)
 ═══════════════════════════════════════ -->
+<div id="email-change-screen" style="display:none;justify-content:center;align-items:center;min-height:100vh;background:var(--bg)">
+  <div class="login-box" style="text-align:center">
+    <div class="login-logo">
+      <div class="logo-icon">
+        <svg width="26" height="26" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 30 22 L 18 22 L 18 78 L 30 78" stroke="#0e1512" stroke-width="8" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
+          <path d="M 70 22 L 82 22 L 82 78 L 70 78" stroke="#0e1512" stroke-width="8" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
+          <rect x="40" y="40" width="20" height="20" fill="#0e1512"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Gestion<em style="color:#9cf27b;font-style:italic;font-weight:500">Ar</em></h1>
+        <span>Barrio Privado · Administración</span>
+      </div>
+    </div>
+    <div id="email-change-content">
+      <div class="loading-spinner" style="margin:0 auto 1rem"></div>
+      <h2 style="margin:0 0 .25rem;font-size:1.1rem;font-weight:600">Confirmando email</h2>
+      <p class="text-sm text-muted">Estamos validando el enlace de confirmación.</p>
+    </div>
+  </div>
+</div>
+
 <div id="mp-result-screen" style="display:none;justify-content:center;align-items:center;min-height:100vh;background:var(--bg)">
   <div style="display:flex;flex-direction:column;align-items:center;gap:1.5rem;max-width:340px;width:100%;padding:2rem 1.25rem;text-align:center">
     <div id="mp-result-icon"></div>

@@ -4,6 +4,7 @@ import { skeleton } from '../../ui/skeleton.js';
 import { errorState } from '../../ui/helpers.js';
 import { svgIcon } from '../../ui/icons.js';
 import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
+import { apiCall } from '../../core/apiWrapper.js';
 
 // ── Helpers ───────────────────────────────────────────────────
 function escapeHtml(str) {
@@ -60,6 +61,40 @@ export async function renderOwnerProfile() {
             </div>` : ''}
             <button class="btn btn-primary btn-block" id="btn-save-profile" onclick="saveOwnerProfile()">
               Guardar cambios
+            </button>
+          </div>
+        </div>
+
+        <!-- Cambiar email -->
+        <div class="section-head" style="margin-top:20px"><h3>Cambiar email</h3></div>
+        <div class="card" style="padding:16px">
+          <div class="stack-3">
+            <div class="field">
+              <label class="field-label" style="color:var(--muted)">Email actual</label>
+              <input class="input" type="email" value="${escapeHtml(user.email)}" disabled style="opacity:.5;cursor:not-allowed">
+            </div>
+            ${user.pendingEmail ? `
+              <div class="notice-card" style="border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.08)">
+                <div class="text-sm" style="color:var(--warning);font-weight:700">Solicitud pendiente</div>
+                <div class="text-sm text-muted" style="line-height:1.55;margin-top:.25rem">
+                  Tenés una solicitud pendiente para cambiar tu email a: <strong class="bright">${escapeHtml(user.pendingEmail)}</strong>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                  <button class="btn btn-secondary btn-sm" id="btn-resend-email-change" onclick="requestOwnerEmailChange('${escapeHtml(user.pendingEmail)}')">
+                    Reenviar confirmación
+                  </button>
+                  <button class="btn btn-danger btn-sm" id="btn-cancel-email-change" onclick="cancelOwnerEmailChange()">
+                    Cancelar solicitud
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+            <div class="field">
+              <label class="field-label">Nuevo email</label>
+              <input class="input" type="email" id="profile-new-email" placeholder="nuevo@email.com" autocomplete="email">
+            </div>
+            <button class="btn btn-ghost btn-block" id="btn-request-email-change" onclick="requestOwnerEmailChange()">
+              ${svgIcon('mail', 16)} Solicitar cambio de email
             </button>
           </div>
         </div>
@@ -157,6 +192,70 @@ window.changeOwnerPassword = async function () {
   } finally {
     btn.disabled    = false;
     btn.textContent = 'Cambiar contraseña';
+  }
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+window.requestOwnerEmailChange = async function (emailOverride = '') {
+  const currentEmail = String(state.user?.email || '').toLowerCase().trim();
+  const input = document.getElementById('profile-new-email');
+  const newEmail = String(emailOverride || input?.value || '').toLowerCase().trim();
+
+  if (!newEmail) { toast('Ingresá el nuevo email', 'error'); return; }
+  if (!EMAIL_RE.test(newEmail)) { toast('Ingresá un email válido', 'error'); return; }
+  if (newEmail === currentEmail) { toast('El nuevo email debe ser distinto al actual', 'error'); return; }
+  if (!navigator.onLine) { toast('Esta acción requiere conexión a internet.', 'error'); return; }
+
+  const btn = emailOverride
+    ? document.getElementById('btn-resend-email-change')
+    : document.getElementById('btn-request-email-change');
+  const originalText = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+  }
+
+  try {
+    await apiCall(() => api.owners.requestEmailChange(newEmail), { loading: false, silent: true });
+    cache.del('auth:me');
+    setState({ user: { ...state.user, pendingEmail: newEmail } });
+    if (input && !emailOverride) input.value = '';
+    toast('Te enviamos un correo de confirmación a tu nuevo email. El cambio se aplicará cuando lo confirmes.', 'success');
+    await renderOwnerProfile();
+  } catch (err) {
+    toast(err.message || 'No pudimos solicitar el cambio de email', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+};
+
+window.cancelOwnerEmailChange = async function () {
+  if (!navigator.onLine) { toast('Esta acción requiere conexión a internet.', 'error'); return; }
+
+  const btn = document.getElementById('btn-cancel-email-change');
+  const originalText = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Cancelando...';
+  }
+
+  try {
+    await apiCall(() => api.owners.cancelEmailChange(), { loading: false, silent: true });
+    cache.del('auth:me');
+    setState({ user: { ...state.user, pendingEmail: undefined } });
+    toast('La solicitud de cambio de email fue cancelada.', 'success');
+    await renderOwnerProfile();
+  } catch (err) {
+    toast(err.message || 'No pudimos cancelar la solicitud', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 };
 

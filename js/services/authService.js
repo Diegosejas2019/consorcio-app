@@ -323,6 +323,55 @@ async function continueFromMPResult() {
 }
 
 // ── Restaurar sesión / detectar reset token ───────────────────
+async function handleEmailChangeConfirmation(token) {
+  const screen = document.getElementById('email-change-screen');
+  const content = document.getElementById('email-change-content');
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('reset-screen').style.display = 'none';
+  document.getElementById('mp-result-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'none';
+  screen.style.display = 'flex';
+
+  if (!token) {
+    content.innerHTML = `
+      <h2 style="margin:0 0 .5rem;font-size:1.1rem;font-weight:600">Enlace inválido</h2>
+      <p class="text-sm text-muted" style="line-height:1.6">El enlace de confirmación no es válido o ya expiró.</p>
+      <button class="btn btn-primary w-full" style="margin-top:1rem;padding:.85rem" onclick="window.location.href='/'">Ir al inicio</button>
+    `;
+    return;
+  }
+
+  try {
+    const res = await api.owners.confirmEmailChange(token);
+    cache.del('auth:me');
+
+    if (getToken()) {
+      try {
+        const me = await api.auth.getMe();
+        setState({ role: me.data.user.role, user: me.data.user,
+                   membership: me.data.membership || null,
+                   organization: me.data.membership?.organization || null });
+        cache.set('auth:me', me, CACHE_TTL.AUTH_ME);
+      } catch (_) {
+        clearToken();
+      }
+    }
+
+    content.innerHTML = `
+      <h2 style="margin:0 0 .5rem;font-size:1.1rem;font-weight:600">Email actualizado</h2>
+      <p class="text-sm text-muted" style="line-height:1.6">${res.message || 'Tu email fue actualizado correctamente.'}</p>
+      <p class="text-sm text-muted" style="line-height:1.6">A partir de ahora iniciá sesión con tu nuevo email.</p>
+      <button class="btn btn-primary w-full" style="margin-top:1rem;padding:.85rem" onclick="window.location.href='/'">Ir al inicio</button>
+    `;
+  } catch (err) {
+    content.innerHTML = `
+      <h2 style="margin:0 0 .5rem;font-size:1.1rem;font-weight:600">No pudimos confirmar el cambio</h2>
+      <p class="text-sm text-muted" style="line-height:1.6">${err.message || 'El enlace de confirmación no es válido o ya expiró.'}</p>
+      <button class="btn btn-primary w-full" style="margin-top:1rem;padding:.85rem" onclick="window.location.href='/'">Ir al inicio</button>
+    `;
+  }
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   updateOnlineStatus();
 
@@ -330,6 +379,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (handleMPRedirect()) return;
 
   const params = new URLSearchParams(window.location.search);
+  if (window.location.pathname === '/confirm-email-change') {
+    await handleEmailChangeConfirmation(params.get('token'));
+    return;
+  }
+
   const resetToken = params.get('token');
   if (resetToken) {
     _resetToken = resetToken;

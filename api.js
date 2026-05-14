@@ -291,7 +291,10 @@ const api = {
       request('/owners/me/request-email-change', { method: 'POST', body: JSON.stringify({ newEmail }) }),
 
     confirmEmailChange: (token) =>
-      request('/owners/me/confirm-email-change', { method: 'POST', body: JSON.stringify({ token }) }),
+      request('/owners/confirm-email-change', { method: 'POST', body: JSON.stringify({ token }) }),
+
+    cancelEmailChange: () =>
+      request('/owners/me/cancel-email-change', { method: 'POST' }),
 
     notify: (id, title, body) =>
       request(`/owners/${id}/notify`, { method: 'POST', body: JSON.stringify({ title, body }) }),
