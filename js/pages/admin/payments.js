@@ -5,6 +5,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { svgIcon } from '../../ui/icons.js';
 import { debounce, downloadReceipt, escapeHtml, formatMonth } from '../../ui/helpers.js';
 import { viewOwnerDetail, openRegisterPaymentModal } from './owners.js';
+import { hasPermission } from '../../services/permissionService.js';
 
 const STATUS_OPTIONS = {
   all: 'Todos',
@@ -132,12 +133,12 @@ function renderPendingPayments(owner) {
           <button class="icon-btn" title="Ver comprobante" onclick="downloadReceipt('${payment.id}')">
             ${svgIcon('doc', 16)}
           </button>` : ''}
-        <button class="icon-btn is-success" title="Aprobar" data-requires-network onclick="adminPaymentsApprove('${payment.id}')">
+        ${hasPermission('payments.approve') ? `<button class="icon-btn is-success" title="Aprobar" data-requires-network onclick="adminPaymentsApprove('${payment.id}')">
           ${svgIcon('check', 16)}
-        </button>
-        <button class="icon-btn is-danger" title="Rechazar" data-requires-network onclick="adminPaymentsOpenReject('${payment.id}', '${jsString(owner.name)}')">
+        </button>` : ''}
+        ${hasPermission('payments.cancel') ? `<button class="icon-btn is-danger" title="Rechazar" data-requires-network onclick="adminPaymentsOpenReject('${payment.id}', '${jsString(owner.name)}')">
           ${svgIcon('x', 16)}
-        </button>
+        </button>` : ''}
       </div>
     </div>
   `).join('');
@@ -214,7 +215,7 @@ function renderOwnerCard(owner) {
         <span>${owner.lastPayment ? `Ultimo pago: ${paymentPeriodLabel(owner.lastPayment)} - ${money(owner.lastPayment.amount)}` : 'Sin pagos aprobados'}</span>
         <div>
           <button class="btn btn-ghost btn-sm" onclick="viewOwnerDetail('${owner.id}')">Ver detalle</button>
-          <button class="btn btn-primary btn-sm" onclick="openRegisterPaymentModal('${owner.id}', '${jsString(owner.name)}')">Registrar pago</button>
+          ${hasPermission('payments.register') ? `<button class="btn btn-primary btn-sm" onclick="openRegisterPaymentModal('${owner.id}', '${jsString(owner.name)}')">Registrar pago</button>` : ''}
         </div>
       </div>
     </article>

@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { updateOnlineStatus } from '../ui/offline.js';
 import { isFeatureEnabled, PAGE_FEATURE_MAP } from '../services/featureService.js';
+import { canAccessPage } from '../services/permissionService.js';
 import { toast } from '../ui/toast.js';
 
 // Poblado por app.js después de importar todos los módulos de páginas
@@ -14,6 +15,11 @@ export function showPage(id) {
   if (state.user?.mustChangePassword && !PASSWORD_CHANGE_PAGES.has(id)) {
     toast('Debés cambiar tu contraseña temporal antes de continuar.', 'warning');
     id = 'page-change-temp-password';
+  }
+
+  if (!canAccessPage(id)) {
+    toast('No tenés permisos para acceder a esta sección.', 'warning');
+    return;
   }
 
   // Verificar feature flag antes de renderizar

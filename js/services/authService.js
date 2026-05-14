@@ -8,6 +8,7 @@ import { updateOnlineStatus } from '../ui/offline.js';
 import { setupPushNotifications, checkMonthlyReminder } from './pushService.js';
 import { runOnboarding } from '../ui/onboarding.js';
 import { isFeatureEnabled, PAGE_FEATURE_MAP } from './featureService.js';
+import { canAccessPage, firstAllowedAdminPage, roleLabel as adminRoleLabel } from './permissionService.js';
 
 // Devuelve el orgId desde state.organization (membership) con fallback a state.user.organization (legacy)
 export function getOrgId() {
@@ -29,6 +30,18 @@ async function loadFeatures() {
   } catch (_) {
     // Sin features configuradas → todos habilitados por defecto
   }
+}
+
+function applySession(res) {
+  const data = res.data || {};
+  setState({
+    role: data.user?.role,
+    user: data.user,
+    membership: data.membership || null,
+    organization: data.membership?.organization || null,
+    adminRole: data.adminRole || data.membership?.adminRole || (data.user?.role === 'admin' ? 'owner_admin' : null),
+    permissions: Array.isArray(data.permissions) ? data.permissions : [],
+  });
 }
 
 // ── Toggle visibilidad de contraseña ─────────────────────────
@@ -113,9 +126,7 @@ async function selectOrg(membershipId) {
     const res = await api.auth.selectOrganization(membershipId, _pendingSelectionToken);
     _pendingSelectionToken = null;
     setToken(res.token, _rememberMe);
-    setState({ role: res.data.user.role, user: res.data.user,
-               membership: res.data.membership || null,
-               organization: res.data.membership?.organization || null });
+    applySession(res);
     cache.clear();
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
@@ -159,9 +170,7 @@ export async function submitResetPassword() {
     showLoading(true);
     const res = await api.auth.resetPassword(_resetToken, newPassword);
     setToken(res.token);
-    setState({ role: res.data.user.role, user: res.data.user,
-               membership: res.data.membership || null,
-               organization: res.data.membership?.organization || null });
+    applySession(res);
     cache.clear();
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
@@ -193,9 +202,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     }
 
     setToken(res.token, _rememberMe);
-    setState({ role: res.data.user.role, user: res.data.user,
-               membership: res.data.membership || null,
-               organization: res.data.membership?.organization || null });
+    applySession(res);
     cache.clear();
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
@@ -299,9 +306,7 @@ async function continueFromMPResult() {
   try {
     showLoading(true);
     const res = await api.auth.getMe();
-    setState({ role: res.data.user.role, user: res.data.user,
-               membership: res.data.membership || null,
-               organization: res.data.membership?.organization || null });
+    applySession(res);
     cache.clear();
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
@@ -348,9 +353,7 @@ async function handleEmailChangeConfirmation(token) {
     if (getToken()) {
       try {
         const me = await api.auth.getMe();
-        setState({ role: me.data.user.role, user: me.data.user,
-                   membership: me.data.membership || null,
-                   organization: me.data.membership?.organization || null });
+        applySession(me);
         cache.set('auth:me', me, CACHE_TTL.AUTH_ME);
       } catch (_) {
         clearToken();
@@ -397,9 +400,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   try {
     showLoading(true);
     const res = await api.auth.getMe();
-    setState({ role: res.data.user.role, user: res.data.user,
-               membership: res.data.membership || null,
-               organization: res.data.membership?.organization || null });
+    applySession(res);
     cache.clear();
     cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
     await loadFeatures();
@@ -463,7 +464,7 @@ export function enterApp(options = {}) {
 // ── setupTopBar ───────────────────────────────────────────────
 export function setupTopBar() {
   const initials  = state.user.name.split(' ').slice(0, 2).map(w => w[0]).join('');
-  const roleLabel = state.role === 'admin' ? 'Administrador' : (state.user.unit || '');
+  const roleLabel = state.role === 'admin' ? adminRoleLabel() : (state.user.unit || '');
   const avatar    = document.getElementById('avatar');
   avatar.textContent = initials;
   avatar.title       = roleLabel ? `${state.user.name} · ${roleLabel}` : state.user.name;
@@ -577,6 +578,13 @@ const OWNER_NAV_GROUPS = {
 let _navOpenGroup    = null;
 let _navCurrentGroups = null;
 
+function groupHasVisibleItems(groupDef) {
+  return groupDef.items.some(item => {
+    const feature = PAGE_FEATURE_MAP[item.page];
+    return (!feature || isFeatureEnabled(feature)) && canAccessPage(item.page);
+  });
+}
+
 function navOpenGroup(group) {
   const submenu = document.getElementById('nav-submenu');
   if (!submenu) return;
@@ -585,7 +593,7 @@ function navOpenGroup(group) {
   const activePage = document.querySelector('.page.active')?.id || '';
   const visibleItems = groupDef.items.filter(item => {
     const feature = PAGE_FEATURE_MAP[item.page];
-    return !feature || isFeatureEnabled(feature);
+    return (!feature || isFeatureEnabled(feature)) && canAccessPage(item.page);
   });
   submenu.innerHTML =
     `<div class="nav-submenu-title">${groupDef.label}</div>` +
@@ -670,7 +678,7 @@ export function logout() {
   if (window.Sentry) Sentry.onLoad(() => Sentry.setUser(null));
   clearToken();
   cache.clear();
-  setState({ role: null, user: null, features: {} });
+  setState({ role: null, user: null, features: {}, adminRole: null, permissions: [] });
   document.getElementById('app-shell').style.display    = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   ['login-email', 'login-pass'].forEach(id => {

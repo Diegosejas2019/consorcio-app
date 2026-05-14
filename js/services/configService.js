@@ -7,6 +7,7 @@ import { errorState } from '../ui/helpers.js';
 import { SVG, svgIcon } from '../ui/icons.js';
 import { setupTopBar, getOrgId } from './authService.js';
 import { openModal, closeModal } from '../ui/modal.js';
+import { hasPermission, ROLE_LABELS } from './permissionService.js';
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -39,6 +40,72 @@ const FEATURE_LABELS = {
   providers:    'Proveedores',
   documents:    'Documentacion',
 };
+
+let _adminRoles = [];
+
+function _disabledAttr(permission) {
+  return hasPermission(permission) ? '' : 'disabled';
+}
+
+function _actionButton(permission, html) {
+  return hasPermission(permission) ? html : '';
+}
+
+function _roleOptions(selected = '') {
+  const roles = _adminRoles.length
+    ? _adminRoles
+    : Object.entries(ROLE_LABELS).map(([role, label]) => ({ role, label, permissions: [] }));
+  return roles.map(r => `<option value="${r.role}" ${selected === r.role ? 'selected' : ''}>${r.label}</option>`).join('');
+}
+
+function _permissionsPreview(role) {
+  const roles = _adminRoles.length
+    ? _adminRoles
+    : Object.entries(ROLE_LABELS).map(([key, label]) => ({ role: key, label, permissions: [] }));
+  const def = roles.find(r => r.role === role) || roles[0];
+  if (!def) return '<p class="text-sm text-muted">Seleccioná un rol para ver sus permisos.</p>';
+  return `
+    <div class="text-sm text-muted" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem">
+      ${(def.permissions || []).map(p => `<span class="badge badge-neutral">${p}</span>`).join('') || 'Sin permisos configurados.'}
+    </div>`;
+}
+
+async function _renderAdminUsersCard() {
+  if (!hasPermission('admins.read')) return '';
+  try {
+    const res = await api.adminUsers.getAll();
+    const admins = res.data.admins || [];
+    _adminRoles = res.data.roles || [];
+    return `
+      <div class="card">
+        <div class="card-header flex between" style="align-items:center">
+          <h3>Usuarios administradores</h3>
+          ${_actionButton('admins.create', '<button class="btn btn-primary btn-sm" onclick="openAdminInviteModal()">Invitar</button>')}
+        </div>
+        <div class="card-body flex col gap-2">
+          ${admins.length ? admins.map(admin => `
+            <div class="owner-row">
+              <div class="owner-avatar">${(admin.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('')}</div>
+              <div class="owner-info">
+                <p class="name">${admin.name || '-'}</p>
+                <p class="unit">${admin.email || ''}</p>
+              </div>
+              <span class="badge ${admin.isActive ? 'badge-success' : 'badge-neutral'}">${admin.isActive ? (admin.roleLabel || ROLE_LABELS[admin.role] || admin.role) : 'Desactivado'}</span>
+              ${admin.isActive ? `
+                ${_actionButton('admins.update', `<button class="btn btn-ghost btn-sm" onclick="openAdminRoleModal('${admin.userId}','${admin.role}')">Rol</button>`)}
+                ${_actionButton('admins.disable', `<button class="btn btn-danger btn-sm" onclick="disableAdminUser('${admin.userId}')">Desactivar</button>`)}
+              ` : ''}
+            </div>`).join('') : '<p class="text-sm text-muted">No hay administradores cargados.</p>'}
+        </div>
+      </div>`;
+  } catch (err) {
+    return `
+      <div class="card">
+        <div class="card-header"><h3>Usuarios administradores</h3></div>
+        <div class="card-body"><p class="text-sm text-muted">${err.message || 'No se pudieron cargar los administradores.'}</p></div>
+      </div>`;
+  }
+}
 
 async function _renderFeaturesCard() {
   const orgId = getOrgId();
@@ -116,6 +183,7 @@ export async function renderAdminSettings() {
     const lateFeeType    = cfg.lateFeeType    || 'percent';
     const lateFeePercent = cfg.lateFeePercent ?? 5;
     const lateFeeFixed   = cfg.lateFeeFixed   ?? 0;
+    const canUpdateSettings = hasPermission('settings.update');
 
     el.innerHTML = `
       <div class="flex col gap-3">
@@ -130,7 +198,7 @@ export async function renderAdminSettings() {
             <p class="text-sm text-muted">Definí qué meses pueden seleccionar los propietarios al subir un comprobante. Si no hay ninguno, se muestran los últimos 6 meses automáticamente.</p>
             <div class="flex gap-2" style="align-items:center">
               <input class="input" type="month" id="cfg-new-period" style="flex:1">
-              <button class="btn btn-secondary" id="btn-add-period" onclick="addPaymentPeriod()">Agregar</button>
+              ${canUpdateSettings ? '<button class="btn btn-secondary" id="btn-add-period" onclick="addPaymentPeriod()">Agregar</button>' : ''}
             </div>
           </div>
         </div>
@@ -143,7 +211,7 @@ export async function renderAdminSettings() {
               <label>Monto mensual ($)</label>
               <input class="input" type="number" id="cfg-monthly-fee" value="${cfg.monthlyFee || ''}" min="0" placeholder="Ej: 10000">
             </div>
-            <button class="btn btn-primary" id="btn-save-monthly-fee" data-requires-network onclick="saveMonthlyFeeSettings()">Guardar</button>
+            ${canUpdateSettings ? '<button class="btn btn-primary" id="btn-save-monthly-fee" data-requires-network onclick="saveMonthlyFeeSettings()">Guardar</button>' : ''}
           </div>
         </div>
 
@@ -160,7 +228,7 @@ export async function renderAdminSettings() {
             <div class="form-group"><label>Código de mes</label><input class="input" id="cfg-month-code" value="${periodCode}" placeholder="YYYY-MM"></div>
             <div class="form-group"><label>Importe ($)</label><input class="input" type="number" id="cfg-amount" value="${cfg.expenseAmount || ''}" min="1"></div>
 
-            <button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>
+            ${canUpdateSettings ? '<button class="btn btn-primary" id="btn-save-settings" data-requires-network onclick="saveSettings()">Guardar cambios</button>' : ''}
           </div>
         </div>
 
@@ -192,7 +260,7 @@ export async function renderAdminSettings() {
               <input class="input" type="number" id="cfg-late-fixed" value="${lateFeeFixed}" min="0" placeholder="Ej: 500">
             </div>
 
-            <button class="btn btn-primary" id="btn-save-late-fee" data-requires-network onclick="saveLateFeeSettings()">Guardar cambios</button>
+            ${canUpdateSettings ? '<button class="btn btn-primary" id="btn-save-late-fee" data-requires-network onclick="saveLateFeeSettings()">Guardar cambios</button>' : ''}
           </div>
         </div>
 
@@ -203,7 +271,7 @@ export async function renderAdminSettings() {
             <div class="form-group"><label>Dirección</label><input class="input" id="cfg-address" value="${cfg.consortiumAddress || ''}" placeholder="Av. Siempre Viva 742"></div>
             <div class="form-group"><label>CUIT</label><input class="input" id="cfg-cuit" value="${cfg.consortiumCuit || ''}" placeholder="20-12345678-9"></div>
             <div class="form-group"><label>Email de contacto</label><input class="input" id="cfg-email" value="${cfg.adminEmail || ''}"></div>
-            <button class="btn btn-primary" id="btn-save-consortium" data-requires-network onclick="saveConsortiumSettings()">Guardar</button>
+            ${canUpdateSettings ? '<button class="btn btn-primary" id="btn-save-consortium" data-requires-network onclick="saveConsortiumSettings()">Guardar</button>' : ''}
           </div>
         </div>
 
@@ -215,7 +283,7 @@ export async function renderAdminSettings() {
             <div class="form-group"><label>N° de cuenta</label><input class="input" id="cfg-bank-account" value="${cfg.bankAccount || ''}" placeholder="0000000000"></div>
             <div class="form-group"><label>CBU</label><input class="input" id="cfg-bank-cbu" value="${cfg.bankCbu || ''}" placeholder="0000000000000000000000"></div>
             <div class="form-group"><label>Titular</label><input class="input" id="cfg-bank-holder" value="${cfg.bankHolder || ''}" placeholder="Nombre del titular"></div>
-            <button class="btn btn-primary" id="btn-save-bank" data-requires-network onclick="saveBankSettings()">Guardar</button>
+            ${canUpdateSettings ? '<button class="btn btn-primary" id="btn-save-bank" data-requires-network onclick="saveBankSettings()">Guardar</button>' : ''}
           </div>
         </div>
 
@@ -225,11 +293,13 @@ export async function renderAdminSettings() {
             <p class="text-sm text-muted">Credenciales desde developers.mercadopago.com</p>
             <div class="form-group"><label>Public Key</label><input class="input" id="cfg-mp-key" placeholder="APP_USR-..." value="${cfg.mpPublicKey || ''}"></div>
             <div class="form-group"><label>Access Token</label><input class="input" type="password" id="cfg-mp-token" placeholder="APP_USR-..."></div>
-            <button class="btn btn-primary" data-requires-network onclick="saveMPSettings()">Guardar credenciales</button>
+            ${canUpdateSettings ? '<button class="btn btn-primary" data-requires-network onclick="saveMPSettings()">Guardar credenciales</button>' : ''}
           </div>
         </div>
 
         ${await _renderFeaturesCard()}
+
+        ${await _renderAdminUsersCard()}
 
         <div class="card">
           <div class="card-header"><h3>Legal</h3></div>
@@ -550,6 +620,89 @@ export async function saveMPSettings() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+export function openAdminInviteModal() {
+  openModal(`
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1rem">Invitar administrador</h2>
+    <div class="flex col gap-2">
+      <div class="form-group"><label>Nombre</label><input class="input" id="admin-invite-name" maxlength="100"></div>
+      <div class="form-group"><label>Email</label><input class="input" id="admin-invite-email" type="email"></div>
+      <div class="form-group">
+        <label>Rol</label>
+        <select class="select" id="admin-invite-role" onchange="renderAdminRolePreview(this.value)">
+          ${_roleOptions('read_only')}
+        </select>
+        <div id="admin-role-preview">${_permissionsPreview('read_only')}</div>
+      </div>
+      <div class="flex gap-1 mt-2">
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary w-full" data-requires-network onclick="inviteAdminUser()">Invitar</button>
+      </div>
+    </div>
+  `);
+}
+
+export function openAdminRoleModal(userId, currentRole) {
+  openModal(`
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:1rem">Cambiar rol</h2>
+    <div class="form-group">
+      <label>Rol</label>
+      <select class="select" id="admin-role-select" onchange="renderAdminRolePreview(this.value)">
+        ${_roleOptions(currentRole)}
+      </select>
+      <div id="admin-role-preview">${_permissionsPreview(currentRole)}</div>
+    </div>
+    <div class="flex gap-1 mt-2">
+      <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary w-full" data-requires-network onclick="updateAdminUserRole('${userId}')">Guardar</button>
+    </div>
+  `);
+}
+
+export function renderAdminRolePreview(role) {
+  const el = document.getElementById('admin-role-preview');
+  if (el) el.innerHTML = _permissionsPreview(role);
+}
+
+export async function inviteAdminUser() {
+  const name = document.getElementById('admin-invite-name')?.value.trim();
+  const email = document.getElementById('admin-invite-email')?.value.trim();
+  const role = document.getElementById('admin-invite-role')?.value;
+  if (!name || !email) { toast('Completá nombre y email.', 'error'); return; }
+  try {
+    await api.adminUsers.invite({ name, email, role });
+    closeModal();
+    toast('Administrador invitado correctamente.', 'success');
+    renderAdminSettings();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+export async function updateAdminUserRole(userId) {
+  const role = document.getElementById('admin-role-select')?.value;
+  try {
+    await api.adminUsers.updateRole(userId, role);
+    closeModal();
+    toast('Rol actualizado correctamente.', 'success');
+    renderAdminSettings();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+export async function disableAdminUser(userId) {
+  if (!confirm('¿Desactivar el acceso administrativo de este usuario?')) return;
+  try {
+    await api.adminUsers.disable(userId);
+    toast('Acceso administrativo desactivado.', 'success');
+    renderAdminSettings();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
 window.renderAdminSettings          = renderAdminSettings;
 window.saveFeatureSettings          = saveFeatureSettings;
 window.createOrganization           = createOrganization;
@@ -566,3 +719,9 @@ window.removePaymentPeriodFromModal = removePaymentPeriodFromModal;
 window.saveMonthlyFeeSettings       = saveMonthlyFeeSettings;
 window.saveBankSettings             = saveBankSettings;
 window.saveMPSettings               = saveMPSettings;
+window.openAdminInviteModal         = openAdminInviteModal;
+window.openAdminRoleModal           = openAdminRoleModal;
+window.renderAdminRolePreview       = renderAdminRolePreview;
+window.inviteAdminUser              = inviteAdminUser;
+window.updateAdminUserRole          = updateAdminUserRole;
+window.disableAdminUser             = disableAdminUser;

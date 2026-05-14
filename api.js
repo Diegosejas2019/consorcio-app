@@ -82,6 +82,7 @@ function inferInvalidationScope(endpoint, method) {
   if (endpoint.startsWith('/payment-plans')) return 'payment-plans';
   if (endpoint.startsWith('/debt-items')) return 'owners';
   if (/^\/owners\/[^/]+\/debt-items/.test(endpoint)) return 'owners';
+  if (endpoint.startsWith('/admin/users')) return 'admin-users';
   return null;
 }
 
@@ -431,6 +432,16 @@ const api = {
   },
 
   // ── Proveedores ───────────────────────────────────────────────
+  adminUsers: {
+    permissionsMe: () => request('/admin/permissions/me'),
+    getAll: () => request('/admin/users'),
+    invite: (data) => request('/admin/users/invite', { method: 'POST', body: JSON.stringify(data) }),
+    updateRole: (userId, role) =>
+      request(`/admin/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+    disable: (userId) =>
+      request(`/admin/users/${userId}/disable`, { method: 'PATCH' }),
+  },
+
   providers: {
     getAll:           (params = {}) => request(`/providers?${new URLSearchParams(params)}`),
     create:           (data) => request('/providers', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),

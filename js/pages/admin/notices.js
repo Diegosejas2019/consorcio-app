@@ -3,6 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { formatDate, errorState, buildWhatsAppLink, downloadAttachment } from '../../ui/helpers.js';
 import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
+import { hasPermission } from '../../services/permissionService.js';
 
 let _notices      = [];
 let _noticeFiles  = [];
@@ -62,7 +63,7 @@ function _renderInbox() {
       <div class="ni-inbox-header">
         <div class="ni-inbox-title-row">
           <h1 class="ni-inbox-title">Comunicados</h1>
-          <button class="btn btn-primary btn-sm" onclick="openNewNoticeModal()">+ Nuevo</button>
+          ${hasPermission('notices.create') ? '<button class="btn btn-primary btn-sm" onclick="openNewNoticeModal()">+ Nuevo</button>' : ''}
         </div>
       </div>
       <div class="ni-inbox">
@@ -110,7 +111,7 @@ export function openAdminNotice(id) {
       <div class="ni-detail-body">${_escapeHtml(notice.body)}</div>
       ${attachmentsHtml}
       <div class="ni-detail-actions">
-        <button class="btn btn-danger btn-sm" onclick="deleteNotice(null, '${notice._id}', true)">Eliminar</button>
+        ${hasPermission('notices.delete') ? `<button class="btn btn-danger btn-sm" onclick="deleteNotice(null, '${notice._id}', true)">Eliminar</button>` : ''}
         <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cerrar</button>
       </div>
     </div>`;

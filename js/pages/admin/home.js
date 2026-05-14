@@ -6,6 +6,7 @@ import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
 import { formatMonth, paymentConceptLabel, errorState, downloadReceipt } from '../../ui/helpers.js';
 import { CLAIM_CATEGORIES } from './claims.js';
+import { canAccessPage, firstAllowedAdminPage, hasPermission } from '../../services/permissionService.js';
 
 export function renderAdminView() {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -15,7 +16,9 @@ export function renderAdminView() {
     return;
   }
   const saved = localStorage.getItem('lastPage_admin');
-  const page  = saved && document.getElementById(saved) ? saved : 'page-admin-home';
+  const page  = saved && document.getElementById(saved) && canAccessPage(saved)
+    ? saved
+    : firstAllowedAdminPage('page-admin-home');
   showPage(page);
   window.PAGE_RENDERERS[page]?.();
 }
@@ -40,10 +43,10 @@ export async function renderAdminHome() {
       CACHE_TTL.ADMIN_HOME,
       async () => {
         const [statsRes, pendingRes, cfgRes, claimsRes] = await Promise.all([
-          api.owners.getStats(),
-          api.payments.getAll({ status: 'pending', limit: 20 }),
-          api.config.get(),
-          api.claims.getAll({ status: 'open', limit: 10 }),
+          hasPermission('dashboard.read') ? api.owners.getStats() : Promise.resolve({ data: {} }),
+          hasPermission('payments.read') ? api.payments.getAll({ status: 'pending', limit: 20 }) : Promise.resolve({ data: { payments: [] } }),
+          hasPermission('settings.read') ? api.config.get() : Promise.resolve({ data: { config: {} } }),
+          hasPermission('claims.read') ? api.claims.getAll({ status: 'open', limit: 10 }) : Promise.resolve({ data: { claims: [] } }),
         ]);
         return { statsRes, pendingRes, cfgRes, claimsRes };
       }
@@ -111,23 +114,23 @@ export async function renderAdminHome() {
             ${pendingCount + debtorCount > 0 ? `<span class="caption">${pendingCount + debtorCount} PENDIENTES</span>` : ''}
           </div>
           <div class="quick-actions">
-            <button class="quick-action warn" onclick="openStatDetail('pending')">
+            ${hasPermission('payments.read') ? `<button class="quick-action warn" onclick="openStatDetail('pending')">
               ${pendingCount > 0 ? `<span class="qa-badge">${pendingCount}</span>` : ''}
               <div class="qa-ico">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg>
               </div>
               <div class="qa-title">Comprobantes por revisar</div>
               <div class="qa-sub">Aprobá o rechazá pagos</div>
-            </button>
-            <button class="quick-action alert" onclick="openStatDetail('debtors')">
+            </button>` : ''}
+            ${hasPermission('owners.read') ? `<button class="quick-action alert" onclick="openStatDetail('debtors')">
               ${debtorCount > 0 ? `<span class="qa-badge">${debtorCount}</span>` : ''}
               <div class="qa-ico">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               </div>
               <div class="qa-title">Gestionar morosos</div>
               <div class="qa-sub">Seguimiento y acuerdos</div>
-            </button>
-            <button class="quick-action wide" onclick="showPage('page-admin-notices');renderAdminNotices()">
+            </button>` : ''}
+            ${hasPermission('notices.create') ? `<button class="quick-action wide" onclick="showPage('page-admin-notices');renderAdminNotices()">
               <div class="qa-ico">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               </div>
@@ -136,12 +139,12 @@ export async function renderAdminHome() {
                 <div class="qa-sub">Crear aviso de corte, evento o noticia</div>
               </div>
               <svg class="qa-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
+            </button>` : ''}
           </div>
         </div>
 
         <!-- Recordatorio push -->
-        <div class="reminder-card">
+        ${hasPermission('payments.remind') ? `<div class="reminder-card">
           <span class="reminder-tag">RECORDATORIO PUSH</span>
           <div class="big"><em>${unpaiedCount} propietario${unpaiedCount !== 1 ? 's' : ''}</em> sin pago<br>aprobado este mes</div>
           <p>Enviá un recordatorio automático a quienes todavía no subieron comprobante.</p>
@@ -149,7 +152,7 @@ export async function renderAdminHome() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             Enviar recordatorios ahora
           </button>
-        </div>
+        </div>` : ''}
 
         <!-- Comprobantes pendientes -->
         ${pending.length > 0 ? `
@@ -176,12 +179,12 @@ export async function renderAdminHome() {
                   </div>
                 </div>
                 <div class="pending-actions" onclick="event.stopPropagation()">
-                  <button class="pa-btn ok" data-requires-network onclick="approvePayment('${p._id}')">
+                  ${hasPermission('payments.approve') ? `<button class="pa-btn ok" data-requires-network onclick="approvePayment('${p._id}')">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  </button>
-                  <button class="pa-btn no" data-requires-network onclick="openRejectModal('${p._id}')">
+                  </button>` : ''}
+                  ${hasPermission('payments.cancel') ? `<button class="pa-btn no" data-requires-network onclick="openRejectModal('${p._id}')">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
+                  </button>` : ''}
                 </div>
               </div>`).join('')}
           </div>
@@ -194,7 +197,7 @@ export async function renderAdminHome() {
             <h3>Reclamos Abiertos</h3>
             <div class="flex gap-1" style="align-items:center">
               <span class="badge badge-warning">${openClaims.length}</span>
-              <button class="btn btn-ghost btn-sm" onclick="showPage('page-admin-claims');renderAdminClaims()">Ver todos</button>
+              ${hasPermission('claims.read') ? `<button class="btn btn-ghost btn-sm" onclick="showPage('page-admin-claims');renderAdminClaims()">Ver todos</button>` : ''}
             </div>
           </div>
           <div class="card-body flex col gap-2">
@@ -204,7 +207,7 @@ export async function renderAdminHome() {
                   <p class="bold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.title}</p>
                   <small style="color:var(--muted)">${c.owner?.name || '—'} · ${c.owner?.unit || ''} · ${CLAIM_CATEGORIES[c.category] || c.category}</small>
                 </div>
-                <button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">Resolver</button>
+                ${hasPermission('claims.close') ? `<button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">Resolver</button>` : ''}
               </div>`).join('')}
           </div>
         </div>` : ''}

@@ -4,6 +4,7 @@ import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
 import { formatDate, errorState, downloadAttachment } from '../../ui/helpers.js';
 import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
+import { hasPermission } from '../../services/permissionService.js';
 
 export const CLAIM_CATEGORIES = {
   infrastructure: 'Infraestructura',
@@ -65,9 +66,9 @@ export async function renderAdminClaims() {
             ${a.mimetype?.startsWith('image/') ? '🖼️' : '📄'} ${a.filename ? a.filename.slice(0, 18) : `Archivo ${i + 1}`}
           </button>`).join('')}</div>` : ''}
         <div class="flex gap-1" style="flex-wrap:wrap">
-          ${c.status !== 'in_progress' && c.status !== 'resolved' ? `<button class="btn btn-secondary btn-sm" onclick="updateClaimStatus('${c._id}','in_progress')">En proceso</button>` : ''}
-          ${c.status !== 'resolved' ? `<button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">Resolver</button>` : ''}
-          <button class="btn btn-ghost btn-sm" onclick="deleteClaim('${c._id}',true)" style="margin-left:auto;color:var(--muted)">${SVG.x}</button>
+          ${hasPermission('claims.respond') && c.status !== 'in_progress' && c.status !== 'resolved' ? `<button class="btn btn-secondary btn-sm" onclick="updateClaimStatus('${c._id}','in_progress')">En proceso</button>` : ''}
+          ${hasPermission('claims.close') && c.status !== 'resolved' ? `<button class="btn btn-success btn-sm" onclick="openResolveClaimModal('${c._id}','${c.title.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">Resolver</button>` : ''}
+          ${hasPermission('claims.delete') ? `<button class="btn btn-ghost btn-sm" onclick="deleteClaim('${c._id}',true)" style="margin-left:auto;color:var(--muted)">${SVG.x}</button>` : ''}
         </div>
       </div>`;
 

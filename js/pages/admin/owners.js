@@ -6,6 +6,7 @@ import { SVG, svgIcon } from '../../ui/icons.js';
 import { formatMonth, statusBadge, errorState, downloadReceipt, downloadSystemReceipt, debounce, formatPhone, buildWhatsAppLink, escapeHtml } from '../../ui/helpers.js';
 import { cache } from '../../core/state.js';
 import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
+import { hasPermission } from '../../services/permissionService.js';
 
 // ── Estado de la vista ────────────────────────────────────────
 export const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
@@ -97,8 +98,8 @@ export function _renderOwnersView() {
         <h1>Propietarios</h1>
         <div class="flex gap-1">
           <button class="btn btn-ghost btn-sm" onclick="downloadOwnersExcel()">Exportar Excel</button>
-          <button class="btn btn-ghost btn-sm" onclick="openBulkOwnerModal()">Carga masiva</button>
-          <button class="btn btn-primary btn-sm" onclick="openNewOwnerModal()">+ Agregar</button>
+          ${hasPermission('owners.create') ? '<button class="btn btn-ghost btn-sm" onclick="openBulkOwnerModal()">Carga masiva</button>' : ''}
+          ${hasPermission('owners.create') ? '<button class="btn btn-primary btn-sm" onclick="openNewOwnerModal()">+ Agregar</button>' : ''}
         </div>
       </div>
 
@@ -257,7 +258,7 @@ export async function viewOwnerDetail(ownerId) {
         <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}', '${owner.startBillingPeriod || ''}', ${owner.balance || 0})">Editar</button>
         <button class="btn btn-ghost" onclick="openNotifyOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Notificar</button>
         ${owner.phone ? `<button class="btn btn-ghost" style="color:#25D366" onclick="openWhatsAppOwnerModal('${owner.name.replace(/'/g, "\\'")}','${owner.phone}')">💬 WhatsApp</button>` : ''}
-        <button class="btn btn-primary" onclick="openRegisterPaymentModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Registrar pago</button>
+        ${hasPermission('payments.register') ? `<button class="btn btn-primary" onclick="openRegisterPaymentModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Registrar pago</button>` : ''}
         <button class="btn btn-ghost" onclick="toggleDebt('${owner._id}', ${owner.isDebtor})">
           ${owner.isDebtor ? 'Al día' : 'Moroso'}
         </button>
