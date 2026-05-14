@@ -38,6 +38,14 @@ export async function renderOwnerProfile() {
           </div>
         </div>
 
+        ${state.availableContexts?.length > 1 ? `
+        <div class="section-head" style="margin-top:20px"><h3>Ingreso activo</h3></div>
+        <div class="card" style="padding:16px">
+          <button class="btn btn-secondary btn-block" onclick="showContextSwitchModal()">
+            ${svgIcon('profile', 16)} Cambiar entre administrador y propietario
+          </button>
+        </div>` : ''}
+
         <!-- Datos personales -->
         <div class="section-head" style="margin-top:20px"><h3>Datos personales</h3></div>
         <div class="card" style="padding:16px">

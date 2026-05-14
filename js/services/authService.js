@@ -2,6 +2,7 @@ import { state, setState, cache } from '../core/state.js';
 import { CACHE_TTL, getCachedOrFetch } from '../core/cacheHelpers.js';
 import { showLoading, showSessionRestoreError } from '../ui/loading.js';
 import { toast } from '../ui/toast.js';
+import { openModal, closeModal } from '../ui/modal.js';
 import { SVG, svgIcon } from '../ui/icons.js';
 import { showInstallBanner, isStandalone } from '../ui/pwa.js';
 import { updateOnlineStatus } from '../ui/offline.js';
@@ -34,14 +35,25 @@ async function loadFeatures() {
 
 function applySession(res) {
   const data = res.data || {};
+  const accessType = data.accessType || data.user?.role;
+  const user = data.user ? { ...data.user, role: accessType === 'admin' || accessType === 'owner' ? accessType : data.user.role } : null;
   setState({
-    role: data.user?.role,
-    user: data.user,
+    role: accessType,
+    accessType,
+    ownerId: data.ownerId || null,
+    user,
     membership: data.membership || null,
     organization: data.membership?.organization || null,
-    adminRole: data.adminRole || data.membership?.adminRole || (data.user?.role === 'admin' ? 'owner_admin' : null),
+    availableContexts: Array.isArray(data.availableContexts) ? data.availableContexts : [],
+    adminRole: data.adminRole || data.membership?.adminRole || (accessType === 'admin' ? 'owner_admin' : null),
     permissions: Array.isArray(data.permissions) ? data.permissions : [],
   });
+}
+
+function contextLabel(context) {
+  return context.accessType === 'admin' || context.role === 'admin'
+    ? 'Ingresar como administrador'
+    : 'Ingresar como propietario';
 }
 
 // ── Toggle visibilidad de contraseña ─────────────────────────
@@ -108,12 +120,10 @@ function showOrgSelectionView(organizations) {
   document.getElementById('forgot-link').classList.add('hidden');
   document.getElementById('forgot-view').classList.add('hidden');
 
-  const roleLabel = (role) => role === 'admin' ? 'Administrador' : 'Propietario';
-
   document.getElementById('org-list').innerHTML = organizations.map(org =>
     `<button class="btn btn-secondary w-full" onclick="window._selectOrg('${org.membershipId}')" style="text-align:left;padding:.75rem 1rem">
-      <strong>${org.organizationName}</strong>
-      <span style="display:block;font-size:.8rem;color:var(--text-muted)">${roleLabel(org.role)}</span>
+      <strong>${contextLabel(org)}</strong>
+      <span style="display:block;font-size:.8rem;color:var(--text-muted)">${org.organizationName}</span>
     </button>`
   ).join('');
 
@@ -144,6 +154,52 @@ async function selectOrg(membershipId) {
 }
 
 window._selectOrg = selectOrg;
+
+export function showContextSwitchModal() {
+  const contexts = state.availableContexts || [];
+  if (contexts.length <= 1) return;
+
+  const currentId = state.membership?._id || state.membership?.id;
+  openModal(`
+    <div class="modal-card">
+      <h3 style="margin:0 0 .75rem">Cambiar ingreso</h3>
+      <div style="display:grid;gap:.6rem">
+        ${contexts.map(context => {
+          const active = String(context.membershipId) === String(currentId);
+          return `<button class="btn ${active ? 'btn-primary' : 'btn-secondary'} w-full" style="justify-content:flex-start;text-align:left;padding:.8rem 1rem" onclick="window.switchContext('${context.membershipId}')">
+            <span>
+              <strong>${contextLabel(context)}</strong>
+              <span style="display:block;font-size:.8rem;color:${active ? '#0e1512' : 'var(--text-muted)'}">${context.organizationName || ''}${active ? ' · actual' : ''}</span>
+            </span>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+  `);
+}
+
+export async function switchContext(membershipId) {
+  try {
+    showLoading(true);
+    const remember = Boolean(localStorage.getItem('consorcio_token'));
+    const res = await api.auth.selectOrganization(membershipId);
+    setToken(res.token, remember);
+    applySession(res);
+    cache.clear();
+    await window.idbService?.clear?.('cache');
+    cache.set('auth:me', res, CACHE_TTL.AUTH_ME);
+    await loadFeatures();
+    closeModal();
+    enterApp();
+    toast('Ingreso actualizado.', 'success');
+  } catch (err) {
+    toast(err.message || 'No se pudo cambiar el ingreso.', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+window.switchContext = switchContext;
 
 export async function submitForgotPassword() {
   const email = document.getElementById('forgot-email').value.trim();
@@ -295,6 +351,19 @@ function handleMPRedirect() {
   return true;
 }
 
+function consumeIncomingAuthToken() {
+  const rawHash = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : '';
+  if (!rawHash) return null;
+  const params = new URLSearchParams(rawHash);
+  const token = params.get('auth_token');
+  if (!token) return null;
+  params.delete('auth_token');
+  const nextHash = params.toString();
+  const cleanUrl = `${window.location.pathname}${window.location.search}${nextHash ? `#${nextHash}` : ''}`;
+  window.history.replaceState({}, '', cleanUrl);
+  return token;
+}
+
 async function continueFromMPResult() {
   const token = getToken();
   if (!token) {
@@ -395,6 +464,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  const incomingToken = consumeIncomingAuthToken();
+  if (incomingToken) {
+    setToken(incomingToken, true);
+  }
+
   const token = getToken();
   if (!token) return;
   try {
@@ -473,6 +547,19 @@ export function setupTopBar() {
 
   const btnReport = document.getElementById('btn-report-problem');
   const btnNotif  = document.getElementById('btn-notifications');
+  let btnSwitch = document.getElementById('btn-switch-context');
+  if (!btnSwitch) {
+    btnSwitch = document.createElement('button');
+    btnSwitch.id = 'btn-switch-context';
+    btnSwitch.className = 'topbar-icon-btn';
+    btnSwitch.type = 'button';
+    btnSwitch.title = 'Cambiar ingreso';
+    btnSwitch.setAttribute('aria-label', 'Cambiar ingreso');
+    btnSwitch.innerHTML = `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>`;
+    btnReport.parentNode.insertBefore(btnSwitch, btnReport);
+  }
+  btnSwitch.style.display = (state.availableContexts || []).length > 1 ? '' : 'none';
+  btnSwitch.onclick = showContextSwitchModal;
   btnReport.style.display = '';
   if (state.role === 'admin') {
     btnNotif.style.display  = 'none';
@@ -678,7 +765,7 @@ export function logout() {
   if (window.Sentry) Sentry.onLoad(() => Sentry.setUser(null));
   clearToken();
   cache.clear();
-  setState({ role: null, user: null, features: {}, adminRole: null, permissions: [] });
+  setState({ role: null, accessType: null, ownerId: null, availableContexts: [], user: null, features: {}, adminRole: null, permissions: [] });
   document.getElementById('app-shell').style.display    = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   ['login-email', 'login-pass'].forEach(id => {
@@ -695,6 +782,7 @@ window.showForgotView       = showForgotView;
 window.showLoginView        = showLoginView;
 window.submitForgotPassword = submitForgotPassword;
 window.submitResetPassword  = submitResetPassword;
+window.showContextSwitchModal = showContextSwitchModal;
 window.enterApp             = enterApp;
 window.setupTopBar          = setupTopBar;
 window.setupNav             = setupNav;

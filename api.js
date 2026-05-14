@@ -255,7 +255,7 @@ const api = {
       request('/auth/select-organization', {
         method:  'POST',
         body:    JSON.stringify({ membershipId }),
-        headers: { Authorization: `Bearer ${selectionToken}` },
+        ...(selectionToken ? { headers: { Authorization: `Bearer ${selectionToken}` } } : {}),
       }),
 
     changeTempPassword: (currentPassword, newPassword, confirmPassword = newPassword) =>
