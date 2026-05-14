@@ -65,6 +65,7 @@ import { renderPaymentResult }       from './js/pages/owner/pago-resultado.js';
 import { renderOwnerPaymentPlans }   from './js/pages/owner/payment-plans.js';
 import { renderChangeTemporaryPassword } from './js/pages/owner/changeTemporaryPassword.js';
 import { renderTermsPage }         from './js/pages/legal/terms.js';
+import { renderHelpPage }          from './js/pages/help.js';
 
 // ── Registrar renderers en el router ─────────────────────────
 PAGE_RENDERERS['page-admin-home']      = () => renderAdminHome();
@@ -104,11 +105,13 @@ PAGE_RENDERERS['page-owner-pago-resultado']    = () => renderPaymentResult();
 PAGE_RENDERERS['page-owner-payment-plans']     = () => renderOwnerPaymentPlans();
 PAGE_RENDERERS['page-change-temp-password']    = () => renderChangeTemporaryPassword();
 PAGE_RENDERERS['page-terms']                 = () => renderTermsPage();
+PAGE_RENDERERS['page-help']                  = () => renderHelpPage();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)
 window.PAGE_RENDERERS = PAGE_RENDERERS;
 window.renderAdminPaymentPlans  = renderAdminPaymentPlans;
 window.renderOwnerPaymentPlans  = renderOwnerPaymentPlans;
+window.renderHelpPage           = renderHelpPage;
 
 // ── Service Worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {

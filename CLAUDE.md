@@ -58,6 +58,7 @@ consorcio-app/
 │       │   ├── home.js          # renderAdminHome()
 │       │   ├── dashboard.js     # renderAdminDashboard()
 │       │   ├── owners.js        # renderOwnersList()
+│       │   ├── payments.js      # renderAdminPayments() — gestión centralizada de pagos
 │       │   ├── notices.js       # renderAdminNotices()
 │       │   ├── claims.js        # renderAdminClaims()
 │       │   ├── expenses.js      # renderAdminExpenses()
@@ -66,19 +67,30 @@ consorcio-app/
 │       │   ├── votes.js         # renderAdminVotes()
 │       │   ├── visits.js        # renderAdminVisits()
 │       │   ├── spaces.js        # renderAdminSpaces()
-│       │   └── reservations.js  # renderAdminReservations()
-│       └── owner/
-│           ├── home.js          # renderOwnerHome()
-│           ├── pay.js           # renderUploadPage()
-│           ├── history.js       # renderOwnerHistory()
-│           ├── notices.js       # renderOwnerNotices()
-│           ├── claims.js        # renderOwnerClaims()
-│           ├── expenses.js      # renderOwnerExpenses()
-│           ├── votes.js         # renderOwnerVotes()
-│           ├── profile.js       # renderOwnerProfile()
-│           ├── visits.js        # renderOwnerVisits()
-│           ├── reservations.js  # renderOwnerReservations()
-│           └── pago-resultado.js # renderPagoResultado() — resultado del pago MP
+│       │   ├── reservations.js  # renderAdminReservations()
+│       │   ├── units.js         # renderAdminUnits() — ABM de unidades funcionales
+│       │   ├── employees.js     # renderAdminEmployees() — ABM de empleados
+│       │   ├── salaries.js      # renderAdminSalaries() — sueldos y pagos de empleados
+│       │   ├── documents.js     # renderAdminDocuments() — documentos de la organización
+│       │   ├── payment-plans.js # renderAdminPaymentPlans() — planes de pago de deudores
+│       │   └── support.js       # renderAdminSupport() — tickets de soporte al sistema
+│       ├── owner/
+│       │   ├── home.js          # renderOwnerHome()
+│       │   ├── pay.js           # renderUploadPage()
+│       │   ├── history.js       # renderOwnerHistory()
+│       │   ├── notices.js       # renderOwnerNotices()
+│       │   ├── claims.js        # renderOwnerClaims()
+│       │   ├── expenses.js      # renderOwnerExpenses()
+│       │   ├── votes.js         # renderOwnerVotes()
+│       │   ├── profile.js       # renderOwnerProfile()
+│       │   ├── visits.js        # renderOwnerVisits()
+│       │   ├── reservations.js  # renderOwnerReservations()
+│       │   ├── documents.js     # renderOwnerDocuments() — documentos visibles al propietario
+│       │   ├── payment-plans.js # renderOwnerPaymentPlans() — ver y solicitar plan de pago
+│       │   ├── changeTemporaryPassword.js # renderChangeTemporaryPassword()
+│       │   └── pago-resultado.js # renderPagoResultado() — resultado del pago MP
+│       └── legal/
+│           └── terms.js         # renderTermsPage()
 └── tests/
     ├── globals.js           # Mocks globales para Jest
     ├── setup/               # Configuración de entorno de test
@@ -105,6 +117,8 @@ consorcio-app/
 | `page-owner-visits` | Registrar visitantes autorizados para ingreso al complejo |
 | `page-owner-reservations` | Reservar espacios comunes disponibles |
 | `page-owner-pago-resultado` | Resultado del pago tras redirect de MercadoPago |
+| `page-owner-documents` | Ver documentos de la organización (reglamento, seguros, etc.) |
+| `page-owner-payment-plans` | Ver y solicitar planes de pago para deudas |
 
 ### Admin
 | id | Contenido |
@@ -122,6 +136,13 @@ consorcio-app/
 | `page-admin-visits` | Ver y gestionar todas las visitas registradas (aprobar, rechazar, marcar estado) |
 | `page-admin-spaces` | ABM de espacios comunes reservables (nombre, capacidad, requiere aprobación) |
 | `page-admin-reservations` | Ver y gestionar todas las reservas de espacios (aprobar, rechazar) |
+| `page-admin-payments` | Gestión centralizada de todos los pagos (aprobar, rechazar, filtrar) |
+| `page-admin-units` | ABM de unidades funcionales (lotes, deptos) y asignación a propietarios |
+| `page-admin-employees` | ABM de empleados con documentación adjunta |
+| `page-admin-salaries` | Registro de sueldos y pagos parciales (adelantos, ajustes) |
+| `page-admin-documents` | Gestión de documentos de la organización (reglamento, seguros, etc.) |
+| `page-admin-payment-plans` | Aprobar, rechazar y gestionar planes de pago de propietarios deudores |
+| `page-admin-support` | Ver y responder tickets de soporte enviados por usuarios |
 
 ## Estado global (js/core/state.js)
 
@@ -165,7 +186,7 @@ import { isFeatureEnabled } from './featureService.js';
 isFeatureEnabled('visits')       // true si habilitado (default true si no configurado)
 ```
 
-Feature keys disponibles: `visits`, `reservations`, `votes`, `expenses`, `providers`.
+Feature keys disponibles: `visits`, `reservations`, `votes`, `expenses`, `providers`, `documents`.
 Mapa `PAGE_FEATURE_MAP` vincula cada pageId a su feature key; el router oculta la entrada de nav si la feature está deshabilitada.
 
 ## Funciones y módulos clave
@@ -285,8 +306,13 @@ api.units.delete(id)
 
 api.visits.getAll(params?)
 api.visits.getMy()
+api.visits.getToday()                 // visitas de hoy para portería
+api.visits.getHistory(params?)        // historial con paginación
+api.visits.getLogs(id)                // logs de check-in/check-out de una visita
 api.visits.create(data)               // { name, type, expectedDate, note? }
 api.visits.updateStatus(id, status)   // admin: approved | rejected | inside | exited
+api.visits.checkIn(id, comment?)      // marcar ingreso
+api.visits.checkOut(id, comment?)     // marcar egreso
 api.visits.delete(id)
 
 api.spaces.getAll()
@@ -308,6 +334,55 @@ api.votes.close(id)
 api.votes.cast(id, optionIndex)        // owner vota
 api.votes.results(id)                  // admin ve resultados
 api.votes.delete(id)
+
+api.adminUsers.permissionsMe()        // permisos del admin autenticado
+api.adminUsers.getAll()               // lista de admins de la org
+api.adminUsers.searchOwners(query)    // buscar owners para invitar como admin
+api.adminUsers.invite(data)           // invitar owner como admin
+api.adminUsers.updateRole(userId, role)
+api.adminUsers.disable(userId)
+
+api.organizationDocuments.getAll(params?)
+api.organizationDocuments.getOne(id)
+api.organizationDocuments.create(data)    // FormData con archivo (PDF/imagen)
+api.organizationDocuments.update(id, data)
+api.organizationDocuments.delete(id)
+api.organizationDocuments.downloadUrl(id) // URL directa de descarga
+
+api.supportTickets.create(data)       // { type, title, description, context? }
+api.supportTickets.getAll(params?)    // superadmin
+api.supportTickets.getMy()            // tickets propios del usuario
+api.supportTickets.update(id, data)   // superadmin: { status?, priority?, adminResponse? }
+api.supportTickets.delete(id)         // superadmin
+
+api.employees.getAll(params?)
+api.employees.create(data)
+api.employees.getOne(id)
+api.employees.update(id, data)
+api.employees.delete(id)
+api.employees.getDocumentUrl(id, index)
+api.employees.deleteDocument(id, index)
+
+api.salaryPayments.getAll(params?)
+api.salaryPayments.create(data)       // { salary, employee, period, type, amount, paymentMethod, note? }
+api.salaryPayments.delete(id)
+
+api.paymentPlans.request(data)        // owner solicita plan: { includedPeriods, extraordinaryItems?, requestComment? }
+api.paymentPlans.getMy()              // planes del owner autenticado
+api.paymentPlans.listAdmin(params?)
+api.paymentPlans.getAdmin(id)
+api.paymentPlans.create(data)         // admin crea plan directamente
+api.paymentPlans.approve(id, data)    // { installmentsCount, startDate, interestType?, interestValue? }
+api.paymentPlans.reject(id, data)     // { rejectionReason? }
+api.paymentPlans.cancel(id)
+api.paymentPlans.delete(id)
+api.paymentPlans.registerInstallmentPayment(installmentId)   // admin marca cuota como pagada
+api.paymentPlans.submitInstallmentPayment(installmentId, formData) // owner sube comprobante
+
+api.debtItems.create(ownerId, data)   // admin: { type, description, amount, currency }
+api.debtItems.getByOwner(ownerId)
+api.debtItems.cancel(id, reason)
+api.debtItems.getMine()               // owner: sus deudas adicionales
 ```
 
 ## SVG Icons (js/ui/icons.js)

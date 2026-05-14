@@ -3460,3 +3460,59 @@ body.is-offline #app-shell { padding-top: 36px; }
 .note-toggle summary::-webkit-details-marker { display: none; }
 .note-toggle[open] summary { color: var(--text-bright); }
 .note-toggle .textarea { min-height: 72px; }
+
+/* ── Tooltip ────────────────────────────────────────────────── */
+.has-tooltip { position: relative; display: inline-flex; align-items: center; cursor: default; }
+.has-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--border-md); color: var(--text-bright);
+  font-size: 0.78rem; line-height: 1.45; padding: 6px 10px; border-radius: 8px;
+  white-space: normal; width: max-content; max-width: 220px;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 300;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+}
+.has-tooltip:hover::after { opacity: 1; }
+
+/* ── Help block (contextual info strip on pages) ─────────────── */
+.help-block {
+  background: var(--accent-lt); border-left: 3px solid var(--accent);
+  border-radius: var(--radius); padding: .7rem 1rem;
+  font-size: .84rem; color: var(--text); line-height: 1.5;
+  margin-bottom: 1.1rem;
+}
+
+/* ── Help page ───────────────────────────────────────────────── */
+.help-page { padding: 1.25rem; max-width: 640px; margin: 0 auto; padding-bottom: 96px; }
+.help-header { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.1rem; }
+.help-header h2 { margin: 0; }
+.help-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1.1rem; }
+.help-chip {
+  background: var(--surface-3); border: 1px solid var(--border); color: var(--text);
+  border-radius: 999px; padding: .28rem .8rem; font-size: .78rem; cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.help-chip:hover, .help-chip.is-active {
+  background: var(--accent-lt); border-color: var(--accent); color: var(--text-bright);
+}
+.help-faq {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: .45rem; overflow: hidden;
+  transition: border-color .12s;
+}
+.help-faq[open] { border-color: var(--border-md); }
+.help-faq summary.help-faq-q {
+  padding: .8rem 1rem; cursor: pointer; font-weight: 600;
+  color: var(--text-bright); font-size: .88rem; list-style: none;
+  display: flex; align-items: center; gap: .5rem;
+  user-select: none;
+}
+.help-faq summary.help-faq-q::-webkit-details-marker { display: none; }
+.help-faq summary.help-faq-q::before {
+  content: '+'; color: var(--accent); font-size: 1rem; line-height: 1;
+  width: 16px; flex-shrink: 0;
+}
+.help-faq[open] summary.help-faq-q::before { content: '−'; }
+.help-faq[open] summary.help-faq-q { border-bottom: 1px solid var(--border); }
+.help-faq-a { padding: .75rem 1rem; color: var(--text); font-size: .86rem; line-height: 1.55; }
+.help-faq-a p { margin: 0; }

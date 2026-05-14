@@ -8,6 +8,7 @@ import { SVG, svgIcon } from '../ui/icons.js';
 import { setupTopBar, getOrgId } from './authService.js';
 import { openModal, closeModal } from '../ui/modal.js';
 import { hasPermission, ROLE_LABELS, ROLE_DESCRIPTIONS, groupPermissionLabels } from './permissionService.js';
+import { HELP_TEXTS } from '../content/helpTexts.js';
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -130,6 +131,7 @@ export async function renderAdminAdministrators() {
   try {
     el.innerHTML = `
       <div class="flex col gap-3">
+        <div class="help-block">${HELP_TEXTS.pages['page-admin-admins']}</div>
         <div>
           <h1>Administradores</h1>
           <p class="text-sm text-muted">Gestiona invitaciones, roles y permisos administrativos de esta organizacion.</p>
@@ -221,6 +223,7 @@ export async function renderAdminSettings() {
 
     el.innerHTML = `
       <div class="flex col gap-3">
+        <div class="help-block">${HELP_TEXTS.pages['page-admin-settings']}</div>
         <h1>Configuración</h1>
 
         <div class="card">
@@ -679,7 +682,10 @@ export function openAdminInviteModal() {
         <div id="admin-owner-selected" class="owner-admin-selected" hidden></div>
       </div>
       <div class="form-group">
-        <label>Rol</label>
+        <label style="display:flex;align-items:center;gap:.4rem">
+          Rol
+          <span class="has-tooltip" data-tooltip="${HELP_TEXTS.tooltips['admin-role']}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        </label>
         <select class="select" id="admin-invite-role" onchange="renderAdminRolePreview(this.value)">
           ${_roleOptions('read_only')}
         </select>

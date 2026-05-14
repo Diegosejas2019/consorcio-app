@@ -6,6 +6,7 @@ import { setBtnLoading } from '../../ui/loading.js';
 import { state } from '../../core/state.js';
 import { getOwnerSummary } from '../../services/ownerSummaryService.js';
 import { openRequestPlanModal } from './payment-plans.js';
+import { HELP_TEXTS } from '../../content/helpTexts.js';
 
 let selectedFile  = null;
 let _selectedBalanceFile = null;
@@ -251,6 +252,7 @@ export async function renderUploadPage() {
 
     el.innerHTML = `
       <div style="padding:0 16px 120px">
+        <div class="help-block" style="margin-top:1rem">${HELP_TEXTS.pages['page-owner-pay']}</div>
         <p class="page-eyebrow">Pagos</p>
         <div class="pay-page-head">
           <div>

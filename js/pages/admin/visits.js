@@ -3,6 +3,7 @@ import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
 import { formatDate, errorState } from '../../ui/helpers.js';
+import { HELP_TEXTS } from '../../content/helpTexts.js';
 import { state } from '../../core/state.js';
 import { hasPermission } from '../../services/permissionService.js';
 
@@ -52,7 +53,10 @@ function _openCheckModal(id, action) {
     <h2 style="margin-bottom:1rem">${title}</h2>
     <div class="flex col gap-2">
       <div class="form-group">
-        <label>Observación (opcional)</label>
+        <label style="display:flex;align-items:center;gap:.4rem">
+          Observación (opcional)
+          <span class="has-tooltip" data-tooltip="${HELP_TEXTS.tooltips['visit-comment']}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        </label>
         <textarea class="input" id="check-comment" rows="3" maxlength="500"
           placeholder="Ej: Ingresó con vehículo, dejó documento en portería…" style="resize:vertical"></textarea>
       </div>

@@ -598,6 +598,7 @@ const SVG_S_SPACE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"
 const SVG_S_SUPPORT = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M18 10a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><path d="M9.5 9a2.5 2.5 0 115 0c0 1.5-1 2-2.5 3v1"/></svg>`;
 const SVG_S_PROF   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
 const SVG_S_SALARY = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>`;
+const SVG_S_HELP   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
 const SVG_S_EMP    = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 const SVG_S_PLAN   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l2 2 4-4"/></svg>`;
 // Nav-bar sized profile icon (22px)
@@ -634,12 +635,13 @@ const ADMIN_NAV_GROUPS = {
   },
   mas: {
     label: 'Más',
-    pages: ['page-admin-providers', 'page-admin-documents', 'page-admin-admins', 'page-admin-settings'],
+    pages: ['page-admin-providers', 'page-admin-documents', 'page-admin-admins', 'page-admin-settings', 'page-help'],
     items: [
       { page: 'page-admin-providers', label: 'Proveedores',   fn: 'renderAdminProviders', icon: SVG_S_PROV },
       { page: 'page-admin-documents', label: 'Documentacion', fn: 'renderAdminDocuments', icon: SVG_S_REPORT },
       { page: 'page-admin-admins',    label: 'Administradores', fn: 'renderAdminAdministrators', icon: SVG_S_USERS },
       { page: 'page-admin-settings',  label: 'Configuración', fn: 'renderAdminSettings',  icon: SVG_S_SETT },
+      { page: 'page-help',            label: 'Ayuda',         fn: 'renderHelpPage',       icon: SVG_S_HELP },
     ],
   },
 };
@@ -647,7 +649,7 @@ const ADMIN_NAV_GROUPS = {
 const OWNER_NAV_GROUPS = {
   comunidad: {
     label: 'Comunidad',
-    pages: ['page-owner-notices', 'page-owner-claims', 'page-owner-expenses', 'page-owner-documents', 'page-owner-votes', 'page-owner-visits', 'page-owner-reservations'],
+    pages: ['page-owner-notices', 'page-owner-claims', 'page-owner-expenses', 'page-owner-documents', 'page-owner-votes', 'page-owner-visits', 'page-owner-reservations', 'page-help'],
     items: [
       { page: 'page-owner-expenses',     label: 'Gastos',      fn: 'renderOwnerExpenses',     icon: SVG_S_EXP   },
       { page: 'page-owner-documents',    label: 'Documentos',  fn: 'renderOwnerDocuments',    icon: SVG_S_REPORT },
@@ -656,6 +658,7 @@ const OWNER_NAV_GROUPS = {
       { page: 'page-owner-votes',        label: 'Votaciones',  fn: 'renderOwnerVotes',        icon: SVG_S_VOTE  },
       { page: 'page-owner-visits',       label: 'Visitas',     fn: 'renderOwnerVisits',       icon: SVG_S_VISIT },
       { page: 'page-owner-reservations', label: 'Reservas',    fn: 'renderOwnerReservations', icon: SVG_S_RESV  },
+      { page: 'page-help',               label: 'Ayuda',       fn: 'renderHelpPage',          icon: SVG_S_HELP  },
     ],
   },
   cuenta: {
@@ -749,6 +752,7 @@ export function setupNav() {
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-admin-visits" onclick="showPage('page-admin-visits');renderAdminVisits()">${SVG_S_VISIT}<span>Visitas</span></button>
       <button class="nav-item" data-page="page-admin-visits-log" onclick="showPage('page-admin-visits-log');renderAdminVisitsLog()">${SVG_S_CLAIM}<span>Libro de visitas</span></button>
+      <button class="nav-item" data-page="page-help" onclick="showPage('page-help');renderHelpPage()">${SVG_S_HELP}<span>Ayuda</span></button>
       <button class="nav-item" data-page="page-admin-profile" onclick="logout()">${SVG_S_PROF}<span>Salir</span></button>`;
   } else if (state.role === 'admin') {
     _navCurrentGroups = ADMIN_NAV_GROUPS;
@@ -767,9 +771,9 @@ export function setupNav() {
   }
 
   nav.querySelector('[data-pages="page-admin-providers,page-admin-settings"]')
-    ?.setAttribute('data-pages', 'page-admin-providers,page-admin-documents,page-admin-admins,page-admin-settings');
+    ?.setAttribute('data-pages', 'page-admin-providers,page-admin-documents,page-admin-admins,page-admin-settings,page-help');
   nav.querySelector('[data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations"]')
-    ?.setAttribute('data-pages', 'page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-documents,page-owner-votes,page-owner-visits,page-owner-reservations');
+    ?.setAttribute('data-pages', 'page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-documents,page-owner-votes,page-owner-visits,page-owner-reservations,page-help');
 }
 
 // ── Logout ────────────────────────────────────────────────────

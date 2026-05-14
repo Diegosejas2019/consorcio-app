@@ -6,6 +6,7 @@ import { svgIcon } from '../../ui/icons.js';
 import { debounce, downloadReceipt, escapeHtml, formatMonth } from '../../ui/helpers.js';
 import { viewOwnerDetail, openRegisterPaymentModal } from './owners.js';
 import { hasPermission } from '../../services/permissionService.js';
+import { HELP_TEXTS } from '../../content/helpTexts.js';
 
 const STATUS_OPTIONS = {
   all: 'Todos',
@@ -244,6 +245,7 @@ function renderAdminPaymentsView(res) {
 
   el.innerHTML = `
     <div class="admin-payments-page">
+      <div class="help-block">${HELP_TEXTS.pages['page-admin-payments']}</div>
       <div class="flex between admin-payments-head">
         <div>
           <p class="page-eyebrow">Administracion</p>

@@ -7,6 +7,7 @@ import { formatMonth, statusBadge, errorState, downloadReceipt, downloadSystemRe
 import { cache } from '../../core/state.js';
 import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 import { hasPermission } from '../../services/permissionService.js';
+import { HELP_TEXTS } from '../../content/helpTexts.js';
 
 // ── Estado de la vista ────────────────────────────────────────
 export const ownersListState = { all: [], page: 1, perPage: 10, filterName: '', filterUnit: '' };
@@ -94,6 +95,7 @@ export function _renderOwnersView() {
 
   el.innerHTML = `
     <div class="flex col gap-3">
+      <div class="help-block">${HELP_TEXTS.pages['page-admin-owners']}</div>
       <div class="flex between">
         <h1>Propietarios</h1>
         <div class="flex gap-1">
@@ -798,13 +800,19 @@ export async function openNewOwnerModal() {
     <div class="flex col gap-2">
       <div class="form-group"><label>Nombre completo</label><input class="input" id="no-name" placeholder="María García"></div>
       <div class="form-group">
-        <label>Email</label>
+        <label style="display:flex;align-items:center;gap:.4rem">
+          Email
+          <span class="has-tooltip" data-tooltip="${HELP_TEXTS.tooltips['owner-email']}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        </label>
         <input class="input" type="email" id="no-email" placeholder="propietario@mail.com"
           onblur="checkNewOwnerEmail()">
         <small id="no-email-hint" style="display:none;margin-top:.25rem"></small>
       </div>
       <div class="form-group" id="no-pass-group">
-        <label>Contraseña temporal</label>
+        <label style="display:flex;align-items:center;gap:.4rem">
+          Contraseña temporal
+          <span class="has-tooltip" data-tooltip="${HELP_TEXTS.tooltips['temp-password']}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        </label>
         <input class="input" id="no-pass" placeholder="Mín. 6 caracteres">
       </div>
       <div class="form-group">
