@@ -8,6 +8,14 @@ export const ROLE_LABELS = {
   security_guard: 'Vigilador / Portería',
 };
 
+export const ROLE_DESCRIPTIONS = {
+  owner_admin: 'Acceso total a todos los modulos de la organizacion.',
+  read_only: 'Puede consultar informacion, pero no puede crear, editar, eliminar ni registrar pagos.',
+  billing_manager: 'Puede ver propietarios, deudas, pagos y recibos, y registrar pagos.',
+  communications_manager: 'Puede gestionar reclamos, avisos y comunicaciones.',
+  security_guard: 'Puede consultar y gestionar visitas segun los permisos asignados.',
+};
+
 export const PERMISSION_LABELS = {
   'dashboard.read':                   'Dashboard: Ver dashboard',
   'owners.read':                      'Propietarios: Ver propietarios',
@@ -91,6 +99,26 @@ export const PERMISSION_LABELS = {
   'spaces.update':                    'Espacios: Editar espacio',
   'spaces.delete':                    'Espacios: Eliminar espacio',
 };
+
+export function permissionDisplay(permission) {
+  const label = PERMISSION_LABELS[permission];
+  if (!label) return { module: 'Otros', label: 'Permiso adicional' };
+  const parts = label.split(':');
+  const module = parts.shift()?.trim() || 'Otros';
+  const action = parts.join(':').trim() || 'Permiso adicional';
+  return { module, label: action };
+}
+
+export function groupPermissionLabels(permissions = []) {
+  const groups = new Map();
+  permissions.forEach(permission => {
+    const item = permissionDisplay(permission);
+    const labels = groups.get(item.module) || [];
+    if (!labels.includes(item.label)) labels.push(item.label);
+    groups.set(item.module, labels);
+  });
+  return Array.from(groups.entries()).map(([module, labels]) => ({ module, labels }));
+}
 
 export const PAGE_PERMISSION_MAP = {
   'page-admin-home': 'dashboard.read',

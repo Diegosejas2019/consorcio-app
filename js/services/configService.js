@@ -3,11 +3,11 @@ import { CACHE_TTL, getCachedOrFetch } from '../core/cacheHelpers.js';
 import { toast } from '../ui/toast.js';
 import { showLoading, setBtnLoading } from '../ui/loading.js';
 import { skeleton } from '../ui/skeleton.js';
-import { errorState } from '../ui/helpers.js';
+import { errorState, escapeHtml } from '../ui/helpers.js';
 import { SVG, svgIcon } from '../ui/icons.js';
 import { setupTopBar, getOrgId } from './authService.js';
 import { openModal, closeModal } from '../ui/modal.js';
-import { hasPermission, ROLE_LABELS, PERMISSION_LABELS } from './permissionService.js';
+import { hasPermission, ROLE_LABELS, ROLE_DESCRIPTIONS, groupPermissionLabels } from './permissionService.js';
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -42,6 +42,8 @@ const FEATURE_LABELS = {
 };
 
 let _adminRoles = [];
+let _adminInviteOwnerResults = [];
+let _adminInviteOwnerSearchTimer = null;
 
 function _disabledAttr(permission) {
   return hasPermission(permission) ? '' : 'disabled';
@@ -51,11 +53,15 @@ function _actionButton(permission, html) {
   return hasPermission(permission) ? html : '';
 }
 
+function _jsString(value) {
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+}
+
 function _roleOptions(selected = '') {
   const roles = _adminRoles.length
     ? _adminRoles
     : Object.entries(ROLE_LABELS).map(([role, label]) => ({ role, label, permissions: [] }));
-  return roles.map(r => `<option value="${r.role}" ${selected === r.role ? 'selected' : ''}>${r.label}</option>`).join('');
+  return roles.map(r => `<option value="${escapeHtml(r.role)}" ${selected === r.role ? 'selected' : ''}>${escapeHtml(r.label || ROLE_LABELS[r.role] || 'Administrador')}</option>`).join('');
 }
 
 function _permissionsPreview(role) {
@@ -64,9 +70,16 @@ function _permissionsPreview(role) {
     : Object.entries(ROLE_LABELS).map(([key, label]) => ({ role: key, label, permissions: [] }));
   const def = roles.find(r => r.role === role) || roles[0];
   if (!def) return '<p class="text-sm text-muted">Seleccioná un rol para ver sus permisos.</p>';
+  const groups = groupPermissionLabels(def.permissions || []);
   return `
-    <div class="text-sm text-muted" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem">
-      ${(def.permissions || []).map(p => `<span class="badge badge-neutral">${PERMISSION_LABELS[p] || p}</span>`).join('') || 'Sin permisos configurados.'}
+    <p class="text-sm text-muted" style="margin:.5rem 0 0">${ROLE_DESCRIPTIONS[def.role] || 'Permisos administrativos configurados para la organizacion.'}</p>
+    <div class="permission-groups">
+      ${groups.length ? groups.map(group => `
+        <div class="permission-group">
+          <strong>${escapeHtml(group.module)}</strong>
+          <span>${group.labels.map(escapeHtml).join(', ')}</span>
+        </div>
+      `).join('') : '<p class="text-sm text-muted">Sin permisos configurados.</p>'}
     </div>`;
 }
 
@@ -90,7 +103,7 @@ async function _renderAdminUsersCard() {
                 <p class="name">${admin.name || '-'}</p>
                 <p class="unit">${admin.email || ''}</p>
               </div>
-              <span class="badge ${admin.isActive ? 'badge-success' : 'badge-neutral'}">${admin.isActive ? (admin.roleLabel || ROLE_LABELS[admin.role] || admin.role) : 'Desactivado'}</span>
+              <span class="badge ${admin.isActive ? 'badge-success' : 'badge-neutral'}">${admin.isActive ? escapeHtml(admin.roleLabel || ROLE_LABELS[admin.role] || 'Administrador') : 'Desactivado'}</span>
               ${admin.isActive ? `
                 ${_actionButton('admins.update', `<button class="btn btn-ghost btn-sm" onclick="openAdminRoleModal('${admin.userId}','${admin.role}')">Rol</button>`)}
                 ${_actionButton('admins.disable', `<button class="btn btn-danger btn-sm" onclick="disableAdminUser('${admin.userId}')">Desactivar</button>`)}
@@ -621,12 +634,31 @@ export async function saveMPSettings() {
 }
 
 export function openAdminInviteModal() {
+  _adminInviteOwnerResults = [];
+  if (_adminInviteOwnerSearchTimer) clearTimeout(_adminInviteOwnerSearchTimer);
   openModal(`
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:1rem">Invitar administrador</h2>
     <div class="flex col gap-2">
-      <div class="form-group"><label>Nombre</label><input class="input" id="admin-invite-name" maxlength="100"></div>
-      <div class="form-group"><label>Email</label><input class="input" id="admin-invite-email" type="email"></div>
+      <div class="admin-invite-mode">
+        <button type="button" class="is-active" data-admin-invite-mode="new_user" onclick="setAdminInviteMode('new_user')">Nuevo usuario</button>
+        <button type="button" data-admin-invite-mode="existing_owner" onclick="setAdminInviteMode('existing_owner')">Propietario existente</button>
+      </div>
+      <div id="admin-invite-new-user" class="flex col gap-2">
+        <div class="form-group"><label>Nombre</label><input class="input" id="admin-invite-name" maxlength="100"></div>
+        <div class="form-group"><label>Email</label><input class="input" id="admin-invite-email" type="email"></div>
+      </div>
+      <div id="admin-invite-existing-owner" class="flex col gap-2" hidden>
+        <div class="form-group">
+          <label>Buscar propietario</label>
+          <input class="input" id="admin-owner-search" type="search" placeholder="Nombre, email, unidad, lote o departamento" oninput="searchAdminInviteOwners(this.value)">
+        </div>
+        <input type="hidden" id="admin-invite-owner-id">
+        <div id="admin-owner-results" class="owner-admin-results">
+          <p class="text-sm text-muted">Busca por nombre, email, unidad, lote o departamento.</p>
+        </div>
+        <div id="admin-owner-selected" class="owner-admin-selected" hidden></div>
+      </div>
       <div class="form-group">
         <label>Rol</label>
         <select class="select" id="admin-invite-role" onchange="renderAdminRolePreview(this.value)">
@@ -640,6 +672,85 @@ export function openAdminInviteModal() {
       </div>
     </div>
   `);
+}
+
+export function setAdminInviteMode(mode = 'new_user') {
+  const safeMode = mode === 'existing_owner' ? 'existing_owner' : 'new_user';
+  document.querySelectorAll('[data-admin-invite-mode]').forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.adminInviteMode === safeMode);
+  });
+  const newUser = document.getElementById('admin-invite-new-user');
+  const existingOwner = document.getElementById('admin-invite-existing-owner');
+  if (newUser) newUser.hidden = safeMode !== 'new_user';
+  if (existingOwner) existingOwner.hidden = safeMode !== 'existing_owner';
+  if (safeMode === 'existing_owner') searchAdminInviteOwners(document.getElementById('admin-owner-search')?.value || '');
+}
+
+function _renderAdminInviteOwnerResults(owners = []) {
+  const el = document.getElementById('admin-owner-results');
+  if (!el) return;
+  if (!owners.length) {
+    el.innerHTML = '<p class="text-sm text-muted">No encontramos propietarios para esa busqueda.</p>';
+    return;
+  }
+  el.innerHTML = owners.map(owner => `
+    <button
+      type="button"
+      class="owner-admin-option ${owner.isAdminActive ? 'is-disabled' : ''}"
+      ${owner.isAdminActive ? 'disabled' : ''}
+      onclick="selectAdminInviteOwner('${_jsString(owner.ownerId)}')">
+      <strong>${escapeHtml(owner.name || 'Sin nombre')}</strong>
+      <span>${escapeHtml(owner.email || '-')}</span>
+      <small>${escapeHtml((owner.unitNames || []).join(', ') || 'Sin unidad asignada')}${owner.isAdminActive ? ' - Ya es administrador' : ''}</small>
+    </button>
+  `).join('');
+}
+
+export function searchAdminInviteOwners(query = '') {
+  const el = document.getElementById('admin-owner-results');
+  if (el) el.innerHTML = '<p class="text-sm text-muted">Buscando propietarios...</p>';
+  if (_adminInviteOwnerSearchTimer) clearTimeout(_adminInviteOwnerSearchTimer);
+  _adminInviteOwnerSearchTimer = setTimeout(async () => {
+    try {
+      const res = await api.adminUsers.searchOwners(query || '');
+      _adminInviteOwnerResults = res.data?.owners || [];
+      _renderAdminInviteOwnerResults(_adminInviteOwnerResults);
+    } catch (err) {
+      if (el) el.innerHTML = `<p class="text-sm text-muted">${escapeHtml(err.message || 'No se pudieron buscar propietarios.')}</p>`;
+    }
+  }, 250);
+}
+
+export function selectAdminInviteOwner(ownerId) {
+  const owner = _adminInviteOwnerResults.find(item => String(item.ownerId) === String(ownerId));
+  if (!owner) return;
+  if (owner.isAdminActive) {
+    toast('Este usuario ya es administrador de la organizacion.', 'error');
+    return;
+  }
+  const ownerIdInput = document.getElementById('admin-invite-owner-id');
+  const selected = document.getElementById('admin-owner-selected');
+  if (ownerIdInput) ownerIdInput.value = owner.ownerId;
+  if (selected) {
+    selected.hidden = false;
+    selected.innerHTML = `
+      <div>
+        <span class="text-sm text-muted">Propietario seleccionado</span>
+        <p class="text-sm text-muted">${escapeHtml((owner.unitNames || []).join(', ') || 'Sin unidad asignada')}</p>
+        <div class="form-group" style="margin-top:.6rem">
+          <label>Nombre</label>
+          <input class="input" value="${escapeHtml(owner.name || '')}" disabled>
+        </div>
+        <div class="form-group" style="margin-top:.6rem">
+          <label>Email</label>
+          <input class="input" value="${escapeHtml(owner.email || '')}" disabled>
+        </div>
+      </div>`;
+  }
+  document.querySelectorAll('.owner-admin-option').forEach(btn => btn.classList.remove('is-selected'));
+  document.querySelectorAll('.owner-admin-option').forEach(btn => {
+    if (btn.getAttribute('onclick')?.includes(String(owner.ownerId))) btn.classList.add('is-selected');
+  });
 }
 
 export function openAdminRoleModal(userId, currentRole) {
@@ -666,12 +777,26 @@ export function renderAdminRolePreview(role) {
 }
 
 export async function inviteAdminUser() {
+  const mode = document.getElementById('admin-invite-existing-owner')?.hidden === false ? 'existing_owner' : 'new_user';
   const name = document.getElementById('admin-invite-name')?.value.trim();
   const email = document.getElementById('admin-invite-email')?.value.trim();
+  const ownerId = document.getElementById('admin-invite-owner-id')?.value;
   const role = document.getElementById('admin-invite-role')?.value;
+  if (mode === 'existing_owner') {
+    if (!ownerId) { toast('Selecciona un propietario.', 'error'); return; }
+    try {
+      await api.adminUsers.invite({ mode, ownerId, role });
+      closeModal();
+      toast('Propietario asociado como administrador.', 'success');
+      renderAdminSettings();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+    return;
+  }
   if (!name || !email) { toast('Completá nombre y email.', 'error'); return; }
   try {
-    await api.adminUsers.invite({ name, email, role });
+    await api.adminUsers.invite({ mode: 'new_user', name, email, role });
     closeModal();
     toast('Administrador invitado correctamente.', 'success');
     renderAdminSettings();
@@ -720,6 +845,9 @@ window.saveMonthlyFeeSettings       = saveMonthlyFeeSettings;
 window.saveBankSettings             = saveBankSettings;
 window.saveMPSettings               = saveMPSettings;
 window.openAdminInviteModal         = openAdminInviteModal;
+window.setAdminInviteMode           = setAdminInviteMode;
+window.searchAdminInviteOwners      = searchAdminInviteOwners;
+window.selectAdminInviteOwner       = selectAdminInviteOwner;
 window.openAdminRoleModal           = openAdminRoleModal;
 window.renderAdminRolePreview       = renderAdminRolePreview;
 window.inviteAdminUser              = inviteAdminUser;

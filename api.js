@@ -435,6 +435,7 @@ const api = {
   adminUsers: {
     permissionsMe: () => request('/admin/permissions/me'),
     getAll: () => request('/admin/users'),
+    searchOwners: (query = '') => request(`/admin/owners/search?${new URLSearchParams({ query })}`),
     invite: (data) => request('/admin/users/invite', { method: 'POST', body: JSON.stringify(data) }),
     updateRole: (userId, role) =>
       request(`/admin/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
