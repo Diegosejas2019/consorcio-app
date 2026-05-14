@@ -95,8 +95,10 @@ async function _renderAdminUsersCard() {
           <h3>Usuarios administradores</h3>
           ${_actionButton('admins.create', '<button class="btn btn-primary btn-sm" onclick="openAdminInviteModal()">Invitar</button>')}
         </div>
-        <div class="card-body flex col gap-2">
-          ${admins.length ? admins.map(admin => `
+          <div class="card-body flex col gap-2">
+          ${admins.length ? admins.map(admin => {
+            const isOwnerAdmin = admin.role === 'owner_admin';
+            return `
             <div class="owner-row">
               <div class="owner-avatar">${(admin.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('')}</div>
               <div class="owner-info">
@@ -106,9 +108,10 @@ async function _renderAdminUsersCard() {
               <span class="badge ${admin.isActive ? 'badge-success' : 'badge-neutral'}">${admin.isActive ? escapeHtml(admin.roleLabel || ROLE_LABELS[admin.role] || 'Administrador') : 'Desactivado'}</span>
               ${admin.isActive ? `
                 ${_actionButton('admins.update', `<button class="btn btn-ghost btn-sm" onclick="openAdminRoleModal('${admin.userId}','${admin.role}')">Rol</button>`)}
-                ${_actionButton('admins.disable', `<button class="btn btn-danger btn-sm" onclick="disableAdminUser('${admin.userId}')">Desactivar</button>`)}
+                ${!isOwnerAdmin ? _actionButton('admins.disable', `<button class="btn btn-danger btn-sm" onclick="disableAdminUser('${admin.userId}')">Desactivar</button>`) : ''}
               ` : ''}
-            </div>`).join('') : '<p class="text-sm text-muted">No hay administradores cargados.</p>'}
+            </div>`;
+          }).join('') : '<p class="text-sm text-muted">No hay administradores cargados.</p>'}
         </div>
       </div>`;
   } catch (err) {
