@@ -120,6 +120,24 @@ async function _renderAdminUsersCard() {
   }
 }
 
+export async function renderAdminAdministrators() {
+  const el = document.getElementById('page-admin-admins');
+  if (!el) return;
+  el.innerHTML = `<div class="flex col gap-3">${skeleton(3)}</div>`;
+  try {
+    el.innerHTML = `
+      <div class="flex col gap-3">
+        <div>
+          <h1>Administradores</h1>
+          <p class="text-sm text-muted">Gestiona invitaciones, roles y permisos administrativos de esta organizacion.</p>
+        </div>
+        ${await _renderAdminUsersCard()}
+      </div>`;
+  } catch (err) {
+    el.innerHTML = errorState(err.message || 'No se pudieron cargar los administradores.', 'renderAdminAdministrators()');
+  }
+}
+
 async function _renderFeaturesCard() {
   const orgId = getOrgId();
   if (!orgId) return '';
@@ -311,8 +329,6 @@ export async function renderAdminSettings() {
         </div>
 
         ${await _renderFeaturesCard()}
-
-        ${await _renderAdminUsersCard()}
 
         <div class="card">
           <div class="card-header"><h3>Legal</h3></div>
@@ -788,7 +804,7 @@ export async function inviteAdminUser() {
       await api.adminUsers.invite({ mode, ownerId, role });
       closeModal();
       toast('Propietario asociado como administrador.', 'success');
-      renderAdminSettings();
+      renderAdminAdministrators();
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -799,7 +815,7 @@ export async function inviteAdminUser() {
     await api.adminUsers.invite({ mode: 'new_user', name, email, role });
     closeModal();
     toast('Administrador invitado correctamente.', 'success');
-    renderAdminSettings();
+    renderAdminAdministrators();
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -811,7 +827,7 @@ export async function updateAdminUserRole(userId) {
     await api.adminUsers.updateRole(userId, role);
     closeModal();
     toast('Rol actualizado correctamente.', 'success');
-    renderAdminSettings();
+    renderAdminAdministrators();
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -822,13 +838,14 @@ export async function disableAdminUser(userId) {
   try {
     await api.adminUsers.disable(userId);
     toast('Acceso administrativo desactivado.', 'success');
-    renderAdminSettings();
+    renderAdminAdministrators();
   } catch (err) {
     toast(err.message, 'error');
   }
 }
 
 window.renderAdminSettings          = renderAdminSettings;
+window.renderAdminAdministrators    = renderAdminAdministrators;
 window.saveFeatureSettings          = saveFeatureSettings;
 window.createOrganization           = createOrganization;
 window.toggleLateFeeType            = toggleLateFeeType;

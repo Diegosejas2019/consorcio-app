@@ -142,6 +142,7 @@ export const PAGE_PERMISSION_MAP = {
   'page-admin-employees': 'employees.read',
   'page-admin-salaries': 'salaries.read',
   'page-admin-settings': 'settings.read',
+  'page-admin-admins': 'admins.read',
 };
 
 export function hasPermission(permission) {

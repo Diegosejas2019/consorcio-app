@@ -634,10 +634,11 @@ const ADMIN_NAV_GROUPS = {
   },
   mas: {
     label: 'Más',
-    pages: ['page-admin-providers', 'page-admin-documents', 'page-admin-settings'],
+    pages: ['page-admin-providers', 'page-admin-documents', 'page-admin-admins', 'page-admin-settings'],
     items: [
       { page: 'page-admin-providers', label: 'Proveedores',   fn: 'renderAdminProviders', icon: SVG_S_PROV },
       { page: 'page-admin-documents', label: 'Documentacion', fn: 'renderAdminDocuments', icon: SVG_S_REPORT },
+      { page: 'page-admin-admins',    label: 'Administradores', fn: 'renderAdminAdministrators', icon: SVG_S_USERS },
       { page: 'page-admin-settings',  label: 'Configuración', fn: 'renderAdminSettings',  icon: SVG_S_SETT },
     ],
   },
@@ -766,7 +767,7 @@ export function setupNav() {
   }
 
   nav.querySelector('[data-pages="page-admin-providers,page-admin-settings"]')
-    ?.setAttribute('data-pages', 'page-admin-providers,page-admin-documents,page-admin-settings');
+    ?.setAttribute('data-pages', 'page-admin-providers,page-admin-documents,page-admin-admins,page-admin-settings');
   nav.querySelector('[data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations"]')
     ?.setAttribute('data-pages', 'page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-documents,page-owner-votes,page-owner-visits,page-owner-reservations');
 }
