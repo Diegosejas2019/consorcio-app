@@ -508,11 +508,18 @@ const api = {
 
   // ── Visitas ───────────────────────────────────────────────────
   visits: {
-    getAll: (params = {}) => request(`/visits?${new URLSearchParams(params)}`),
-    getMy:  ()             => request('/visits?limit=50'),
-    create: (data)         => request('/visits', { method: 'POST', body: JSON.stringify(data) }),
-    updateStatus: (id, status) =>
+    getAll:       (params = {}) => request(`/visits?${new URLSearchParams(params)}`),
+    getMy:        ()             => request('/visits?limit=50'),
+    getToday:     ()             => request('/visits/today'),
+    getHistory:   (params = {}) => request(`/visits/history?${new URLSearchParams(params)}`),
+    getLogs:      (id)           => request(`/visits/${id}/logs`),
+    create:       (data)         => request('/visits', { method: 'POST', body: JSON.stringify(data) }),
+    updateStatus: (id, status)   =>
       request(`/visits/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    checkIn:  (id, comment) =>
+      request(`/visits/${id}/check-in`,  { method: 'POST', body: JSON.stringify({ comment }) }),
+    checkOut: (id, comment) =>
+      request(`/visits/${id}/check-out`, { method: 'POST', body: JSON.stringify({ comment }) }),
     delete: (id) => request(`/visits/${id}`, { method: 'DELETE' }),
   },
 

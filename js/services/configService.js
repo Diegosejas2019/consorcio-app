@@ -7,7 +7,7 @@ import { errorState } from '../ui/helpers.js';
 import { SVG, svgIcon } from '../ui/icons.js';
 import { setupTopBar, getOrgId } from './authService.js';
 import { openModal, closeModal } from '../ui/modal.js';
-import { hasPermission, ROLE_LABELS } from './permissionService.js';
+import { hasPermission, ROLE_LABELS, PERMISSION_LABELS } from './permissionService.js';
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -66,7 +66,7 @@ function _permissionsPreview(role) {
   if (!def) return '<p class="text-sm text-muted">Seleccioná un rol para ver sus permisos.</p>';
   return `
     <div class="text-sm text-muted" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem">
-      ${(def.permissions || []).map(p => `<span class="badge badge-neutral">${p}</span>`).join('') || 'Sin permisos configurados.'}
+      ${(def.permissions || []).map(p => `<span class="badge badge-neutral">${PERMISSION_LABELS[p] || p}</span>`).join('') || 'Sin permisos configurados.'}
     </div>`;
 }
 

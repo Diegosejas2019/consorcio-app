@@ -522,7 +522,12 @@ export function enterApp(options = {}) {
     return;
   }
   if (state.role === 'admin') {
-    window.renderAdminView();
+    if (state.adminRole === 'security_guard') {
+      window.showPage('page-admin-visits');
+      window.renderAdminVisits?.();
+    } else {
+      window.renderAdminView();
+    }
     setupPushNotifications();
   } else {
     window.renderOwnerView();
@@ -738,7 +743,13 @@ export function setupNav() {
   appShell.insertBefore(backdrop, nav);
   appShell.insertBefore(submenu, nav);
 
-  if (state.role === 'admin') {
+  if (state.role === 'admin' && state.adminRole === 'security_guard') {
+    _navCurrentGroups = {};
+    nav.innerHTML = `
+      <button class="nav-item active" data-page="page-admin-visits" onclick="showPage('page-admin-visits');renderAdminVisits()">${SVG_S_VISIT}<span>Visitas</span></button>
+      <button class="nav-item" data-page="page-admin-visits-log" onclick="showPage('page-admin-visits-log');renderAdminVisitsLog()">${SVG_S_CLAIM}<span>Libro de visitas</span></button>
+      <button class="nav-item" data-page="page-admin-profile" onclick="logout()">${SVG_S_PROF}<span>Salir</span></button>`;
+  } else if (state.role === 'admin') {
     _navCurrentGroups = ADMIN_NAV_GROUPS;
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-admin-home" onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
