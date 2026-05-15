@@ -512,8 +512,32 @@ window.adminPaymentPlanDeleteConfirm = async function(planId) {
 };
 
 window.adminPaymentPlanCreateModal = async function() {
-  const res = await apiCall(() => api.owners.getAll({ limit: 200 }), { silent: true });
-  const owners = res?.data?.owners || [];
+  openModal(`
+    <div style="max-width:580px;padding:1.5rem">
+      <h2 style="margin:0 0 1.25rem">Nuevo plan de pagos</h2>
+      <div class="flex col gap-3">${skeleton(5)}</div>
+    </div>
+  `);
+
+  let owners = [];
+  try {
+    const res = await apiCall(() => api.owners.getAll({ limit: 200 }), { loading: false, silent: true });
+    owners = res?.data?.owners || [];
+  } catch (err) {
+    openModal(`
+      <div style="max-width:580px;padding:1.5rem">
+        <h2 style="margin:0 0 .75rem">Nuevo plan de pagos</h2>
+        <p style="margin:0 0 1.25rem;color:var(--muted);line-height:1.45">
+          No se pudieron cargar los propietarios. Intentá nuevamente en unos segundos.
+        </p>
+        <div style="display:flex;gap:.75rem;justify-content:flex-end">
+          <button class="btn-secondary btn-sm" onclick="closeModal()">Cerrar</button>
+          <button class="btn-primary btn-sm" onclick="adminPaymentPlanCreateModal()">Reintentar</button>
+        </div>
+      </div>
+    `);
+    return;
+  }
   const options = owners.map(o => `<option value="${o._id}">${o.name}${o.unit ? ` · ${o.unit}` : ''}</option>`).join('');
 
   openModal(`
@@ -593,10 +617,22 @@ window.adminLoadOwnerItems = async function() {
 
   section.style.display = 'none';
   if (emptyEl) emptyEl.style.display = 'none';
-  listEl.innerHTML = `<div style="padding:.5rem 0;color:var(--muted);font-size:.875rem">Cargando conceptos...</div>`;
+  listEl.innerHTML = `<div class="flex col gap-2">${skeleton(3)}</div>`;
   section.style.display = 'block';
 
-  const res = await apiCall(() => api.owners.getAvailableItems(ownerId), { silent: true });
+  let res;
+  try {
+    res = await apiCall(() => api.owners.getAvailableItems(ownerId), { loading: false, silent: true });
+  } catch (err) {
+    listEl.innerHTML = `
+      <div style="padding:.75rem 1rem;background:rgba(255,255,255,.04);border-radius:8px;color:var(--muted);font-size:.875rem">
+        No se pudieron cargar los conceptos del propietario.
+        <button class="btn-secondary btn-sm" style="margin-top:.75rem" onclick="adminLoadOwnerItems()">Reintentar</button>
+      </div>
+    `;
+    return;
+  }
+
   const data = res?.data;
   if (!data) { listEl.innerHTML = ''; section.style.display = 'none'; return; }
 
