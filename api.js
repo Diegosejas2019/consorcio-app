@@ -555,6 +555,9 @@ const api = {
     update: (id, data) =>
       request(`/units/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
+    releaseOwner: (id) =>
+      request(`/units/${id}/release-owner`, { method: 'PATCH', body: JSON.stringify({}) }),
+
     delete: (id) =>
       request(`/units/${id}`, { method: 'DELETE' }),
   },

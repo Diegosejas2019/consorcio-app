@@ -418,7 +418,7 @@ function _renderUnitsSection(ownerId, units) {
       <div class="flex gap-1" style="align-items:center">
         <span class="text-sm bold">$${(u.finalFee || 0).toLocaleString('es-AR')}</span>
         <button class="btn btn-ghost btn-sm" style="padding:.2rem .45rem;color:var(--danger)"
-          onclick="deleteUnit('${u._id}', '${ownerId}')" title="Eliminar unidad">×</button>
+          onclick="releaseOwnerUnit('${u._id}', '${ownerId}')" title="Quitar unidad">×</button>
       </div>
     </div>`).join('');
 
@@ -537,10 +537,12 @@ export async function submitAddUnit(ownerId) {
   }
 }
 
-export async function deleteUnit(unitId, ownerId) {
+export async function releaseOwnerUnit(unitId, ownerId) {
   try {
-    await api.units.delete(unitId);
-    toast('Unidad eliminada', 'success');
+    await api.units.releaseOwner(unitId);
+    toast('Unidad liberada', 'success');
+    cache.del('units:available');
+    cache.del('units:admin');
     cache.del(`units:owner:${ownerId}`);
     cache.del(`owners:detail:${ownerId}`);
     viewOwnerDetail(ownerId);
@@ -1550,7 +1552,7 @@ window.submitBulkOwners            = submitBulkOwners;
 window.openAddUnitForm      = openAddUnitForm;
 window.cancelAddUnit        = cancelAddUnit;
 window.submitAddUnit        = submitAddUnit;
-window.deleteUnit           = deleteUnit;
+window.releaseOwnerUnit     = releaseOwnerUnit;
 window.toggleEditOwnerUnit  = toggleEditOwnerUnit;
 window.filterEditOwnerUnits = filterEditOwnerUnits;
 // Unidades (formulario nuevo propietario)
