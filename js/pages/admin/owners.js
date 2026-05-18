@@ -1,4 +1,4 @@
-import { toast } from '../../ui/toast.js';
+﻿import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { showLoading, setBtnLoading } from '../../ui/loading.js';
 import { skeleton } from '../../ui/skeleton.js';
@@ -32,6 +32,7 @@ let _editAddUnitAvailable = [];
 let _editAddUnitSelectedIds = new Set();
 let _editAddUnitFilter = '';
 let _editCurrentUnitIds = new Set();
+let _editOwnerUnits = [];
 
 const PAYMENT_FILE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 
@@ -50,6 +51,15 @@ function _paymentPeriodLabel(payment) {
   if (payment.type === 'extraordinary') return 'Extraordinario';
   if (payment.type === 'installment') return 'Cuota plan de pagos';
   return 'Pago manual';
+}
+
+function _periodCodeFromDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function _nextPeriodCode(period) {
+  const [year, month] = String(period).split('-').map(Number);
+  return _periodCodeFromDate(new Date(year, month, 1));
 }
 
 export async function renderOwnersList() {
@@ -257,7 +267,7 @@ export async function viewOwnerDetail(ownerId) {
 
       <div class="flex gap-1 mt-3" style="flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="closeModal()">Cerrar</button>
-        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}', '${owner.phone || ''}', '${owner.startBillingPeriod || ''}', ${owner.balance || 0})">Editar</button>
+        <button class="btn btn-ghost" onclick="openEditOwnerModal('${owner._id}')">Editar</button>
         <button class="btn btn-ghost" onclick="openNotifyOwnerModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Notificar</button>
         ${owner.phone ? `<button class="btn btn-ghost" style="color:#25D366" onclick="openWhatsAppOwnerModal('${owner.name.replace(/'/g, "\\'")}','${owner.phone}')">💬 WhatsApp</button>` : ''}
         ${hasPermission('payments.register') ? `<button class="btn btn-primary" onclick="openRegisterPaymentModal('${owner._id}', '${owner.name.replace(/'/g, "\\'")}')">Registrar pago</button>` : ''}
@@ -644,56 +654,98 @@ export async function sendOwnerNotification(id) {
 }
 
 // ── Editar propietario ────────────────────────────────────────
-export function openEditOwnerModal(id, name, phone, startBillingPeriod = '', balance = 0) {
+function _renderEditOwnerUnitBilling(units) {
+  if (!units.length) {
+    return '<p class="text-muted text-sm">Este propietario no tiene lotes/unidades asignadas.</p>';
+  }
+
+  return units.map(unit => {
+    const unitId = unit._id || unit.id;
+    const start = unit.collectionStartPeriod || unit.startBillingPeriod || '';
+    const debt = Number(unit.initialDebt ?? unit.previousBalance ?? Math.max(0, -Number(unit.balance || 0)) || 0);
+    return `
+      <div style="border:1px solid var(--border);border-radius:10px;padding:.75rem;background:var(--bg)">
+        <h3 style="margin:0 0 .65rem">${escapeHtml(unit.name || 'Unidad')}</h3>
+        <div class="form-group">
+          <label>Inicio de cobro (YYYY-MM)</label>
+          <input class="input eo-unit-start" data-unit-id="${unitId}" value="${escapeHtml(start)}" placeholder="Ej: 2026-04">
+          <small class="text-muted" style="display:block;margin-top:.25rem">Período desde el que este lote/unidad comienza a generar pagos.</small>
+        </div>
+        <div class="form-group" style="margin-top:.65rem">
+          <label>Saldo anterior / deuda inicial ($)</label>
+          <input class="input eo-unit-debt" type="number" data-unit-id="${unitId}" value="${debt}" min="0" placeholder="0">
+          <small class="text-muted" style="display:block;margin-top:.25rem">Ingresá la deuda inicial de este lote/unidad (0 = sin deuda).</small>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+export async function openEditOwnerModal(id) {
+  openModal();
   const modal = document.getElementById('modal');
+  modal.innerHTML = `<div class="modal-handle"></div>${skeleton(3)}`;
+
+  let owner;
+  let units;
+  try {
+    const [ownerRes, unitsRes] = await Promise.all([
+      api.owners.getOne(id),
+      api.units.getAll({ ownerId: id }),
+    ]);
+    owner = ownerRes.data.owner;
+    units = unitsRes.data.units || owner.units || owner.lots || [];
+    _editOwnerUnits = units;
+  } catch (err) {
+    modal.innerHTML = `<div class="modal-handle"></div><p style="color:var(--danger)">${err.message}</p>`;
+    return;
+  }
+
   modal.innerHTML = `
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:1rem">Editar Propietario</h2>
     <div class="flex col gap-2">
-      <div class="form-group"><label>Nombre completo</label><input class="input" id="eo-name" value="${name}"></div>
-      <div class="form-group"><label>Teléfono</label><input class="input" type="tel" id="eo-phone" value="${phone}" placeholder="1122334455"></div>
-      <div class="form-group">
-        <label>Inicio de cobro (YYYY-MM)</label>
-        <input class="input" id="eo-start-billing" value="${startBillingPeriod}" placeholder="Ej: 2026-04">
-        <small class="text-muted" style="display:block;margin-top:.25rem">Período desde el que el propietario puede registrar pagos.</small>
-      </div>
-      <div class="form-group">
-        <label>Saldo anterior / deuda inicial ($)</label>
-        <input class="input" type="number" id="eo-balance" value="${Math.abs(balance)}" min="0" placeholder="0">
-        <small class="text-muted" style="display:block;margin-top:.25rem">
-          ${balance < 0 ? `Deuda actual: $${Math.abs(balance).toLocaleString('es-AR')}. ` : ''}Ingresá el monto de deuda pendiente (0 = sin deuda).
-        </small>
+      <div class="form-group"><label>Nombre completo</label><input class="input" id="eo-name" value="${escapeHtml(owner.name || '')}"></div>
+      <div class="form-group"><label>Teléfono</label><input class="input" type="tel" id="eo-phone" value="${escapeHtml(owner.phone || '')}" placeholder="1122334455"></div>
+      <div>
+        <h3 style="margin-bottom:.75rem">Lotes asignados</h3>
+        <div class="flex col gap-2">${_renderEditOwnerUnitBilling(units)}</div>
       </div>
       <div class="flex gap-1 mt-1">
         <button class="btn btn-secondary w-full" onclick="viewOwnerDetail('${id}')">Cancelar</button>
         <button class="btn btn-primary w-full" data-requires-network onclick="saveEditOwner('${id}')">Guardar</button>
       </div>
     </div>`;
-  openModal();
 }
 
 export async function saveEditOwner(id) {
-  const name               = document.getElementById('eo-name')?.value.trim();
-  const phone              = document.getElementById('eo-phone')?.value.trim();
-  const startBillingPeriod = document.getElementById('eo-start-billing')?.value.trim();
-  const debtInput          = Number(document.getElementById('eo-balance')?.value || 0);
-  if (!name) { toast('El nombre es obligatorio', 'error'); return; }
-  if (startBillingPeriod && !/^\d{4}-\d{2}$/.test(startBillingPeriod)) {
-    toast('El inicio de cobro debe tener formato YYYY-MM (ej: 2026-04)', 'error');
-    return;
-  }
-  const update = { name, phone, balance: debtInput > 0 ? -debtInput : 0, isDebtor: debtInput > 0 };
-  if (startBillingPeriod) update.startBillingPeriod = startBillingPeriod;
   try {
-    await api.owners.update(id, update);
+    const name = document.getElementById('eo-name')?.value.trim();
+    const phone = document.getElementById('eo-phone')?.value.trim();
+    if (!name) { toast('El nombre es obligatorio', 'error'); return; }
+
+    const unitBillingSettings = _editOwnerUnits.map(unit => {
+      const unitId = String(unit._id || unit.id);
+      const start = document.querySelector(`.eo-unit-start[data-unit-id="${unitId}"]`)?.value.trim();
+      const debt = Number(document.querySelector(`.eo-unit-debt[data-unit-id="${unitId}"]`)?.value || 0);
+      if (start && !/^\d{4}-\d{2}$/.test(start)) {
+        throw new Error('El inicio de cobro debe tener formato YYYY-MM (ej: 2026-04).');
+      }
+      if (!Number.isFinite(debt) || debt < 0) {
+        throw new Error('La deuda inicial no puede ser negativa.');
+      }
+      return { unitId, collectionStartPeriod: start || undefined, initialDebt: debt || 0 };
+    });
+
+    await api.owners.update(id, { name, phone, unitBillingSettings });
     toast('Propietario actualizado', 'success');
+    cache.del(`units:owner:${id}`);
+    cache.del(`owners:detail:${id}`);
     viewOwnerDetail(id);
     renderOwnersList();
   } catch (err) {
     toast(err.message, 'error');
   }
 }
-
 // ── Unidades en formulario nuevo propietario ─────────────────
 function _renderNewOwnerUnits() {
   const container = document.getElementById('no-units-container');
@@ -943,9 +995,16 @@ export async function saveNewOwner() {
 
   const unitIds = _selectedNewOwnerUnitIds();
   const chargeCurrentMonth = document.getElementById('no-charge-current')?.checked !== false;
+  const currentPeriod = _newOwnerCfg?.expenseMonthCode || _newOwnerCfg?.feePeriodCode || _periodCodeFromDate(new Date());
+  const collectionStartPeriod = chargeCurrentMonth ? currentPeriod : _nextPeriodCode(currentPeriod);
+  const unitBillingSettings = unitIds.map(unitId => ({
+    unitId,
+    collectionStartPeriod,
+    initialDebt: initialDebtAmount > 0 && unitIds.length ? initialDebtAmount / unitIds.length : 0,
+  }));
 
   try {
-    await api.owners.create({ name, email, password: pass, phone, initialDebtAmount, chargeCurrentMonth, unitIds });
+    await api.owners.create({ name, email, password: pass, phone, initialDebtAmount, chargeCurrentMonth, unitIds, unitBillingSettings });
     toast('Propietario creado exitosamente', 'success');
     renderOwnersList();
     if (phone) {

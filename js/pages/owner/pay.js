@@ -95,17 +95,15 @@ export async function renderUploadPage() {
     const approvedPeriods = new Set(payments.filter(p => p.status === 'approved').map(p => p.month));
     const pendingPeriods  = new Set(payments.filter(p => p.status === 'pending').map(p => p.month));
     const activePeriods   = new Set([...approvedPeriods, ...pendingPeriods]);
-    const startBilling    = owner?.startBillingPeriod;
-    const unpaidPeriods   = (cfg.paymentPeriods || [])
-      .filter(p => !activePeriods.has(p) && (!startBilling || p >= startBilling) && (!currentPeriod || p <= currentPeriod));
+    const unpaidPeriods = months.map(m => m.value).filter(p => !activePeriods.has(p));
 
     const isDebtor = owner?.isDebtor || (owner?.balance || 0) < 0;
-    const hasDebt  = isDebtor && unpaidPeriods.length > 0;
     const hasPendingBalancePayment = payments.some(p => p.type === 'balance' && p.status === 'pending');
-    const hasBalanceDebt = (owner?.balance || 0) < 0 && !hasPendingBalancePayment;
     const unitDebts = (owner?.unitDebts || []).filter(u => Number(u.balanceOwed || 0) > 0);
     const availableBalanceUnits = available.balanceUnits || [];
-    _balanceDebtAmount = available.balanceDebt > 0 ? Number(available.balanceDebt || 0) : (hasBalanceDebt ? Math.abs(Number(owner.balance || 0)) : 0);
+    _balanceDebtAmount = available.balanceDebt > 0 ? Number(available.balanceDebt || 0) : Math.max(0, -Number(owner.balance || 0));
+    const hasBalanceDebt = _balanceDebtAmount > 0 && !hasPendingBalancePayment;
+    const hasDebt  = (isDebtor || months.length > 0) && unpaidPeriods.length > 0;
     _balanceDebtUnitIds = availableBalanceUnits.map(u => String(u._id || u.id)).filter(Boolean);
     _balanceDebtUnitId = _balanceDebtUnitIds.length === 1 ? _balanceDebtUnitIds[0] : (unitDebts.length === 1 ? String(unitDebts[0]._id || unitDebts[0].id || '') : '');
     const unitDebtHtml = unitDebts.length > 1
@@ -163,9 +161,9 @@ export async function renderUploadPage() {
     if (hasDebt) {
       const periodsHtml = unpaidPeriods.map(p => `
         <label class="op-debt-period-row">
-          <input type="checkbox" class="op-debt-check" value="${p}" checked onchange="updateDebtTotal()">
+          <input type="checkbox" class="op-debt-check" value="${p}" data-amount="${periodAmounts.get(p) || _ownerFee}" checked onchange="updateDebtTotal()">
           <span style="flex:1">${formatPeriodLabel(p)}</span>
-          <span style="font-size:.88rem;opacity:.7">$${_ownerFee.toLocaleString('es-AR')}</span>
+          <span style="font-size:.88rem;opacity:.7">$${Number(periodAmounts.get(p) || _ownerFee).toLocaleString('es-AR')}</span>
         </label>`).join('');
 
       debtHtml = `
@@ -181,7 +179,7 @@ export async function renderUploadPage() {
             </div>
             <div class="flex between" style="align-items:center;padding:.55rem .75rem;background:rgba(255,255,255,.06);border-radius:8px;margin-top:.1rem">
               <span class="text-sm text-muted">Total a pagar</span>
-              <strong id="debt-total" style="font-size:1.05rem">$${(_ownerFee * unpaidPeriods.length).toLocaleString('es-AR')}</strong>
+              <strong id="debt-total" style="font-size:1.05rem">$${unpaidPeriods.reduce((sum, p) => sum + Number(periodAmounts.get(p) || _ownerFee), 0).toLocaleString('es-AR')}</strong>
             </div>
             ${cfg.hasMercadoPago ? `
             <button class="op-mp-btn" id="btn-pay-debt" onclick="payDebtWithMP()" data-requires-network>
@@ -568,7 +566,7 @@ function getSelectedPaymentConcepts() {
 
 export function updateDebtTotal() {
   const checks  = document.querySelectorAll('.op-debt-check:checked');
-  const total   = checks.length * _ownerFee;
+  const total   = [...checks].reduce((sum, check) => sum + Number(check.dataset.amount || _ownerFee), 0);
   const totalEl = document.getElementById('debt-total');
   if (totalEl) totalEl.textContent = `$${total.toLocaleString('es-AR')}`;
   const btn = document.getElementById('btn-pay-debt');
