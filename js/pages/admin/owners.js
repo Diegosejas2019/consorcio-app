@@ -297,7 +297,10 @@ function _renderDebtItemsSection(ownerId, debtItems) {
       <td>${_debtItemStatusBadge(d.status)}</td>
       <td>
         ${d.status === 'pending'
-          ? `<button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="promptCancelDebtItem('${d._id}', '${ownerId}')">Anular</button>`
+          ? `<div class="flex gap-1" style="flex-wrap:nowrap">
+              <button class="btn btn-ghost btn-sm" style="color:var(--accent)" onclick="promptApproveDebtItem('${d._id}', '${ownerId}')">Aprobar</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="promptCancelDebtItem('${d._id}', '${ownerId}')">Anular</button>
+            </div>`
           : ''}
       </td>
     </tr>`).join('');
@@ -409,6 +412,18 @@ export async function promptCancelDebtItem(debtItemId, ownerId) {
   try {
     await api.debtItems.cancel(debtItemId, reason.trim());
     toast('Deuda anulada correctamente.', 'success');
+    cache.del(`owners:detail:${ownerId}`);
+    viewOwnerDetail(ownerId);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+export async function promptApproveDebtItem(debtItemId, ownerId) {
+  if (!window.confirm('¿Marcar este saldo o ajuste como pagado?')) return;
+  try {
+    await api.debtItems.markAsPaid(debtItemId);
+    toast('Saldo o ajuste aprobado correctamente.', 'success');
     cache.del(`owners:detail:${ownerId}`);
     viewOwnerDetail(ownerId);
   } catch (err) {
@@ -1593,4 +1608,5 @@ window.downloadOwnersExcel     = downloadOwnersExcel;
 // Deudas adicionales
 window.openDebtItemModal      = openDebtItemModal;
 window.submitDebtItem         = submitDebtItem;
+window.promptApproveDebtItem  = promptApproveDebtItem;
 window.promptCancelDebtItem   = promptCancelDebtItem;

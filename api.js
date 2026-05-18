@@ -583,6 +583,7 @@ const api = {
   debtItems: {
     create:     (ownerId, data) => request(`/owners/${ownerId}/debt-items`, { method: 'POST', body: JSON.stringify(data) }),
     getByOwner: (ownerId)       => request(`/owners/${ownerId}/debt-items`),
+    markAsPaid: (id)            => request(`/debt-items/${id}/paid`, { method: 'PATCH' }),
     cancel:     (id, reason)    => request(`/debt-items/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ cancellationReason: reason }) }),
     getMine:    ()              => request('/debt-items/mine'),
   },
