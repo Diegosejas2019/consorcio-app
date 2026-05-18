@@ -662,7 +662,7 @@ function _renderEditOwnerUnitBilling(units) {
   return units.map(unit => {
     const unitId = unit._id || unit.id;
     const start = unit.collectionStartPeriod || unit.startBillingPeriod || '';
-    const debt = Number(unit.initialDebt ?? unit.previousBalance ?? Math.max(0, -Number(unit.balance || 0)) || 0);
+    const debt = Number(unit.initialDebt ?? unit.previousBalance ?? (Math.max(0, -Number(unit.balance || 0)) || 0));
     return `
       <div style="border:1px solid var(--border);border-radius:10px;padding:.75rem;background:var(--bg)">
         <h3 style="margin:0 0 .65rem">${escapeHtml(unit.name || 'Unidad')}</h3>

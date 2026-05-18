@@ -110,6 +110,11 @@ async function handleApiRequest(request) {
 // ── Fetch ─────────────────────────────────────────────────────
 self.addEventListener('fetch', e => {
   const url = e.request.url;
+  const parsed = new URL(url);
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return;
+  }
 
   // API GET → network-first con fallback a cache
   if (e.request.method === 'GET' && url.startsWith(API_ORIGIN)) {
@@ -117,7 +122,6 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  const parsed   = new URL(url);
   const isAppFile = e.request.destination === 'document'
     || parsed.pathname.endsWith('.js')
     || parsed.pathname.endsWith('.css');
