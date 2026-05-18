@@ -1,5 +1,5 @@
 import { toast }                      from '../../ui/toast.js';
-import { errorState, currentMonth }   from '../../ui/helpers.js';
+import { errorState, currentMonth, escapeHtml } from '../../ui/helpers.js';
 import { SVG }                        from '../../ui/icons.js';
 import { CACHE_TTL, getCachedOrFetch } from '../../core/cacheHelpers.js';
 
@@ -13,6 +13,7 @@ const CAT_LABELS = {
   maintenance:    'Mantenimiento',
   utilities:      'Servicios',
   administration: 'Administración',
+  salaries:       'Sueldos',
   other:          'Otros',
 };
 
@@ -114,13 +115,16 @@ export async function loadReport() {
 
 // ── Tabla del informe ─────────────────────────────────────────
 function _renderReportTable(d) {
-  const { month, saldoAnterior, income, expenses, balance } = d;
+  const { month, saldoAnterior, income, expenses, expenseCategories, balance } = d;
   const balanceClass = balance >= 0 ? 'text-success' : 'text-danger';
+  const categories = Array.isArray(expenseCategories) && expenseCategories.length
+    ? expenseCategories
+    : Object.entries(CAT_LABELS).map(([key, label]) => ({ key, label, amount: expenses[key] || 0 }));
 
-  const expRows = Object.entries(CAT_LABELS).map(([key, label]) => `
+  const expRows = categories.map(({ key, label, amount }) => `
     <tr class="report-row">
-      <td>${label}</td>
-      <td class="report-amount">${expenses[key] > 0 ? `$${fmt(expenses[key])}` : '<span class="text-muted">—</span>'}</td>
+      <td>${escapeHtml(label || key)}</td>
+      <td class="report-amount">${amount > 0 ? `$${fmt(amount)}` : '<span class="text-muted">—</span>'}</td>
     </tr>`).join('');
 
   return `
