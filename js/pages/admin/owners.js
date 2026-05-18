@@ -334,6 +334,13 @@ export function openDebtItemModal(ownerId) {
         <label>Descripción *</label>
         <input class="input" type="text" id="di-description" placeholder="Ej: Saldo migrado desde administración anterior">
       </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <select class="select" id="di-status">
+          <option value="pending">Pendiente</option>
+          <option value="paid">Pagado</option>
+        </select>
+      </div>
       <div class="flex gap-1">
         <div class="form-group" style="flex:1">
           <label>Importe *</label>
@@ -372,6 +379,7 @@ export async function submitDebtItem(ownerId) {
   const currency    = document.getElementById('di-currency')?.value;
   const originDate  = document.getElementById('di-origin-date')?.value;
   const dueDate     = document.getElementById('di-due-date')?.value;
+  const status      = document.getElementById('di-status')?.value || 'pending';
 
   if (!description) return toast('La descripción es obligatoria.', 'error');
   if (!amount || amount <= 0) return toast('El importe debe ser mayor a cero.', 'error');
@@ -381,7 +389,7 @@ export async function submitDebtItem(ownerId) {
   setBtnLoading(btn, true);
   try {
     await api.debtItems.create(ownerId, {
-      type, description, amount, currency,
+      type, description, amount, currency, status,
       originDate: originDate || undefined,
       dueDate:    dueDate    || undefined,
     });
@@ -1092,6 +1100,12 @@ function _renderRegisterPaymentContext({ cfg, available, payments, units, owner:
     title: extra.title || extra.description || 'Concepto extraordinario',
     amount: Number(extra.amount || 0),
   }));
+  const debts = (available.debtItems || []).map(item => ({
+    id: item.id || item._id,
+    title: item.type === 'previous_balance' ? 'Saldo anterior' : 'Ajuste manual',
+    subtitle: item.description || 'Saldo o ajuste pendiente',
+    amount: Number(item.amount || 0),
+  }));
 
   const cards = [
     _registerPaymentBalanceAmount > 0 ? _registerPaymentCard({
@@ -1118,6 +1132,14 @@ function _renderRegisterPaymentContext({ cfg, available, payments, units, owner:
       title: extra.title,
       subtitle: 'Concepto extraordinario cobrable',
       badge: '<span class="badge badge-warning">Extra</span>',
+    })),
+    ...debts.map(item => _registerPaymentCard({
+      type: 'debt-item',
+      value: item.id,
+      amount: item.amount,
+      title: item.title,
+      subtitle: item.subtitle,
+      badge: '<span class="badge badge-danger">Ajuste</span>',
     })),
   ].filter(Boolean).join('');
 
@@ -1298,6 +1320,7 @@ export async function submitRegisterPayment() {
   const selected = [...document.querySelectorAll('#rp-cards-list .period-card.is-selected')];
   const periods = selected.filter(card => card.dataset.type === 'period').map(card => card.dataset.value);
   const extras = selected.filter(card => card.dataset.type === 'extra').map(card => card.dataset.value);
+  const debtItemIds = selected.filter(card => card.dataset.type === 'debt-item').map(card => card.dataset.value);
   const hasBalance = selected.some(card => card.dataset.type === 'balance');
   const total = selected.reduce((sum, card) => sum + Number(card.dataset.amount || 0), 0);
   const note = document.getElementById('rp-note')?.value?.trim();
@@ -1310,7 +1333,7 @@ export async function submitRegisterPayment() {
     toast('Seleccioná al menos un período, concepto extraordinario o saldo a registrar.', 'error');
     return;
   }
-  if (hasBalance && (periods.length > 0 || extras.length > 0)) {
+  if (hasBalance && (periods.length > 0 || extras.length > 0 || debtItemIds.length > 0)) {
     toast('El saldo anterior debe registrarse en un pago separado.', 'error');
     return;
   }
@@ -1328,6 +1351,7 @@ export async function submitRegisterPayment() {
     if (periods.length === 1) formData.append('month', periods[0]);
     if (periods.length > 0) formData.append('amount', String(_registerPaymentOwnerFee));
     extras.forEach(id => formData.append('extraordinaryIds', id));
+    debtItemIds.forEach(id => formData.append('debtItemIds', id));
   }
   if (note) formData.append('ownerNote', note);
   if (_registerPaymentFile) formData.append('receipt', _registerPaymentFile);

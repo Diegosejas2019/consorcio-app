@@ -83,6 +83,13 @@ export async function renderUploadPage() {
       amount: Number(e.amount || 0),
     }));
     extras.forEach(e => { _extraAmounts[e.id] = e.amount; });
+    const debtCards = manualDebts.map(d => ({
+      id:     d._id || d.id,
+      title:  d.type === 'previous_balance' ? 'Saldo anterior' : 'Ajuste manual',
+      subtitle: d.description || 'Saldo o ajuste pendiente',
+      amount: Number(d.amount || 0),
+      currency: d.currency || 'ARS',
+    }));
 
     // Períodos con pago activo para deuda
     const approvedPeriods = new Set(payments.filter(p => p.status === 'approved').map(p => p.month));
@@ -200,7 +207,7 @@ export async function renderUploadPage() {
         </div>
       </div>` : '';
 
-    const hasForm = months.length > 0 || extras.length > 0 || hasBalanceDebt;
+    const hasForm = months.length > 0 || extras.length > 0 || hasBalanceDebt || debtCards.length > 0;
 
     // Build all period cards: regular months + extras
     const periodCardsHtml = [
@@ -245,6 +252,18 @@ export async function renderUploadPage() {
             <div class="muted" style="font:var(--t-sm);margin-top:2px">Concepto extraordinario</div>
           </div>
           <span class="bright tnum" style="font:var(--t-body-md)">$${e.amount.toLocaleString('es-AR')}</span>
+        </label>`),
+      ...debtCards.map(d => `
+        <label class="period-card" data-type="debt-item" data-value="${d.id}" data-amount="${d.amount}" onclick="togglePeriodCard(this)">
+          <span class="pc-check"></span>
+          <div style="flex:1;min-width:0">
+            <div class="row" style="gap:6px">
+              <span class="bright" style="font:var(--t-body-md)">${escapeHtml(d.title)}</span>
+              <span class="badge badge-danger">Ajuste</span>
+            </div>
+            <div class="muted" style="font:var(--t-sm);margin-top:2px">${escapeHtml(d.subtitle)}</div>
+          </div>
+          <span class="bright tnum" style="font:var(--t-body-md)">$${d.amount.toLocaleString('es-AR')}</span>
         </label>`),
     ].join('');
 
@@ -419,26 +438,6 @@ export async function renderUploadPage() {
         </div>
         `}
 
-        ${manualDebts.length > 0 ? `
-        <!-- Saldos anteriores y ajustes -->
-        <div class="section-head" style="margin-top:18px">
-          <h3>Saldos anteriores y ajustes</h3>
-        </div>
-        <div class="stack-2">
-          ${manualDebts.map(d => `
-            <div class="card" style="padding:14px 16px">
-              <div class="flex between" style="align-items:center;margin-bottom:6px">
-                <span class="bold" style="font-size:.95rem">${d.type === 'previous_balance' ? 'Saldo anterior' : 'Ajuste manual'}</span>
-                <span class="badge badge-warning">Pendiente</span>
-              </div>
-              <p class="text-sm text-muted" style="margin-bottom:6px">${escapeHtml(d.description)}</p>
-              <div class="flex between" style="align-items:center">
-                <span class="text-sm text-muted">${d.dueDate ? 'Vence: ' + new Date(d.dueDate).toLocaleDateString('es-AR') : ''}</span>
-                <strong style="color:var(--danger)">$${Number(d.amount).toLocaleString('es-AR')} ${d.currency}</strong>
-              </div>
-            </div>`).join('')}
-        </div>` : ''}
-
         <!-- Hidden inputs for submit compat -->
         <select id="pay-month" class="hidden">
           <option value=""></option>
@@ -561,6 +560,7 @@ function getSelectedPaymentConcepts() {
   return {
     periods: selected.filter(c => c.dataset.type === 'period').map(c => c.dataset.value),
     extras: selected.filter(c => c.dataset.type === 'extra').map(c => c.dataset.value),
+    debtItemIds: selected.filter(c => c.dataset.type === 'debt-item').map(c => c.dataset.value),
     balanceAmount: selected.some(c => c.dataset.type === 'balance') ? _balanceDebtAmount : 0,
     totalAmount: selected.reduce((sum, c) => sum + Number(c.dataset.amount || 0), 0),
   };
@@ -601,7 +601,13 @@ export async function initMercadoPagoNew() {
   }
   const periods = selected.filter(c => c.dataset.type === 'period').map(c => c.dataset.value);
   const extraordinaryIds = selected.filter(c => c.dataset.type === 'extra').map(c => c.dataset.value);
+  const debtItemIds = selected.filter(c => c.dataset.type === 'debt-item').map(c => c.dataset.value);
   const balanceAmount = selected.some(c => c.dataset.type === 'balance') ? _balanceDebtAmount : 0;
+  if (debtItemIds.length > 0) {
+    toast('Los saldos y ajustes manuales se pagan subiendo comprobante.', 'warning');
+    switchPayTab('upload');
+    return;
+  }
   await initMercadoPago({ periods, extraordinaryIds, balanceAmount });
 }
 
@@ -639,13 +645,13 @@ export function clearFile() {
 }
 
 export async function submitReceipt() {
-  const { periods, extras, balanceAmount, totalAmount } = getSelectedPaymentConcepts();
+  const { periods, extras, debtItemIds, balanceAmount, totalAmount } = getSelectedPaymentConcepts();
   const month  = periods[0] || document.getElementById('pay-month')?.value;
   const amount = totalAmount > 0 ? String(totalAmount) : '';
   const note   = document.getElementById('pay-note')?.value?.trim();
-  const isBalanceOnly = balanceAmount > 0 && !month && extras.length === 0;
+  const isBalanceOnly = balanceAmount > 0 && !month && extras.length === 0 && debtItemIds.length === 0;
 
-  if (balanceAmount > 0 && (periods.length > 0 || extras.length > 0)) {
+  if (balanceAmount > 0 && (periods.length > 0 || extras.length > 0 || debtItemIds.length > 0)) {
     toast('Para subir comprobante, paga la deuda inicial en un comprobante separado.', 'error');
     return;
   }
@@ -674,7 +680,7 @@ export async function submitReceipt() {
     return;
   }
 
-  if (!month && extras.length === 0) { toast('Seleccioná un período o al menos un concepto extraordinario', 'error'); return; }
+  if (!month && extras.length === 0 && debtItemIds.length === 0) { toast('Seleccioná un período, concepto extraordinario o ajuste', 'error'); return; }
   if (month && (!amount || amount < 1)) { toast('Ingresá un importe válido', 'error'); return; }
   if (!selectedFile)                    { toast('Adjuntá el comprobante (PDF o imagen)', 'error'); return; }
 
@@ -684,6 +690,7 @@ export async function submitReceipt() {
   if (periods.length > 0) formData.append('amount', amount);
   if (note)  formData.append('ownerNote', note);
   extras.forEach(id => formData.append('extraordinaryIds', id));
+  debtItemIds.forEach(id => formData.append('debtItemIds', id));
   formData.append('receipt', selectedFile);
 
   const buttons = [...document.querySelectorAll('.pay-submit-btn')];
