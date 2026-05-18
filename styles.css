@@ -1204,9 +1204,21 @@ body.is-offline #app-shell { padding-top: 36px; }
 .pagination .pg-ellipsis { color: var(--muted); font-size: .82rem; padding: 0 .2rem; }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 99px; }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 242, 123, .82) rgba(255, 255, 255, .07);
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, .06);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 242, 123, .82);
+  border: 2px solid rgba(14, 21, 18, .92);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
 /* ── Skeleton / Shimmer Loader ── */
 .skeleton {
