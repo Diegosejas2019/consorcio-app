@@ -73,9 +73,9 @@ GestionAr es una Progressive Web App (PWA) instalable directamente desde Play St
 
 | Campo | Valor |
 |-------|-------|
-| Email de soporte | (definir: soporte@gestionar.ar o similar) |
+| Email de soporte | gestionar.app.info@gmail.com |
 | Sitio web | (URL de landing page) |
-| Política de privacidad | (URL pública — ver privacy-data.md) |
+| Política de privacidad | `/privacidad` en el dominio productivo de `consorcio-app` |
 | Teléfono (opcional) | — |
 
 ## Notas de versión (para primer release)

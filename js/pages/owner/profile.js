@@ -137,6 +137,11 @@ export async function renderOwnerProfile() {
             <span>Términos y Condiciones</span>
             <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
           </button>
+          <button class="legal-link" onclick="openPrivacyPage()" style="margin-top:.65rem">
+            <span>${svgIcon('shield', 18)}</span>
+            <span>Política de Privacidad</span>
+            <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
+          </button>
         </div>
 
         <!-- Cerrar sesión -->

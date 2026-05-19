@@ -6,8 +6,8 @@ import { toast } from '../ui/toast.js';
 
 // Poblado por app.js después de importar todos los módulos de páginas
 export const PAGE_RENDERERS = {};
-const PUBLIC_PAGES = new Set(['page-terms']);
-const PASSWORD_CHANGE_PAGES = new Set(['page-change-temp-password', 'page-terms']);
+const PUBLIC_PAGES = new Set(['page-terms', 'page-privacy']);
+const PASSWORD_CHANGE_PAGES = new Set(['page-change-temp-password', 'page-terms', 'page-privacy']);
 
 export function showPage(id) {
   window.navCloseSubmenu?.();

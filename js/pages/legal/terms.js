@@ -281,6 +281,13 @@ export function renderTermsPage() {
             <p>Al acceder, registrarse o utilizar GestionAr, el usuario declara haber leído, comprendido y aceptado estos Términos y Condiciones. Si no está de acuerdo con ellos, deberá abstenerse de utilizar la plataforma.</p>
           </section>
           ${TERMS_SECTIONS.map(renderSection).join('')}
+          <section class="legal-section legal-intro">
+            <button class="legal-link" onclick="openPrivacyPage()">
+              <span>${svgIcon('shield', 18)}</span>
+              <span>Ver Política de Privacidad</span>
+              <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
+            </button>
+          </section>
         </div>
       </article>
 

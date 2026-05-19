@@ -637,7 +637,8 @@ body.legal-public-mode .nav-submenu-backdrop {
   display: none !important;
 }
 
-body.legal-public-mode #page-terms {
+body.legal-public-mode #page-terms,
+body.legal-public-mode #page-privacy {
   padding-bottom: 2rem;
 }
 

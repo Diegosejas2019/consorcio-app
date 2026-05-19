@@ -344,6 +344,11 @@ export async function renderAdminSettings() {
               <span>Términos y Condiciones</span>
               <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
             </button>
+            <button class="legal-link" onclick="openPrivacyPage()" style="margin-top:.65rem">
+              <span>${svgIcon('shield', 18)}</span>
+              <span>Política de Privacidad</span>
+              <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
+            </button>
           </div>
         </div>
 
@@ -387,6 +392,11 @@ export async function renderAdminSettings() {
               <button class="legal-link" onclick="openTermsPage()">
                 <span>${svgIcon('doc', 18)}</span>
                 <span>Términos y Condiciones</span>
+                <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
+              </button>
+              <button class="legal-link" onclick="openPrivacyPage()" style="margin-top:.65rem">
+                <span>${svgIcon('shield', 18)}</span>
+                <span>Política de Privacidad</span>
                 <span class="legal-link-arrow">${svgIcon('chevron-r', 16)}</span>
               </button>
             </div>

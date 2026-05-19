@@ -51,9 +51,9 @@
 - [ ] **Descripción corta** (máx 80 caracteres) — ver `listing.md`
 - [ ] **Descripción completa** (máx 4000 caracteres) — ver `listing.md`
 - [ ] **Categoría**: Business / Finance
-- [ ] **Email de soporte**: definir email de contacto
+- [x] **Email de soporte**: gestionar.app.info@gmail.com
 - [ ] **Sitio web**: URL de la landing page o la app
-- [ ] **Política de privacidad**: URL pública — ver `privacy-data.md`
+- [x] **Política de privacidad**: URL pública `/privacidad` — ver `privacy-data.md`
 
 ## 5. Clasificación de contenido
 
@@ -85,9 +85,10 @@
 
 ## Verificación post-deploy (antes de enviar a revisión)
 
-1. `https://TU_DOMINIO/.well-known/assetlinks.json` → debe devolver JSON válido con SHA-256 real
-2. Chrome DevTools → Application → Manifest → sin errores
-3. Lighthouse PWA → "Installable: all checks passed"
-4. PWA Builder → https://www.pwabuilder.com → score verde
-5. Digital Asset Links Test → https://developers.google.com/digital-asset-links/tools/generator
-6. Instalar APK en dispositivo → verificar que carga sin chrome toolbar (TWA validado)
+1. `/privacidad` en el dominio productivo → debe cargar la Política de Privacidad sin login
+2. `/.well-known/assetlinks.json` en el dominio productivo → debe devolver JSON válido con SHA-256 real
+3. Chrome DevTools → Application → Manifest → sin errores
+4. Lighthouse PWA → "Installable: all checks passed"
+5. PWA Builder → https://www.pwabuilder.com → score verde
+6. Digital Asset Links Test → https://developers.google.com/digital-asset-links/tools/generator
+7. Instalar APK en dispositivo → verificar que carga sin chrome toolbar (TWA validado)

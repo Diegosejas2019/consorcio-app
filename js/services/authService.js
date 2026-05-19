@@ -451,6 +451,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (handleMPRedirect()) return;
 
   const params = new URLSearchParams(window.location.search);
+  if (window.location.pathname === '/privacidad') {
+    window.openPrivacyPage?.('direct');
+    return;
+  }
+
   if (window.location.pathname === '/confirm-email-change') {
     await handleEmailChangeConfirmation(params.get('token'));
     return;
