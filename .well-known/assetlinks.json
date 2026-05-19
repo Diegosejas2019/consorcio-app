@@ -3,6 +3,8 @@
   "target": {
     "namespace": "android_app",
     "package_name": "com.gestionar.consorcios",
-    "sha256_cert_fingerprints": ["PLACEHOLDER_SHA256_REEMPLAZAR_CON_BUBBLEWRAP"]
+    "sha256_cert_fingerprints": [
+      "77:09:6B:51:DB:9D:5E:38:DC:AC:0D:C6:FE:E5:3D:07:D0:8A:C2:AA:EE:B7:2A:3B:FA:B6:80:30:BD:F6:3B:A1"
+    ]
   }
 }]
