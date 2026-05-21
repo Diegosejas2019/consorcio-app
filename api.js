@@ -5,7 +5,19 @@
 
 // ── URL base de la API ────────────────────────────────────────
 // En producción reemplazá esta URL con la de tu servidor
-const API_BASE = window.CONSORCIO_API_URL || 'https://consorcio-api-production.up.railway.app/api';
+const PROD_API_BASE = 'https://consorcio-api-production.up.railway.app/api';
+const QA_API_BASE = 'https://consorcio-api-qa.up.railway.app/api';
+
+function resolveApiBase() {
+  if (window.CONSORCIO_API_URL) return window.CONSORCIO_API_URL;
+
+  const host = window.location.hostname.toLowerCase();
+  const isQaHost = host.includes('git-develop') || host.includes('develop') || host.includes('qa') || host.includes('staging');
+
+  return isQaHost ? QA_API_BASE : PROD_API_BASE;
+}
+
+const API_BASE = resolveApiBase();
 
 // ── Gestión del JWT ───────────────────────────────────────────
 const TOKEN_KEY = 'consorcio_token';
