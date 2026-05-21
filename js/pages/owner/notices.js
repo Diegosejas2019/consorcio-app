@@ -128,6 +128,7 @@ function _updateNoticeList() {
 export async function openOwnerNotice(id) {
   const notice = _notices.find(n => n._id === id);
   if (!notice) return;
+  const icon = TAG_ICON[notice.tag] || 'megaphone';
 
   if (!notice.isRead) {
     notice.isRead = true;
@@ -139,7 +140,7 @@ export async function openOwnerNotice(id) {
     <div class="modal-handle"></div>
     <div class="ni-detail">
       <div class="ni-detail-top">
-        <div class="ni-avatar ni-avatar--${notice.tag}" style="width:42px;height:42px;font-size:1.15rem;flex-shrink:0">${TAG_ICON[notice.tag] || '📢'}</div>
+        <div class="ni-avatar ni-avatar--${notice.tag}" style="width:42px;height:42px;font-size:1.15rem;flex-shrink:0">${svgIcon(icon, 20)}</div>
         <div style="flex:1;min-width:0">
           <div class="ni-detail-sender">Administración</div>
           <div class="ni-detail-date">${formatDate(notice.createdAt)}</div>

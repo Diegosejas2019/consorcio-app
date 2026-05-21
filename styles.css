@@ -1606,6 +1606,11 @@ body.is-offline #app-shell { padding-top: 36px; }
   display: flex; align-items: center; justify-content: center;
   font-size: 1rem; line-height: 1;
 }
+.ni-avatar svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
 .ni-avatar--info    { background: var(--accent-lt);  border: 1px solid rgba(156,242,123,.2); }
 .ni-avatar--warning { background: var(--warning-lt); border: 1px solid rgba(234,179,8,.2); }
 .ni-avatar--urgent  { background: var(--danger-lt);  border: 1px solid rgba(248,113,113,.2); }
