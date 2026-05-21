@@ -19,6 +19,14 @@
   <!-- Sentry Error Tracking -->
   <script src="https://js.sentry-cdn.com/fb9df6cf934bc406155d04ce2ab4a36d.min.js" crossorigin="anonymous"></script>
   <script>
+    window.togglePassword = function(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      if (btn) btn.textContent = show ? '🙈' : '👁';
+    };
+
     Sentry.onLoad(function() {
       Sentry.init({
         ignoreErrors: [
