@@ -43,7 +43,7 @@ self.addEventListener('notificationclick', (e) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-const CACHE_NAME = 'consorcio-v6';
+const CACHE_NAME = 'consorcio-v7';
 const API_CACHE  = 'consorcio-api-v1';
 const API_ORIGIN = 'https://consorcio-api-production.up.railway.app/api/';
 const TTL_MS     = 24 * 60 * 60 * 1000; // 24 horas
@@ -126,18 +126,27 @@ self.addEventListener('fetch', e => {
     || parsed.pathname.endsWith('.js')
     || parsed.pathname.endsWith('.css');
 
+  const isScriptOrStyle = parsed.pathname.endsWith('.js') || parsed.pathname.endsWith('.css');
+
   if (isAppFile) {
     // Network-first: intenta red, actualiza cache, fallback a cache
     e.respondWith(
       fetch(e.request)
         .then(res => {
+          const contentType = res.headers.get('Content-Type') || '';
+          if (isScriptOrStyle && contentType.includes('text/html')) {
+            return caches.match(e.request).then(cached => cached || Response.error());
+          }
           if (res.ok) {
             const clone = res.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
           }
           return res;
         })
-        .catch(() => caches.match(e.request).then(cached => cached || caches.match('/index.html')))
+        .catch(() => caches.match(e.request).then(cached => {
+          if (cached) return cached;
+          return isScriptOrStyle ? Response.error() : caches.match('/index.html');
+        }))
     );
   } else {
     // Cache-first para íconos y recursos estáticos
