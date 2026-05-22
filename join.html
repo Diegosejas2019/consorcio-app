@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0e1512">
+  <title>Solicitud de acceso — GestionAr</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; }
+    .join-box { width: 100%; max-width: 480px; background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--radius); padding: 2rem; backdrop-filter: blur(12px); }
+    .join-logo { text-align: center; margin-bottom: 1.5rem; }
+    .join-logo .brand { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--text-bright); letter-spacing: -0.04em; display: inline-flex; align-items: center; gap: 0.4rem; }
+    .join-logo .dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); display: inline-block; }
+    .join-org { text-align: center; margin-bottom: 1.75rem; }
+    .join-org h2 { font-size: 1.15rem; font-weight: 700; color: var(--text-bright); margin: 0 0 0.25rem; }
+    .join-org p { color: var(--muted); font-size: 0.875rem; margin: 0; }
+    .join-success { text-align: center; padding: 1.5rem 0; }
+    .join-success .check { font-size: 3rem; margin-bottom: 0.75rem; }
+    .join-success h3 { color: var(--text-bright); margin: 0 0 0.5rem; }
+    .join-success p { color: var(--muted); font-size: 0.875rem; margin: 0; }
+    .join-error { text-align: center; padding: 2rem 0; }
+    .join-error .icon { font-size: 3rem; margin-bottom: 0.75rem; }
+    .join-error h3 { color: var(--danger); margin: 0 0 0.5rem; }
+    .join-error p { color: var(--muted); font-size: 0.875rem; margin: 0; }
+    #join-loading { text-align: center; padding: 2rem 0; color: var(--muted); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="join-box">
+    <div class="join-logo">
+      <span class="brand">Gestion<span style="color:var(--accent)">Ar</span> <span class="dot"></span></span>
+    </div>
+    <div id="join-loading">Cargando...</div>
+    <div id="join-error" class="join-error hidden">
+      <div class="icon">⚠️</div>
+      <h3>Enlace inválido</h3>
+      <p id="join-error-msg">Este enlace de registro no es válido o ha expirado.</p>
+    </div>
+    <div id="join-content" class="hidden">
+      <div class="join-org">
+        <h2 id="org-name">Organización</h2>
+        <p id="org-subtitle">Completá el formulario para solicitar acceso</p>
+      </div>
+      <div id="join-success" class="join-success hidden">
+        <div class="check">✅</div>
+        <h3>¡Solicitud enviada!</h3>
+        <p>El administrador revisará tu solicitud y te contactará por email cuando sea aprobada.</p>
+      </div>
+      <form id="join-form">
+        <div class="form-group">
+          <label for="j-name">Nombre completo *</label>
+          <input id="j-name" type="text" class="input" placeholder="Tu nombre y apellido" autocomplete="name" required>
+        </div>
+        <div class="form-group" style="margin-top:0.75rem">
+          <label for="j-email">Email *</label>
+          <input id="j-email" type="email" class="input" placeholder="tu@email.com" autocomplete="email" required>
+        </div>
+        <div class="form-group" style="margin-top:0.75rem">
+          <label for="j-phone">Teléfono</label>
+          <input id="j-phone" type="tel" class="input" placeholder="Opcional" autocomplete="tel">
+        </div>
+        <div class="form-group" style="margin-top:0.75rem">
+          <label for="j-unit">Unidad / lote que solicitás</label>
+          <input id="j-unit" type="text" class="input" placeholder='Ej: "Lote 15", "Depto 3A"'>
+        </div>
+        <div class="form-group" style="margin-top:0.75rem">
+          <label for="j-message">Mensaje al administrador</label>
+          <textarea id="j-message" class="input" rows="3" placeholder="Opcional" style="resize:vertical"></textarea>
+        </div>
+        <div id="join-form-error" class="hidden" style="margin-top:0.75rem;padding:0.6rem 0.9rem;background:var(--danger-lt,rgba(248,113,113,0.1));border:1px solid var(--danger);border-radius:8px;color:var(--danger);font-size:0.875rem"></div>
+        <button type="submit" id="j-submit" class="btn-primary w-full" style="margin-top:1.25rem">
+          Enviar solicitud
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.CONSORCIO_API_URL || 'https://consorcio-api-production.up.railway.app/api';
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+
+    async function apiGet(path) {
+      const r = await fetch(API_BASE + path);
+      return r.json();
+    }
+    async function apiPost(path, body) {
+      const r = await fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return r.json();
+    }
+
+    function showError(msg) {
+      document.getElementById('join-loading').classList.add('hidden');
+      document.getElementById('join-error').classList.remove('hidden');
+      if (msg) document.getElementById('join-error-msg').textContent = msg;
+    }
+
+    async function init() {
+      if (!code) { showError('No se proporcionó un código de acceso.'); return; }
+      try {
+        const res = await apiGet(`/join/${encodeURIComponent(code)}`);
+        if (!res.success) { showError(res.message || 'Enlace inválido o expirado.'); return; }
+        document.getElementById('org-name').textContent = res.data.organizationName;
+        document.getElementById('org-subtitle').textContent =
+          `Completá el formulario para solicitar acceso como ${res.data.memberLabel || 'propietario'}`;
+        document.getElementById('join-loading').classList.add('hidden');
+        document.getElementById('join-content').classList.remove('hidden');
+      } catch {
+        showError('No se pudo verificar el enlace. Intentá de nuevo más tarde.');
+      }
+    }
+
+    document.getElementById('join-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('j-submit');
+      const errEl = document.getElementById('join-form-error');
+      errEl.classList.add('hidden');
+
+      const name = document.getElementById('j-name').value.trim();
+      const email = document.getElementById('j-email').value.trim();
+      const phone = document.getElementById('j-phone').value.trim();
+      const requestedUnitLabel = document.getElementById('j-unit').value.trim();
+      const message = document.getElementById('j-message').value.trim();
+
+      if (!name || !email) { errEl.textContent = 'El nombre y el email son obligatorios.'; errEl.classList.remove('hidden'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = 'El email no es válido.'; errEl.classList.remove('hidden'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      try {
+        const res = await apiPost(`/join/${encodeURIComponent(code)}`, { name, email, phone, requestedUnitLabel, message });
+        if (!res.success) {
+          errEl.textContent = res.message || 'No se pudo enviar la solicitud.';
+          errEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Enviar solicitud';
+          return;
+        }
+        document.getElementById('join-form').classList.add('hidden');
+        document.getElementById('join-success').classList.remove('hidden');
+      } catch {
+        errEl.textContent = 'Error de conexión. Intentá de nuevo.';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Enviar solicitud';
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

@@ -49,6 +49,8 @@ import { renderAdminSupport }      from './js/pages/admin/support.js';
 import { renderAdminEmployees }    from './js/pages/admin/employees.js';
 import { renderAdminSalaries }     from './js/pages/admin/salaries.js';
 import { renderAdminPaymentPlans } from './js/pages/admin/payment-plans.js';
+import { renderAdminUnidentifiedPayments } from './js/pages/admin/unidentified-payments.js';
+import { renderAdminAccessRequests } from './js/pages/admin/access-requests.js';
 
 // ── Owner pages ───────────────────────────────────────────────
 import { renderOwnerHome }         from './js/pages/owner/home.js';
@@ -93,6 +95,8 @@ PAGE_RENDERERS['page-admin-support']       = () => renderAdminSupport();
 PAGE_RENDERERS['page-admin-employees']     = () => renderAdminEmployees();
 PAGE_RENDERERS['page-admin-salaries']        = () => renderAdminSalaries();
 PAGE_RENDERERS['page-admin-payment-plans']   = () => renderAdminPaymentPlans();
+PAGE_RENDERERS['page-admin-unidentified-payments'] = () => renderAdminUnidentifiedPayments();
+PAGE_RENDERERS['page-admin-access-requests']       = () => renderAdminAccessRequests();
 PAGE_RENDERERS['page-owner-home']          = () => renderOwnerHome();
 PAGE_RENDERERS['page-owner-pay']       = () => renderUploadPage();
 PAGE_RENDERERS['page-owner-history']   = () => renderOwnerHistory();

@@ -180,6 +180,78 @@ async function _renderFeaturesCard() {
     </div>`;
 }
 
+async function _renderJoinSettingsCard() {
+  let enabled = false;
+  let joinCode = null;
+  try {
+    const res = await api.accessRequests.getSettings();
+    enabled  = res.data?.publicJoinEnabled || false;
+    joinCode = res.data?.publicJoinCode || null;
+  } catch (_) { /* ignorar si falla */ }
+
+  const APP_URL = window.CONSORCIO_APP_URL || 'https://gestionar.app';
+  const joinUrl = joinCode ? `${APP_URL}/join.html?code=${joinCode}` : null;
+
+  const urlHtml = joinCode
+    ? `<div style="background:var(--surface-2);border-radius:8px;padding:0.75rem;word-break:break-all;font-size:0.82rem;color:var(--muted);margin-top:0.5rem">${joinUrl}</div>
+       <div class="flex" style="gap:0.5rem;margin-top:0.5rem">
+         <button class="btn-secondary btn-sm" onclick="window._copyJoinLink('${joinUrl}')">Copiar enlace</button>
+         <button class="btn-secondary btn-sm" onclick="window._confirmRegenerateCode()">Regenerar código</button>
+       </div>`
+    : `<p style="font-size:0.85rem;color:var(--muted);margin:0.5rem 0 0">Habilitá las solicitudes para generar el enlace.</p>`;
+
+  return `
+    <div class="card" id="join-settings-card">
+      <div class="card-header"><h3>Registro autónomo de propietarios</h3></div>
+      <div class="card-body flex col gap-2">
+        <p class="text-sm text-muted">Compartí el enlace con propietarios para que puedan solicitar acceso sin que el admin los cargue manualmente.</p>
+        <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+          <span class="text-sm">Aceptar solicitudes públicas</span>
+          <input type="checkbox" id="join-enabled-toggle" ${enabled ? 'checked' : ''} style="accent-color:var(--accent);width:18px;height:18px;cursor:pointer" onchange="window._saveJoinEnabled(this.checked)">
+        </label>
+        <div id="join-link-section">${urlHtml}</div>
+      </div>
+    </div>`;
+}
+
+window._copyJoinLink = function(url) {
+  navigator.clipboard.writeText(url)
+    .then(() => toast('Enlace copiado al portapapeles', 'success'))
+    .catch(() => {
+      prompt('Copiá este enlace:', url);
+    });
+};
+
+window._confirmRegenerateCode = function() {
+  if (!confirm('¿Regenerar el código? Los enlaces anteriores dejarán de funcionar.')) return;
+  window._regenerateJoinCode();
+};
+
+window._regenerateJoinCode = async function() {
+  try {
+    const res = await api.accessRequests.regenerateCode();
+    if (res.success) {
+      toast('Código regenerado. Los enlaces anteriores ya no son válidos.', 'success');
+      renderAdminSettings();
+    }
+  } catch (err) {
+    toast(err.message || 'Error al regenerar el código', 'error');
+  }
+};
+
+window._saveJoinEnabled = async function(enabled) {
+  try {
+    await api.accessRequests.updateSettings({ publicJoinEnabled: enabled });
+    toast(enabled ? 'Solicitudes públicas habilitadas.' : 'Solicitudes públicas deshabilitadas.', 'success');
+    renderAdminSettings();
+  } catch (err) {
+    toast(err.message || 'Error al guardar', 'error');
+    // Revertir toggle
+    const toggle = document.getElementById('join-enabled-toggle');
+    if (toggle) toggle.checked = !enabled;
+  }
+};
+
 export async function saveFeatureSettings() {
   const btn = document.getElementById('btn-save-features');
   setBtnLoading(btn, true);
@@ -335,6 +407,8 @@ export async function renderAdminSettings() {
         </div>
 
         ${await _renderFeaturesCard()}
+
+        ${await _renderJoinSettingsCard()}
 
         <div class="card">
           <div class="card-header"><h3>Legal</h3></div>

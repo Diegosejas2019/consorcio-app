@@ -627,9 +627,10 @@ const ADMIN_NAV_GROUPS = {
   },
   comunidad: {
     label: 'Comunidad',
-    pages: ['page-admin-owners', 'page-admin-units', 'page-admin-notices', 'page-admin-claims', 'page-admin-votes', 'page-admin-visits', 'page-admin-reservations', 'page-admin-spaces'],
+    pages: ['page-admin-owners', 'page-admin-units', 'page-admin-notices', 'page-admin-claims', 'page-admin-votes', 'page-admin-visits', 'page-admin-reservations', 'page-admin-spaces', 'page-admin-access-requests'],
     items: [
-      { page: 'page-admin-owners',        label: 'Propietarios', fn: 'renderOwnersList',        icon: SVG_S_USERS },
+      { page: 'page-admin-owners',           label: 'Propietarios', fn: 'renderOwnersList',           icon: SVG_S_USERS },
+      { page: 'page-admin-access-requests',  label: 'Solicitudes',  fn: 'renderAdminAccessRequests',  icon: SVG_S_CLAIM },
       { page: 'page-admin-units',         label: 'Unidades',     fn: 'renderAdminUnits',        icon: SVG_S_SPACE },
       { page: 'page-admin-notices',       label: 'Comunicados',  fn: 'renderAdminNotices',       icon: SVG_S_BELL  },
       { page: 'page-admin-claims',        label: 'Reclamos',     fn: 'renderAdminClaims',        icon: SVG_S_CLAIM },
@@ -764,8 +765,8 @@ export function setupNav() {
     _navCurrentGroups = ADMIN_NAV_GROUPS;
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-admin-home" onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
-      <button class="nav-item" data-pages="page-admin-dashboard,page-admin-payments,page-admin-delinquency,page-admin-payment-plans,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
-      <button class="nav-item" data-pages="page-admin-owners,page-admin-units,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
+      <button class="nav-item" data-pages="page-admin-dashboard,page-admin-payments,page-admin-unidentified-payments,page-admin-delinquency,page-admin-payment-plans,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
+      <button class="nav-item" id="nav-btn-comunidad" data-pages="page-admin-owners,page-admin-units,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces,page-admin-access-requests" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
       <button class="nav-item" data-pages="page-admin-providers,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
   } else {
     _navCurrentGroups = OWNER_NAV_GROUPS;
@@ -780,7 +781,33 @@ export function setupNav() {
     ?.setAttribute('data-pages', 'page-admin-providers,page-admin-documents,page-admin-admins,page-admin-settings,page-help');
   nav.querySelector('[data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations"]')
     ?.setAttribute('data-pages', 'page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-documents,page-owner-votes,page-owner-visits,page-owner-reservations,page-help');
+
+  // Badge de solicitudes pendientes (asíncrono, no bloquea el render)
+  if (state.role === 'admin') {
+    _updateAccessRequestBadge();
+  }
 }
+
+async function _updateAccessRequestBadge() {
+  try {
+    const res = await api.accessRequests.getAll({ status: 'pending', limit: 1 });
+    const count = res.data?.total || 0;
+    const btn = document.getElementById('nav-btn-comunidad');
+    if (!btn) return;
+    const existing = btn.querySelector('.nav-badge');
+    if (existing) existing.remove();
+    if (count > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'nav-badge';
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.style.cssText = 'position:absolute;top:2px;right:2px;background:var(--danger);color:#fff;border-radius:999px;font-size:0.6rem;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;';
+      btn.style.position = 'relative';
+      btn.appendChild(badge);
+    }
+  } catch { /* ignorar */ }
+}
+
+window._updateAccessRequestBadge = _updateAccessRequestBadge;
 
 // ── Logout ────────────────────────────────────────────────────
 export function logout() {

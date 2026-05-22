@@ -653,6 +653,37 @@ const api = {
     cast:     (id, optionIndex) => request(`/votes/${id}/cast`, { method: 'POST', body: JSON.stringify({ optionIndex }) }),
     results:  (id)          => request(`/votes/${id}/results`),
   },
+
+  // ── Registro autónomo (Etapa 5) ─────────────────────────────
+  join: {
+    getOrg:     (code)       => request(`/join/${code}`),
+    submit:     (code, data) => request(`/join/${code}`, { method: 'POST', body: JSON.stringify(data) }),
+    submitAuth: (code, data) => request(`/join/${code}/auth`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  accessRequests: {
+    getAll:         (params = {}) => request(`/access-requests?${new URLSearchParams(params)}`),
+    getOne:         (id)          => request(`/access-requests/${id}`),
+    approve:        (id, data)    => request(`/access-requests/${id}/approve`, { method: 'POST', body: JSON.stringify(data) }),
+    reject:         (id, data)    => request(`/access-requests/${id}/reject`, { method: 'POST', body: JSON.stringify(data) }),
+    getSettings:    ()            => request('/access-requests/settings'),
+    updateSettings: (data)        => request('/access-requests/settings', { method: 'PATCH', body: JSON.stringify(data) }),
+    regenerateCode: ()            => request('/access-requests/regenerate-code', { method: 'POST' }),
+  },
+
+  // ── Pagos sin identificar ────────────────────────────────────
+  unidentifiedPayments: {
+    list: (params) => request(`/unidentified-payments?${new URLSearchParams(params)}`),
+    getOne: (id) => request(`/unidentified-payments/${id}`),
+    create: (formData) => request('/unidentified-payments', { method: 'POST', body: formData }),
+    update: (id, formData) => request(`/unidentified-payments/${id}`, { method: 'PATCH', body: formData }),
+    delete: (id) => request(`/unidentified-payments/${id}`, { method: 'DELETE' }),
+    getSummary: () => request('/unidentified-payments/summary'),
+    getSuggestions: (id) => request(`/unidentified-payments/${id}/suggestions`),
+    associate: (id, data) => request(`/unidentified-payments/${id}/associate`, { method: 'POST', body: JSON.stringify(data) }),
+    reject: (id, reason) => request(`/unidentified-payments/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    archive: (id, reason) => request(`/unidentified-payments/${id}/archive`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  },
 };
 
 // Exponer globalmente
