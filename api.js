@@ -65,6 +65,7 @@ function inferInvalidationScope(endpoint, method) {
   if (method === 'GET') return null;
   if (endpoint.startsWith('/payments')) return 'payments';
   if (endpoint.startsWith('/notices')) return 'notices';
+  if (endpoint.startsWith('/notice-templates')) return 'notices';
   if (endpoint.startsWith('/claims')) return 'claims';
   if (endpoint.startsWith('/config')) return 'config';
   if (/^\/organizations\/[^/]+\/features/.test(endpoint)) return 'features';
@@ -364,6 +365,18 @@ const api = {
     delete: (id) =>
       request(`/notices/${id}`, { method: 'DELETE' }),
 
+    sendNow: (id) =>
+      request(`/notices/${id}/send-now`, { method: 'POST' }),
+
+    cancel: (id) =>
+      request(`/notices/${id}/cancel`, { method: 'POST' }),
+
+    processScheduled: () =>
+      request('/notices/process-scheduled', { method: 'POST' }),
+
+    stats: (id) =>
+      request(`/notices/${id}/stats`),
+
     markRead: (id) =>
       request(`/notices/${id}/read`, { method: 'PATCH' }),
 
@@ -371,6 +384,20 @@ const api = {
       request(`/notices/${id}/unread`, { method: 'PATCH' }),
 
     getAttachmentUrl: (id, index) => `${API_BASE}/notices/${id}/attachment/${index}`,
+  },
+
+  noticeTemplates: {
+    getAll: (params = {}) =>
+      request(`/notice-templates?${new URLSearchParams(params)}`),
+
+    create: (data) =>
+      request('/notice-templates', { method: 'POST', body: JSON.stringify(data) }),
+
+    update: (id, data) =>
+      request(`/notice-templates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+    delete: (id) =>
+      request(`/notice-templates/${id}`, { method: 'DELETE' }),
   },
 
   // ── Reclamos ─────────────────────────────────────────────────
