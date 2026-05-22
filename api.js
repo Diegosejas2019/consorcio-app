@@ -64,6 +64,7 @@ window.__apiDebugLogCache = function(key, status) {
 function inferInvalidationScope(endpoint, method) {
   if (method === 'GET') return null;
   if (endpoint.startsWith('/payments')) return 'payments';
+  if (endpoint.startsWith('/delinquency')) return 'delinquency';
   if (endpoint.startsWith('/notices')) return 'notices';
   if (endpoint.startsWith('/notice-templates')) return 'notices';
   if (endpoint.startsWith('/claims')) return 'claims';
@@ -347,6 +348,32 @@ const api = {
 
     getAvailableItems: (params = {}) =>
       request(`/payments/available-items?${new URLSearchParams(params)}`),
+  },
+
+  delinquency: {
+    summary: (params = {}) =>
+      request(`/delinquency/summary?${new URLSearchParams(params)}`),
+
+    owners: (params = {}) =>
+      request(`/delinquency/owners?${new URLSearchParams(params)}`),
+
+    owner: (ownerId) =>
+      request(`/delinquency/owners/${ownerId}`),
+
+    aging: (params = {}) =>
+      request(`/delinquency/aging?${new URLSearchParams(params)}`),
+
+    reminder: (ownerId, data) =>
+      request(`/delinquency/owners/${ownerId}/reminders`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    exportUrl: (params = {}) =>
+      `${API_BASE}/delinquency/export?${new URLSearchParams(params)}`,
+
+    ownerExportUrl: (ownerId, params = {}) =>
+      `${API_BASE}/delinquency/owners/${ownerId}/export?${new URLSearchParams(params)}`,
   },
 
   // ── Avisos ───────────────────────────────────────────────────

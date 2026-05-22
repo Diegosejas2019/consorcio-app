@@ -613,10 +613,11 @@ const SVG_PROFILE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"
 const ADMIN_NAV_GROUPS = {
   finanzas: {
     label: 'Finanzas',
-    pages: ['page-admin-dashboard', 'page-admin-payments', 'page-admin-payment-plans', 'page-admin-expenses', 'page-admin-report', 'page-admin-employees', 'page-admin-salaries'],
+    pages: ['page-admin-dashboard', 'page-admin-payments', 'page-admin-delinquency', 'page-admin-payment-plans', 'page-admin-expenses', 'page-admin-report', 'page-admin-employees', 'page-admin-salaries'],
     items: [
       { page: 'page-admin-dashboard',      label: 'Dashboard',    fn: 'renderAdminDashboard',    icon: SVG_S_DASH   },
       { page: 'page-admin-payments',        label: 'Pagos',        fn: 'renderAdminPayments',      icon: SVG_S_PAY    },
+      { page: 'page-admin-delinquency',     label: 'Morosidad',    fn: 'renderAdminDelinquency',   icon: SVG_S_BELL   },
       { page: 'page-admin-payment-plans',   label: 'Planes pago',  fn: 'renderAdminPaymentPlans',  icon: SVG_S_PLAN   },
       { page: 'page-admin-expenses',        label: 'Gastos',       fn: 'renderAdminExpenses',      icon: SVG_S_EXP    },
       { page: 'page-admin-report',          label: 'Informe',      fn: 'renderAdminReport',        icon: SVG_S_REPORT },
@@ -763,7 +764,7 @@ export function setupNav() {
     _navCurrentGroups = ADMIN_NAV_GROUPS;
     nav.innerHTML = `
       <button class="nav-item active" data-page="page-admin-home" onclick="showPage('page-admin-home');renderAdminHome()">${SVG.home}<span>Inicio</span></button>
-      <button class="nav-item" data-pages="page-admin-dashboard,page-admin-payments,page-admin-payment-plans,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
+      <button class="nav-item" data-pages="page-admin-dashboard,page-admin-payments,page-admin-delinquency,page-admin-payment-plans,page-admin-expenses,page-admin-report,page-admin-employees,page-admin-salaries" onclick="navToggleGroup('finanzas')">${SVG_TREND}<span>Finanzas</span></button>
       <button class="nav-item" data-pages="page-admin-owners,page-admin-units,page-admin-notices,page-admin-claims,page-admin-votes,page-admin-visits,page-admin-reservations,page-admin-spaces" onclick="navToggleGroup('comunidad')">${SVG.users}<span>Comunidad</span></button>
       <button class="nav-item" data-pages="page-admin-providers,page-admin-settings" onclick="navToggleGroup('mas')">${SVG_GRID4}<span>Más</span></button>`;
   } else {

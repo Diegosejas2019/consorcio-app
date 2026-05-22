@@ -124,6 +124,7 @@ export const PAGE_PERMISSION_MAP = {
   'page-admin-home': 'dashboard.read',
   'page-admin-dashboard': 'dashboard.read',
   'page-admin-payments': 'payments.read',
+  'page-admin-delinquency': 'debt.read',
   'page-admin-payment-plans': 'paymentPlans.read',
   'page-admin-owners': 'owners.read',
   'page-admin-units': 'units.read',
