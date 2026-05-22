@@ -122,6 +122,10 @@ self.addEventListener('fetch', e => {
     return;
   }
 
+  if (parsed.origin !== self.location.origin) {
+    return;
+  }
+
   const isAppFile = e.request.destination === 'document'
     || parsed.pathname.endsWith('.js')
     || parsed.pathname.endsWith('.css');
