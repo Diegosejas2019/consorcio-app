@@ -597,6 +597,17 @@ const api = {
       request('/reports/owners',              { method: 'POST', body: JSON.stringify(data) }),
   },
 
+  // ── Rendiciones ───────────────────────────────────────────────
+  renditions: {
+    getPreview:       (period)          => request(`/renditions/preview?period=${encodeURIComponent(period)}`),
+    getHistory:       ()                => request('/renditions/history'),
+    getAnnual:        (year)            => request(`/renditions/annual?year=${encodeURIComponent(year)}`),
+    generatePdf:      (period)          => request(`/renditions/${period}/generate-pdf`, { method: 'POST' }),
+    exportCsv:        (period, section) => requestBlob(`/renditions/${period}/export-csv?section=${encodeURIComponent(section)}`),
+    saveObservations: (period, observations) =>
+      request(`/renditions/${period}/observations`, { method: 'PATCH', body: JSON.stringify({ observations }) }),
+  },
+
   // ── Visitas ───────────────────────────────────────────────────
   visits: {
     getAll:       (params = {}) => request(`/visits?${new URLSearchParams(params)}`),

@@ -16,15 +16,19 @@ const CAT_LABELS = {
 
 // ── Estado del módulo ─────────────────────────────────────────
 const _rpt = {
-  tab:          'mensual',
-  month:        currentMonth(),
-  mensualData:  null,
-  stmtData:     null,
-  delinqData:   null,
-  paymentsData: null,
-  expensesData: null,
-  ownersData:   null,
-  ownersList:   null,  // cache para el select de propietarios
+  tab:              'mensual',
+  month:            currentMonth(),
+  mensualData:      null,
+  stmtData:         null,
+  delinqData:       null,
+  paymentsData:     null,
+  expensesData:     null,
+  ownersData:       null,
+  ownersList:       null,  // cache para el select de propietarios
+  renditionPeriod:  currentMonth(),
+  renditionData:    null,
+  renditionHistory: null,
+  annualData:       null,
 };
 
 // ── Helpers de formato ────────────────────────────────────────
@@ -61,6 +65,7 @@ export async function renderAdminReport() {
     { id: 'payments',    label: 'Pagos' },
     { id: 'expenses',    label: 'Gastos' },
     { id: 'owners',      label: 'Propietarios' },
+    { id: 'rendicion',   label: 'Rendición' },
   ];
 
   el.innerHTML = `
@@ -110,6 +115,7 @@ function _renderActiveTab() {
     payments:    _renderTabPayments,
     expenses:    _renderTabExpenses,
     owners:      _renderTabOwners,
+    rendicion:   _renderTabRendicion,
   };
   (map[_rpt.tab] || _renderTabMensual)();
 }
@@ -851,6 +857,444 @@ window._downloadOwnersExcel = function() {
   XLSX.utils.book_append_sheet(wb, ws, 'Propietarios');
   XLSX.writeFile(wb, `propietarios_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
+
+// ─────────────────────────────────────────────────────────────
+// TAB 7 — Rendición mensual/anual profesional
+// ─────────────────────────────────────────────────────────────
+
+function _renderTabRendicion() {
+  const el = document.getElementById('rpt-content');
+  if (!el) return;
+
+  el.innerHTML = `
+  <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+    <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="flex:1;min-width:160px;margin:0">
+        <label style="font-size:.75rem;margin-bottom:.3rem;display:block">Período</label>
+        <input type="month" id="rend-month" class="input" value="${_rpt.renditionPeriod}" style="font-size:.9rem">
+      </div>
+      <button class="btn btn-primary" id="btn-rend-preview" onclick="window._rendPreview()" style="gap:.4rem;display:flex;align-items:center">
+        ${SVG.list} Previsualizar
+      </button>
+      <button class="btn btn-secondary" id="btn-rend-pdf" onclick="window._rendGeneratePdf()" style="gap:.4rem;display:flex;align-items:center">
+        ${_ICON_PDF} Generar PDF
+      </button>
+    </div>
+  </div>
+
+  <div id="rend-content">
+    <p class="text-muted text-sm" style="padding:2rem;text-align:center;">Seleccioná un período y presioná <strong>Previsualizar</strong>.</p>
+  </div>
+
+  <div class="card" style="margin-top:1.5rem;padding:1rem 1.25rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="window._rendToggleAnnual()">
+      <strong style="font-size:.9rem;color:var(--text-bright)">Rendición anual</strong>
+      <span id="rend-annual-chevron" style="color:var(--muted);font-size:1.1rem;">▶</span>
+    </div>
+    <div id="rend-annual-section" style="display:none;margin-top:1rem;">
+      <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="flex:1;min-width:120px;margin:0">
+          <label style="font-size:.75rem;margin-bottom:.3rem;display:block">Año</label>
+          <input type="number" id="rend-year" class="input" value="${new Date().getFullYear()}" min="2020" max="2099" style="font-size:.9rem">
+        </div>
+        <button class="btn btn-secondary" onclick="window._rendLoadAnnual()" style="gap:.4rem;display:flex;align-items:center">
+          ${SVG.list} Ver rendición anual
+        </button>
+      </div>
+      <div id="rend-annual-content" style="margin-top:1rem;"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.5rem;padding:1rem 1.25rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="window._rendToggleHistory()">
+      <strong style="font-size:.9rem;color:var(--text-bright)">Historial de rendiciones</strong>
+      <span id="rend-hist-chevron" style="color:var(--muted);font-size:1.1rem;">▶</span>
+    </div>
+    <div id="rend-hist-section" style="display:none;margin-top:1rem;">
+      <button class="btn btn-secondary btn-sm" onclick="window._rendLoadHistory()" style="margin-bottom:.75rem;">Cargar historial</button>
+      <div id="rend-hist-content"></div>
+    </div>
+  </div>`;
+
+  document.getElementById('rend-month').addEventListener('change', e => { _rpt.renditionPeriod = e.target.value; });
+}
+
+window._rendToggleAnnual = function() {
+  const s = document.getElementById('rend-annual-section');
+  const c = document.getElementById('rend-annual-chevron');
+  if (!s) return;
+  const isOpen = s.style.display !== 'none';
+  s.style.display = isOpen ? 'none' : 'block';
+  if (c) c.textContent = isOpen ? '▶' : '▼';
+};
+
+window._rendToggleHistory = function() {
+  const s = document.getElementById('rend-hist-section');
+  const c = document.getElementById('rend-hist-chevron');
+  if (!s) return;
+  const isOpen = s.style.display !== 'none';
+  s.style.display = isOpen ? 'none' : 'block';
+  if (c) c.textContent = isOpen ? '▶' : '▼';
+};
+
+window._rendPreview = async function() {
+  const period = document.getElementById('rend-month')?.value || _rpt.renditionPeriod;
+  _rpt.renditionPeriod = period;
+  const area = document.getElementById('rend-content');
+  if (!area) return;
+
+  area.innerHTML = `<div class="card" style="padding:2rem;text-align:center;color:var(--muted)">
+    <p>Cargando preview…</p></div>`;
+
+  try {
+    const res = await api.renditions.getPreview(period);
+    _rpt.renditionData = res.data;
+    area.innerHTML = _buildRenditionPreviewHTML(res.data);
+  } catch (err) {
+    area.innerHTML = errorState(err.message, '_rendPreview()');
+    toast(err.message, 'error');
+  }
+};
+
+function _buildRenditionPreviewHTML(d) {
+  const { org, periodLabel, summary, expenses, payments, delinquency, observations, warnings, unidentifiedPendingCount, existingRendition } = d;
+
+  // Tarjetas resumen ejecutivo
+  const cards = _summaryBadge([
+    { label: 'Saldo anterior',  value: _fmt$(summary.saldoAnterior),  color: summary.saldoAnterior < 0 ? 'var(--danger)' : 'var(--accent)' },
+    { label: 'Ingresos cobrados', value: _fmt$(summary.income),       color: 'var(--success)' },
+    { label: 'Total gastos',    value: _fmt$(summary.expTotal),        color: 'var(--danger)' },
+    { label: 'Balance',         value: _fmt$(summary.balance),         color: summary.balance < 0 ? 'var(--danger)' : 'var(--success)' },
+    { label: 'Gastos ordinarios', value: _fmt$(summary.ordinaryTotal), color: 'var(--muted)' },
+    { label: 'Gastos extraord.',  value: _fmt$(summary.extraordinaryTotal), color: 'var(--muted)' },
+    { label: 'Pagos pendientes', value: `${summary.pendingCount} (${_fmt$(summary.pendingTotal)})`, color: summary.pendingCount > 0 ? 'var(--warning)' : 'var(--muted)' },
+    { label: 'Morosidad',       value: `${delinquency.delinquencyRate}%`, color: delinquency.delinquencyRate > 0 ? 'var(--danger)' : 'var(--success)' },
+    { label: 'Deuda total',     value: _fmt$(delinquency.totalDebt),   color: delinquency.totalDebt > 0 ? 'var(--danger)' : 'var(--muted)' },
+  ]);
+
+  // Advertencias
+  const warnHtml = warnings.length > 0
+    ? `<div class="card" style="margin-bottom:1rem;padding:1rem;border-left:3px solid var(--warning);">
+        <strong style="font-size:.8rem;color:var(--warning);display:block;margin-bottom:.5rem;">Advertencias (${warnings.length})</strong>
+        ${warnings.map(w => `<div style="font-size:.82rem;color:var(--text);margin-bottom:.25rem;">
+          ${w.severity === 'critical' ? '🔴' : w.severity === 'warning' ? '🟡' : 'ℹ️'} ${escapeHtml(w.message)}
+        </div>`).join('')}
+      </div>` : '';
+
+  // Sección gastos por categoría
+  const catEntries = Object.entries(expenses.categoryLabels || {});
+  const gastoRows = catEntries.map(([key, label]) => {
+    const cat = (expenses.byCategory || {})[key];
+    if (!cat) return '';
+    const tot = (cat.ordinary || 0) + (cat.extraordinary || 0);
+    if (tot === 0) return '';
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:.5rem .75rem;font-size:.82rem;">${escapeHtml(label)}</td>
+      <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(cat.ordinary || 0)}</td>
+      <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(cat.extraordinary || 0)}</td>
+      <td style="padding:.5rem .75rem;font-size:.82rem;font-weight:700;text-align:right;">${_fmt$(tot)}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagos aprobados
+  const pagRows = payments.approved.slice(0, 20).map((p, i) =>
+    `<tr style="border-bottom:1px solid var(--border);background:${i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.02)'};">
+      <td style="padding:.5rem .75rem;font-size:.82rem;">${_fmtDt(p.date)}</td>
+      <td style="padding:.5rem .75rem;font-size:.82rem;">${escapeHtml(p.owner)}</td>
+      <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(p.amount)}</td>
+      <td style="padding:.5rem .75rem;font-size:.82rem;">${p.method === 'mercadopago' ? 'MercadoPago' : 'Manual'}</td>
+    </tr>`).join('') || `<tr><td colspan="4" style="padding:1rem;font-size:.82rem;color:var(--muted);text-align:center;">Sin pagos aprobados.</td></tr>`;
+
+  const pendRows = payments.pending.length > 0
+    ? payments.pending.map((p, i) =>
+        `<tr style="border-bottom:1px solid var(--border);background:rgba(251,191,36,.05);">
+          <td style="padding:.5rem .75rem;font-size:.82rem;">${_fmtDt(p.date)}</td>
+          <td style="padding:.5rem .75rem;font-size:.82rem;">${escapeHtml(p.owner)}</td>
+          <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(p.amount)}</td>
+        </tr>`).join('')
+    : '';
+
+  // Morosidad
+  const morCards = _summaryBadge([
+    { label: 'Morosos',         value: `${delinquency.delinquentOwners} / ${delinquency.totalOwners}`, color: delinquency.delinquentOwners > 0 ? 'var(--danger)' : 'var(--success)' },
+    { label: 'Deuda total',     value: _fmt$(delinquency.totalDebt), color: delinquency.totalDebt > 0 ? 'var(--danger)' : 'var(--muted)' },
+    { label: 'Mora crítica',    value: delinquency.criticalOwners,   color: delinquency.criticalOwners > 0 ? 'var(--danger)' : 'var(--muted)' },
+    { label: 'Período más ant.', value: delinquency.oldestDebtPeriod ? _fmtPeriodLabel(delinquency.oldestDebtPeriod) : '—', color: 'var(--muted)' },
+  ]);
+
+  const existingBanner = existingRendition
+    ? `<div style="margin-bottom:.75rem;padding:.6rem 1rem;background:var(--accent-lt);border-radius:8px;font-size:.82rem;color:var(--text);">
+        ✅ Ya existe PDF de rendición generado (v${existingRendition.version}, ${_fmtDt(existingRendition.generatedAt)}).
+        <a href="${existingRendition.pdfUrl}" target="_blank" rel="noopener" style="color:var(--accent);margin-left:.5rem;">Ver PDF ↗</a>
+      </div>` : '';
+
+  return `
+  ${existingBanner}
+  <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+    <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.6rem;">Resumen ejecutivo — ${escapeHtml(periodLabel)}</div>
+    ${cards}
+    ${_dlButtons(`
+      <button class="btn btn-secondary btn-sm" onclick="window._rendExportCsv('resumen')" style="gap:.3rem;display:flex;align-items:center">${_ICON_DL} Resumen CSV</button>
+    `)}
+  </div>
+
+  ${warnHtml}
+
+  <!-- GASTOS -->
+  <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="window._rendToggleSection('gastos')">
+      <strong style="font-size:.9rem;color:var(--text-bright)">Gastos del período</strong>
+      <span style="color:var(--accent);font-size:.82rem;">${_fmt$(expenses.total || 0)} ▼</span>
+    </div>
+    <div id="rend-sec-gastos" style="margin-top:.75rem;">
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+          <thead><tr style="border-bottom:2px solid var(--border-md);">
+            <th style="padding:.5rem .75rem;text-align:left;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Categoría</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Ordinario</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Extraordinario</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Total</th>
+          </tr></thead>
+          <tbody>${gastoRows || '<tr><td colspan="4" style="padding:1rem;font-size:.82rem;color:var(--muted);text-align:center;">Sin gastos.</td></tr>'}</tbody>
+        </table>
+      </div>
+      ${_dlButtons(`<button class="btn btn-secondary btn-sm" onclick="window._rendExportCsv('gastos')" style="gap:.3rem;display:flex;align-items:center">${_ICON_DL} Gastos CSV</button>`)}
+    </div>
+  </div>
+
+  <!-- PAGOS APROBADOS -->
+  <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="window._rendToggleSection('pagos')">
+      <strong style="font-size:.9rem;color:var(--text-bright)">Ingresos / Pagos aprobados</strong>
+      <span style="color:var(--success);font-size:.82rem;">${_fmt$(summary.income)} ▼</span>
+    </div>
+    <div id="rend-sec-pagos" style="margin-top:.75rem;">
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+          <thead><tr style="border-bottom:2px solid var(--border-md);">
+            <th style="padding:.5rem .75rem;text-align:left;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Fecha</th>
+            <th style="padding:.5rem .75rem;text-align:left;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Propietario</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Importe</th>
+            <th style="padding:.5rem .75rem;text-align:left;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Medio</th>
+          </tr></thead>
+          <tbody>${pagRows}</tbody>
+        </table>
+      </div>
+      ${payments.approved.length > 20 ? `<p class="text-muted text-sm" style="margin-top:.5rem;">Mostrando 20 de ${payments.approved.length}. Descargá el CSV para ver todos.</p>` : ''}
+      ${payments.pending.length > 0 ? `
+        <div style="margin-top:.75rem;padding:.75rem;background:rgba(251,191,36,.07);border-radius:8px;border:1px solid rgba(251,191,36,.2);">
+          <strong style="font-size:.8rem;color:var(--warning);display:block;margin-bottom:.4rem;">Pagos pendientes de aprobación (${payments.pending.length})</strong>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr><th style="padding:.4rem .75rem;text-align:left;color:var(--muted);font-size:.72rem;">Fecha</th>
+              <th style="padding:.4rem .75rem;text-align:left;color:var(--muted);font-size:.72rem;">Propietario</th>
+              <th style="padding:.4rem .75rem;text-align:right;color:var(--muted);font-size:.72rem;">Importe</th></tr></thead>
+            <tbody>${pendRows}</tbody>
+          </table>
+        </div>` : ''}
+      ${_dlButtons(`<button class="btn btn-secondary btn-sm" onclick="window._rendExportCsv('pagos')" style="gap:.3rem;display:flex;align-items:center">${_ICON_DL} Pagos CSV</button>`)}
+    </div>
+  </div>
+
+  <!-- MOROSIDAD -->
+  <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="window._rendToggleSection('mora')">
+      <strong style="font-size:.9rem;color:var(--text-bright)">Deuda y morosidad</strong>
+      <span style="color:${delinquency.delinquencyRate > 0 ? 'var(--danger)' : 'var(--muted)'};font-size:.82rem;">${delinquency.delinquencyRate}% ▼</span>
+    </div>
+    <div id="rend-sec-mora" style="margin-top:.75rem;">
+      ${morCards}
+      ${_dlButtons(`<button class="btn btn-secondary btn-sm" onclick="window._rendExportCsv('morosidad')" style="gap:.3rem;display:flex;align-items:center">${_ICON_DL} Morosidad CSV</button>`)}
+    </div>
+  </div>
+
+  <!-- OBSERVACIONES -->
+  <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="window._rendToggleSection('obs')">
+      <strong style="font-size:.9rem;color:var(--text-bright)">Observaciones del administrador</strong>
+      <span style="color:var(--muted);font-size:.82rem;">▼</span>
+    </div>
+    <div id="rend-sec-obs" style="margin-top:.75rem;">
+      <textarea id="rend-obs-text" class="input" rows="5" maxlength="4000"
+        placeholder="Agregá observaciones que se incluirán en el PDF de rendición…"
+        style="width:100%;resize:vertical;font-size:.85rem;">${escapeHtml(observations || '')}</textarea>
+      <div style="margin-top:.5rem;display:flex;gap:.5rem;align-items:center;">
+        <button class="btn btn-primary btn-sm" onclick="window._rendSaveObs()" style="gap:.3rem;display:flex;align-items:center">
+          Guardar observaciones
+        </button>
+        <span id="rend-obs-status" style="font-size:.78rem;color:var(--muted);"></span>
+      </div>
+    </div>
+  </div>`;
+}
+
+window._rendToggleSection = function(id) {
+  const sec = document.getElementById(`rend-sec-${id}`);
+  if (!sec) return;
+  sec.style.display = sec.style.display === 'none' ? 'block' : 'none';
+};
+
+window._rendGeneratePdf = async function() {
+  const period = _rpt.renditionPeriod;
+  if (!period) { toast('Seleccioná un período primero.', 'warning'); return; }
+  const btn = document.getElementById('btn-rend-pdf');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
+  try {
+    const res = await api.renditions.generatePdf(period);
+    toast('PDF generado exitosamente.', 'success');
+    if (res.data?.pdfUrl) {
+      window.open(res.data.pdfUrl, '_blank');
+    }
+    _rpt.renditionData = null; // forzar reload del preview para mostrar banner
+    window._rendPreview();
+  } catch (err) {
+    toast(err.message || 'Error al generar el PDF.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = `${_ICON_PDF} Generar PDF`; }
+  }
+};
+
+window._rendExportCsv = async function(section) {
+  const period = _rpt.renditionPeriod;
+  if (!period) { toast('Seleccioná un período primero.', 'warning'); return; }
+  try {
+    const blob = await api.renditions.exportCsv(period, section);
+    _triggerBlobDownload(blob, `rendicion_${period}_${section}.csv`);
+  } catch (err) {
+    toast(err.message || 'Error al exportar CSV.', 'error');
+  }
+};
+
+window._rendSaveObs = async function() {
+  const period = _rpt.renditionPeriod;
+  const text   = document.getElementById('rend-obs-text')?.value || '';
+  const status = document.getElementById('rend-obs-status');
+  if (!period) { toast('Seleccioná un período primero.', 'warning'); return; }
+  if (status) status.textContent = 'Guardando…';
+  try {
+    await api.renditions.saveObservations(period, text);
+    if (status) status.textContent = 'Guardado ✓';
+    setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+  } catch (err) {
+    if (status) status.textContent = 'Error al guardar.';
+    toast(err.message || 'Error al guardar observaciones.', 'error');
+  }
+};
+
+window._rendLoadHistory = async function() {
+  const area = document.getElementById('rend-hist-content');
+  if (!area) return;
+  area.innerHTML = `<p class="text-muted text-sm">Cargando…</p>`;
+  try {
+    const res = await api.renditions.getHistory();
+    const history = res.data || [];
+    if (!history.length) {
+      area.innerHTML = `<p class="text-muted text-sm" style="text-align:center;padding:1rem;">Sin rendiciones generadas aún.</p>`;
+      return;
+    }
+    const rows = history.map(h => `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:.5rem .75rem;font-size:.82rem;">${_fmtPeriodLabel(h.period)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;">${_fmtDt(h.generatedAt)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;">${h.generatedBy?.name || '—'}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;">
+          <span class="badge ${h.status === 'generated' ? 'badge-success' : 'badge-neutral'}">${h.status}</span>
+        </td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:center;">v${h.version}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;">
+          ${h.pdfUrl ? `<a href="${h.pdfUrl}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="gap:.3rem;display:inline-flex;align-items:center;">${_ICON_PDF} Ver PDF</a>` : '—'}
+        </td>
+      </tr>`).join('');
+    area.innerHTML = `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+          <thead><tr style="border-bottom:2px solid var(--border-md);">
+            <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Período</th>
+            <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Generado</th>
+            <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Por</th>
+            <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Estado</th>
+            <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;text-align:center;">Versión</th>
+            <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;">PDF</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    area.innerHTML = errorState(err.message, '_rendLoadHistory()');
+  }
+};
+
+window._rendLoadAnnual = async function() {
+  const year  = document.getElementById('rend-year')?.value || new Date().getFullYear();
+  const area  = document.getElementById('rend-annual-content');
+  if (!area) return;
+  area.innerHTML = `<p class="text-muted text-sm">Cargando rendición anual ${year}…</p>`;
+  try {
+    const res = await api.renditions.getAnnual(year);
+    const { rows, totals, warnings } = res.data;
+
+    const warnHtml = warnings.length > 0
+      ? `<div style="margin-bottom:.75rem;padding:.6rem 1rem;background:var(--accent-lt);border-radius:8px;font-size:.82rem;color:var(--text);">
+          ${warnings.map(w => `ℹ️ ${escapeHtml(w.message)}`).join('<br>')}
+        </div>` : '';
+
+    const monthRows = rows.map((r, i) => {
+      if (r.error) return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:.5rem .75rem;font-size:.82rem;">${escapeHtml(r.periodLabel)}</td>
+        <td colspan="6" style="padding:.5rem .75rem;font-size:.82rem;color:var(--muted);">Error al calcular.</td>
+      </tr>`;
+      const res = (r.resultado || 0) >= 0;
+      return `<tr style="border-bottom:1px solid var(--border);background:${i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.02)'};">
+        <td style="padding:.5rem .75rem;font-size:.82rem;font-weight:600;">${escapeHtml(r.periodLabel)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;color:var(--success);">${_fmt$(r.income)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;color:var(--danger);">${_fmt$(r.expTotal)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(r.ordinaryTotal)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(r.extraordinaryTotal)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;font-weight:700;color:${res ? 'var(--success)' : 'var(--danger)'};">${_fmt$(r.resultado)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:center;">
+          ${r.hasSavedRendition ? `<a href="${r.savedPdfUrl}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="padding:.2rem .5rem;font-size:.72rem;">${_ICON_PDF}</a>` : '<span class="text-muted text-sm">—</span>'}
+        </td>
+      </tr>`;
+    }).join('');
+
+    area.innerHTML = `${warnHtml}
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+        <thead><tr style="border-bottom:2px solid var(--border-md);">
+          <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Mes</th>
+          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Ingresos</th>
+          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Total gastos</th>
+          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Ordinarios</th>
+          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Extraord.</th>
+          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Resultado</th>
+          <th style="padding:.5rem .75rem;text-align:center;color:var(--muted);font-size:.75rem;text-transform:uppercase;">PDF</th>
+        </tr></thead>
+        <tbody>${monthRows}</tbody>
+        <tfoot>
+          <tr style="border-top:2px solid var(--border-md);font-weight:700;">
+            <td style="padding:.6rem .75rem;font-size:.82rem;">TOTAL ${year}</td>
+            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:var(--success);">${_fmt$(totals.income)}</td>
+            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:var(--danger);">${_fmt$(totals.expTotal)}</td>
+            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(totals.ordinaryTotal)}</td>
+            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(totals.extraordinaryTotal)}</td>
+            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:${totals.resultado >= 0 ? 'var(--success)' : 'var(--danger)'};">${_fmt$(totals.resultado)}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+  } catch (err) {
+    area.innerHTML = errorState(err.message, '_rendLoadAnnual()');
+    toast(err.message, 'error');
+  }
+};
+
+function _fmtPeriodLabel(yyyymm) {
+  if (!yyyymm) return '—';
+  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const [y, m] = yyyymm.split('-');
+  return `${months[parseInt(m, 10) - 1]} ${y}`;
+}
 
 // ── Utilidades ────────────────────────────────────────────────
 function _triggerBlobDownload(blob, filename) {
