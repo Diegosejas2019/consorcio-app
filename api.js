@@ -194,6 +194,30 @@ async function request(endpoint, options = {}) {
   return data;
 }
 
+// Variante de request para descargas de archivos binarios via POST
+async function requestBlobPost(endpoint, body) {
+  const token = getToken();
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('Sin conexión con el servidor. Verificá tu internet.');
+  }
+  if (!response.ok) {
+    let msg = `Error ${response.status}`;
+    try { const d = await response.json(); msg = d.message || msg; } catch {}
+    throw new Error(msg);
+  }
+  return response.blob();
+}
+
 // Variante de request para descargas de archivos binarios (PDF, etc.)
 async function requestBlob(endpoint) {
   const token = getToken();
@@ -555,10 +579,22 @@ const api = {
 
   // ── Reportes ──────────────────────────────────────────────────
   reports: {
-    getMonthlySummary: (month) =>
+    getMonthlySummary:   (month) =>
       request(`/reports/monthly-summary?month=${encodeURIComponent(month)}`),
     downloadExpensasPdf: (month) =>
       requestBlob(`/reports/expensas-pdf?month=${encodeURIComponent(month)}`),
+    ownerStatement:      (data)  =>
+      request('/reports/owner-statement',     { method: 'POST', body: JSON.stringify(data) }),
+    ownerStatementPdf:   (data)  =>
+      requestBlobPost('/reports/owner-statement/pdf', data),
+    delinquency:         (data)  =>
+      request('/reports/delinquency',         { method: 'POST', body: JSON.stringify(data) }),
+    payments:            (data)  =>
+      request('/reports/payments',            { method: 'POST', body: JSON.stringify(data) }),
+    expenses:            (data)  =>
+      request('/reports/expenses',            { method: 'POST', body: JSON.stringify(data) }),
+    owners:              (data)  =>
+      request('/reports/owners',              { method: 'POST', body: JSON.stringify(data) }),
   },
 
   // ── Visitas ───────────────────────────────────────────────────
