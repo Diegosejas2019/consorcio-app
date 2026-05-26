@@ -55,25 +55,28 @@ consorcio-app/
 │   │   └── offlineQueue.js      # offlineQueue: cola de mutaciones offline
 │   └── pages/
 │       ├── admin/
-│       │   ├── home.js          # renderAdminHome()
-│       │   ├── dashboard.js     # renderAdminDashboard()
-│       │   ├── owners.js        # renderOwnersList()
-│       │   ├── payments.js      # renderAdminPayments() — gestión centralizada de pagos
-│       │   ├── notices.js       # renderAdminNotices()
-│       │   ├── claims.js        # renderAdminClaims()
-│       │   ├── expenses.js      # renderAdminExpenses()
-│       │   ├── providers.js     # renderAdminProviders()
-│       │   ├── report.js        # renderAdminReport()
-│       │   ├── votes.js         # renderAdminVotes()
-│       │   ├── visits.js        # renderAdminVisits()
-│       │   ├── spaces.js        # renderAdminSpaces()
-│       │   ├── reservations.js  # renderAdminReservations()
-│       │   ├── units.js         # renderAdminUnits() — ABM de unidades funcionales
-│       │   ├── employees.js     # renderAdminEmployees() — ABM de empleados
-│       │   ├── salaries.js      # renderAdminSalaries() — sueldos y pagos de empleados
-│       │   ├── documents.js     # renderAdminDocuments() — documentos de la organización
-│       │   ├── payment-plans.js # renderAdminPaymentPlans() — planes de pago de deudores
-│       │   └── support.js       # renderAdminSupport() — tickets de soporte al sistema
+│       │   ├── home.js                  # renderAdminHome()
+│       │   ├── dashboard.js             # renderAdminDashboard()
+│       │   ├── owners.js                # renderOwnersList()
+│       │   ├── payments.js              # renderAdminPayments() — gestión centralizada de pagos
+│       │   ├── notices.js               # renderAdminNotices()
+│       │   ├── claims.js                # renderAdminClaims()
+│       │   ├── expenses.js              # renderAdminExpenses()
+│       │   ├── providers.js             # renderAdminProviders()
+│       │   ├── report.js                # renderAdminReport()
+│       │   ├── votes.js                 # renderAdminVotes()
+│       │   ├── visits.js                # renderAdminVisits()
+│       │   ├── spaces.js                # renderAdminSpaces()
+│       │   ├── reservations.js          # renderAdminReservations()
+│       │   ├── units.js                 # renderAdminUnits() — ABM de unidades funcionales
+│       │   ├── employees.js             # renderAdminEmployees() — ABM de empleados
+│       │   ├── salaries.js              # renderAdminSalaries() — sueldos y pagos de empleados
+│       │   ├── documents.js             # renderAdminDocuments() — documentos de la organización
+│       │   ├── payment-plans.js         # renderAdminPaymentPlans() — planes de pago de deudores
+│       │   ├── delinquency.js           # renderAdminDelinquency() — morosidad: resumen, listado, detalle, recordatorios
+│       │   ├── access-requests.js       # renderAdminAccessRequests() — solicitudes de acceso via enlace de registro
+│       │   ├── unidentified-payments.js # renderAdminUnidentifiedPayments() — pagos sin identificar
+│       │   └── support.js               # renderAdminSupport() — tickets de soporte al sistema
 │       ├── owner/
 │       │   ├── home.js          # renderOwnerHome()
 │       │   ├── pay.js           # renderUploadPage()
@@ -89,8 +92,10 @@ consorcio-app/
 │       │   ├── payment-plans.js # renderOwnerPaymentPlans() — ver y solicitar plan de pago
 │       │   ├── changeTemporaryPassword.js # renderChangeTemporaryPassword()
 │       │   └── pago-resultado.js # renderPagoResultado() — resultado del pago MP
-│       └── legal/
-│           └── terms.js         # renderTermsPage()
+│       ├── legal/
+│       │   ├── terms.js         # renderTermsPage()
+│       │   └── privacy.js       # renderPrivacyPage()
+│       └── help.js              # renderHelpPage() — centro de ayuda por rol, con secciones y búsqueda
 └── tests/
     ├── globals.js           # Mocks globales para Jest
     ├── setup/               # Configuración de entorno de test
@@ -142,6 +147,9 @@ consorcio-app/
 | `page-admin-salaries` | Registro de sueldos y pagos parciales (adelantos, ajustes) |
 | `page-admin-documents` | Gestión de documentos de la organización (reglamento, seguros, etc.) |
 | `page-admin-payment-plans` | Aprobar, rechazar y gestionar planes de pago de propietarios deudores |
+| `page-admin-delinquency` | Morosidad: resumen, listado por nivel, antigüedad, detalle de deudor, enviar recordatorios |
+| `page-admin-access-requests` | Solicitudes de acceso via enlace de registro: pendientes, aprobar, rechazar |
+| `page-admin-unidentified-payments` | Pagos sin identificar: registrar, ver sugerencias de asociación, asociar o archivar |
 | `page-admin-support` | Ver y responder tickets de soporte enviados por usuarios |
 
 ## Estado global (js/core/state.js)
@@ -383,6 +391,45 @@ api.debtItems.create(ownerId, data)   // admin: { type, description, amount, cur
 api.debtItems.getByOwner(ownerId)
 api.debtItems.cancel(id, reason)
 api.debtItems.getMine()               // owner: sus deudas adicionales
+
+api.delinquency.getSummary()
+api.delinquency.getOwners(params?)
+api.delinquency.getAging()
+api.delinquency.exportOwners()        // CSV
+api.delinquency.getOwnerDetail(ownerId)
+api.delinquency.exportOwner(ownerId)  // CSV individual
+api.delinquency.createReminder(ownerId, data)  // { channel, message, periods }
+
+api.unidentifiedPayments.getSummary()
+api.unidentifiedPayments.getAll(params?)
+api.unidentifiedPayments.getOne(id)
+api.unidentifiedPayments.create(formData)     // FormData, hasta 5 attachments
+api.unidentifiedPayments.update(id, data)
+api.unidentifiedPayments.delete(id)
+api.unidentifiedPayments.getSuggestions(id)
+api.unidentifiedPayments.associate(id, data)
+api.unidentifiedPayments.reject(id, data)
+api.unidentifiedPayments.archive(id, data)
+
+api.noticeTemplates.getAll()
+api.noticeTemplates.create(data)
+api.noticeTemplates.update(id, data)
+api.noticeTemplates.delete(id)
+
+api.accessRequests.getSettings()
+api.accessRequests.updateSettings(data)
+api.accessRequests.regenerateCode()
+api.accessRequests.getAll(params?)
+api.accessRequests.getOne(id)
+api.accessRequests.approve(id, data)
+api.accessRequests.reject(id, data)
+
+api.renditions.getPreview(params?)
+api.renditions.getHistory(params?)
+api.renditions.getAnnual(params?)
+api.renditions.generatePdf(period)
+api.renditions.exportCsv(period)
+api.renditions.saveObservations(period, observations)
 ```
 
 ## SVG Icons (js/ui/icons.js)
@@ -526,6 +573,20 @@ Dark mode con paleta verde bosque. Fondo oscuro (`#0e1512`) + acento verde neón
 - Usar clase `.skeleton` (no estilos inline) para animaciones shimmer.
 - Usar clase `.loading-spinner` (no estilos inline) para spinner de carga.
 - Después de cada cambio terminado, hacer commit y push.
+
+## Flujo de trabajo
+
+```bash
+# No hay bundler — abrir con un servidor local (Live Server, `npx serve`, etc.)
+git status --short
+git add <archivos>
+git commit -m "<mensaje>"
+git push
+```
+
+- Verificar visualmente la funcionalidad en el navegador antes de declarar un cambio como terminado.
+- No agregar dependencias externas salvo las ya incluidas (Firebase, SheetJS).
+- Antes de tocar payloads de API, revisar `api.js` y los contratos en `consorcio-api`.
 
 ## Emails automáticos (disparados desde el frontend)
 
