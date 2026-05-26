@@ -129,6 +129,11 @@ small { font-size: .8rem; color: var(--muted); }
   border: none; cursor: pointer; transition: all .18s ease; text-decoration: none;
   white-space: nowrap; font-family: var(--font); letter-spacing: .01em;
 }
+.btn > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 
 .btn-primary {
@@ -1704,6 +1709,45 @@ body.is-offline #app-shell { padding-top: 36px; }
 
 /* ── Report Table ── */
 .report-controls { padding: 1rem; }
+.report-tabs-card {
+  margin-bottom: 1rem;
+  padding: .35rem;
+  background: var(--surface);
+  border: 1px solid var(--border-md);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.report-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+}
+.report-tab {
+  flex: 1 1 132px;
+  min-height: 34px;
+  padding: .5rem .75rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: .8rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  white-space: normal;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.report-tab.active {
+  background: var(--accent);
+  color: #0a1209;
+  box-shadow: 0 2px 12px rgba(156,242,123,0.25);
+}
+.report-tab:hover:not(.active) {
+  color: var(--text);
+  background: var(--surface-3);
+}
 .report-table {
   padding: 0; overflow: hidden;
   border: 1px solid var(--border-md);

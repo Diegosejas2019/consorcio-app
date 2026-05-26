@@ -76,14 +76,10 @@ export async function renderAdminReport() {
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:1rem;padding:.25rem .5rem;overflow-x:auto;">
-      <div style="display:flex;gap:.25rem;min-width:max-content;">
+    <div class="report-tabs-card">
+      <div class="report-tabs">
         ${tabs.map(t => `
-          <button id="rtab-${t.id}" onclick="_rptSetTab('${t.id}')"
-            style="padding:.55rem 1rem;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;font-weight:600;white-space:nowrap;
-                   background:${_rpt.tab === t.id ? 'var(--accent)' : 'var(--surface-2)'};
-                   color:${_rpt.tab === t.id ? '#0a1209' : 'var(--muted)'};
-                   transition:all .15s;">
+          <button id="rtab-${t.id}" class="report-tab ${_rpt.tab === t.id ? 'active' : ''}" onclick="_rptSetTab('${t.id}')">
             ${escapeHtml(t.label)}
           </button>`).join('')}
       </div>
@@ -99,8 +95,7 @@ window._rptSetTab = function(tab) {
   _rpt.tab = tab;
   document.querySelectorAll('[id^="rtab-"]').forEach(btn => {
     const isActive = btn.id === `rtab-${tab}`;
-    btn.style.background = isActive ? 'var(--accent)' : 'var(--surface-2)';
-    btn.style.color       = isActive ? '#0a1209' : 'var(--muted)';
+    btn.classList.toggle('active', isActive);
   });
   _renderActiveTab();
 };

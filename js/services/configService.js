@@ -189,7 +189,7 @@ async function _renderJoinSettingsCard() {
     joinCode = res.data?.publicJoinCode || null;
   } catch (_) { /* ignorar si falla */ }
 
-  const APP_URL = window.CONSORCIO_APP_URL || 'https://gestionar.app';
+  const APP_URL = window.CONSORCIO_APP_URL || 'https://gestionar-it.vercel.app';
   const joinUrl = joinCode ? `${APP_URL}/join.html?code=${joinCode}` : null;
 
   const urlHtml = joinCode
