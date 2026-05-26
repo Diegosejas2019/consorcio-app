@@ -172,7 +172,10 @@ export async function renderAdminUnidentifiedPayments() {
           <h1>Pagos sin identificar</h1>
           <p class="text-muted text-sm" style="margin:.1rem 0 0">Transferencias o ingresos que todavia no fueron asociados a un propietario.</p>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="adminUnidentifiedPaymentCreate()">+ Registrar</button>
+        <div class="flex gap-1" style="flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="adminUnidentifiedPaymentsImport()">Importar extracto</button>
+          <button class="btn btn-primary btn-sm" onclick="adminUnidentifiedPaymentCreate()">+ Registrar</button>
+        </div>
       </div>
 
       <div class="admin-payments-filters">
@@ -360,6 +363,141 @@ window.adminUnidentifiedPaymentDelete = async function(id) {
   const response = await apiCall(() => api.unidentifiedPayments.delete(id));
   if (!response?.success) return;
   toast('Pago eliminado.', 'success');
+  await renderAdminUnidentifiedPayments();
+};
+
+let _importFile = null;
+
+window.adminUnidentifiedPaymentsImport = function() {
+  _importFile = null;
+  openModal(`
+    <div style="max-width:560px;padding:1.5rem">
+      <h2 style="margin:0 0 .5rem">Importar extracto bancario</h2>
+      <p class="text-sm text-muted" style="margin:0 0 1.25rem">
+        Cargá un archivo CSV o Excel (.xlsx) con las filas del extracto.<br>
+        Columnas reconocidas: <strong>fecha, importe, referencia, remitente, cbu/alias, descripcion</strong>.
+      </p>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label>Archivo (.csv o .xlsx)</label>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <input id="import-file-input" type="file" accept=".csv,.xlsx" class="input" style="flex:1"
+            onchange="adminUnidentifiedPaymentsFileSelected(this)">
+        </div>
+      </div>
+      <div style="margin-bottom:1rem">
+        <button class="btn btn-ghost btn-sm" onclick="adminUnidentifiedPaymentsDownloadTemplate()">Descargar plantilla de ejemplo</button>
+      </div>
+      <div id="import-preview-area" style="display:none"></div>
+      <div class="flex gap-1" style="margin-top:1rem">
+        <button class="btn btn-secondary w-full" onclick="closeModal()">Cancelar</button>
+        <button id="import-preview-btn" class="btn btn-primary w-full" onclick="adminUnidentifiedPaymentsImportPreview()" disabled>
+          Vista previa
+        </button>
+      </div>
+    </div>`);
+};
+
+window.adminUnidentifiedPaymentsFileSelected = function(input) {
+  _importFile = input.files[0] || null;
+  const btn = document.getElementById('import-preview-btn');
+  if (btn) btn.disabled = !_importFile;
+  const area = document.getElementById('import-preview-area');
+  if (area) { area.style.display = 'none'; area.innerHTML = ''; }
+};
+
+window.adminUnidentifiedPaymentsDownloadTemplate = function() {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['fecha', 'importe', 'referencia', 'remitente', 'cbu', 'descripcion'],
+    ['15/05/2025', '45000', 'TRF-00123', 'Juan Perez', '0720123456789012345678', 'Expensas mayo'],
+    ['20/05/2025', '38500', 'TRF-00456', 'Maria Lopez', '0720987654321098765432', ''],
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Extracto');
+  XLSX.writeFile(wb, 'plantilla_extracto.xlsx');
+};
+
+window.adminUnidentifiedPaymentsImportPreview = async function() {
+  if (!_importFile) return toast('Seleccioná un archivo primero.', 'error');
+
+  const formData = new FormData();
+  formData.append('file', _importFile);
+
+  const response = await apiCall(() => api.unidentifiedPayments.importPreview(formData));
+  if (!response?.success) return;
+
+  const { total, validCount, invalidCount, duplicatesCount, totalAmount, rows } = response.data;
+
+  const statusColor = { valid: 'var(--success)', invalid: 'var(--danger)', duplicate: 'var(--warning)' };
+  const statusLabel = { valid: 'Válida', invalid: 'Inválida', duplicate: 'Duplicado' };
+
+  const rowsHtml = rows.map(r => `
+    <tr style="border-top:1px solid var(--border)">
+      <td style="padding:.35rem .6rem;font-size:.8rem;color:var(--muted)">${r.rowNumber}</td>
+      <td style="padding:.35rem .6rem;font-size:.8rem;color:${statusColor[r.status] || 'var(--text)'}">
+        ${statusLabel[r.status] || r.status}
+      </td>
+      <td style="padding:.35rem .6rem;font-size:.8rem">
+        ${r.status === 'invalid' ? `<span class="text-muted">${escapeHtml(r.error || '')}</span>` :
+          `${r.data?.amount ? money(r.data.amount) : ''} ${r.data?.senderName ? '· ' + escapeHtml(r.data.senderName) : ''}
+           ${r.warning ? `<br><small class="text-muted">${escapeHtml(r.warning)}</small>` : ''}`}
+      </td>
+    </tr>`).join('');
+
+  const area = document.getElementById('import-preview-area');
+  if (!area) return;
+  area.style.display = 'block';
+  area.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.85rem">
+      <div class="card" style="padding:.6rem .85rem;text-align:center">
+        <small class="text-muted">Válidas</small>
+        <p class="bold" style="margin:.15rem 0 0;color:var(--success)">${validCount}</p>
+      </div>
+      <div class="card" style="padding:.6rem .85rem;text-align:center">
+        <small class="text-muted">Inválidas</small>
+        <p class="bold" style="margin:.15rem 0 0;color:var(--danger)">${invalidCount}</p>
+      </div>
+      <div class="card" style="padding:.6rem .85rem;text-align:center">
+        <small class="text-muted">Duplicados</small>
+        <p class="bold" style="margin:.15rem 0 0;color:var(--warning)">${duplicatesCount}</p>
+      </div>
+    </div>
+    ${validCount > 0 ? `<p class="text-sm text-muted" style="margin:0 0 .75rem">Total a importar: <strong>${money(totalAmount)}</strong></p>` : ''}
+    <div style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;margin-bottom:.85rem">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--surface-2)">
+          <th style="padding:.35rem .6rem;font-size:.75rem;text-align:left;color:var(--muted)">#</th>
+          <th style="padding:.35rem .6rem;font-size:.75rem;text-align:left;color:var(--muted)">Estado</th>
+          <th style="padding:.35rem .6rem;font-size:.75rem;text-align:left;color:var(--muted)">Detalle</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    ${rows.length < total ? `<p class="text-sm text-muted" style="margin:0 0 .75rem">Mostrando ${rows.length} de ${total} filas.</p>` : ''}
+    ${validCount > 0 ? `
+      <button class="btn btn-primary w-full" onclick="adminUnidentifiedPaymentsImportConfirm()">
+        Confirmar importación (${validCount} registro${validCount !== 1 ? 's' : ''})
+      </button>` : `<p class="text-sm" style="color:var(--danger);margin:0">No hay filas válidas para importar.</p>`}`;
+};
+
+window.adminUnidentifiedPaymentsImportConfirm = async function() {
+  if (!_importFile) return toast('El archivo ya no está disponible. Volvé a seleccionarlo.', 'error');
+
+  const formData = new FormData();
+  formData.append('file', _importFile);
+
+  const response = await apiCall(() => api.unidentifiedPayments.import(formData));
+  if (!response?.success) return;
+
+  const { imported, skipped, duplicatesCount } = response.data;
+  closeModal();
+  _importFile = null;
+
+  let msg = `Se importaron ${imported} pago${imported !== 1 ? 's' : ''} sin identificar.`;
+  if (skipped > 0) msg += ` (${skipped} omitidos)`;
+  toast(msg, 'success');
+
+  state.status = 'pending';
+  state.page = 1;
   await renderAdminUnidentifiedPayments();
 };
 

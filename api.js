@@ -730,6 +730,8 @@ const api = {
     associate: (id, data) => request(`/unidentified-payments/${id}/associate`, { method: 'POST', body: JSON.stringify(data) }),
     reject: (id, reason) => request(`/unidentified-payments/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
     archive: (id, reason) => request(`/unidentified-payments/${id}/archive`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    importPreview: (formData) => request('/unidentified-payments/import?preview=true', { method: 'POST', body: formData }),
+    import: (formData) => request('/unidentified-payments/import', { method: 'POST', body: formData }),
   },
 };
 
