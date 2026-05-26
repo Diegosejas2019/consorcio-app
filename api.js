@@ -549,6 +549,8 @@ const api = {
     delete:           (id) => request(`/expenses/${id}`, { method: 'DELETE' }),
     getAttachmentUrl: (id, index) => `${API_BASE}/expenses/${id}/attachment/${index}`,
     deleteAttachment: (id, index) => request(`/expenses/${id}/attachment/${index}`, { method: 'DELETE' }),
+    checkDuplicate:   (params = {}) => request(`/expenses/check-duplicate?${new URLSearchParams(params)}`),
+    previewInvoice:   (formData)    => request('/expenses/preview-invoice', { method: 'POST', body: formData }),
   },
 
   // ── Empleados ─────────────────────────────────────────────────

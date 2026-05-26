@@ -27,6 +27,8 @@ const BILLING_LABELS = {
 
 const expensesState = { all: [], page: 1, perPage: 15, filterMonth: '', filterCategory: '' };
 
+let _expProvidersCache = [];
+
 // ── Render principal ──────────────────────────────────────────
 export async function renderAdminExpenses() {
   const el = document.getElementById('page-admin-expenses');
@@ -170,10 +172,11 @@ export async function openNewExpenseModal() {
       CACHE_TTL.PROVIDERS,
       () => api.providers.getAll()
     );
-    providersHtml += res.data.providers.map(p =>
+    _expProvidersCache = res.data.providers || [];
+    providersHtml += _expProvidersCache.map(p =>
       `<option value="${p._id}">${p.name} (${CAT_LABELS[p.serviceType] || p.serviceType})</option>`
     ).join('');
-  } catch { /* sin proveedores cargados */ }
+  } catch { _expProvidersCache = []; }
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -203,7 +206,17 @@ export async function openNewExpenseModal() {
         </div>
         <div style="flex:1">
           <label class="label">Proveedor</label>
-          <select id="exp-provider" class="input">${providersHtml}</select>
+          <select id="exp-provider" class="input" onchange="updateExpInvoiceCuit('exp')">${providersHtml}</select>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <div style="flex:1">
+          <label class="label">N° de Factura</label>
+          <input id="exp-invoice-number" class="input" placeholder="A0001-00001234">
+        </div>
+        <div style="flex:1">
+          <label class="label">CUIT del emisor</label>
+          <input id="exp-invoice-cuit" class="input" placeholder="20-12345678-0">
         </div>
       </div>
       <div>
@@ -242,8 +255,12 @@ export async function openNewExpenseModal() {
       </div>
       <div>
         <label class="label">Comprobantes (PDF o imagen)</label>
-        <input id="exp-receipt" class="input" type="file" accept=".pdf,image/*" multiple>
-        <p class="text-muted text-sm" style="margin-top:.2rem">Podés adjuntar varios archivos. Máx. 5 por vez, 10 MB c/u.</p>
+        <input id="exp-receipt" class="input" type="file" accept=".pdf,image/*" multiple onchange="showExpFilePreview('exp', this.files)">
+        <div id="exp-file-preview" class="hidden" style="margin-top:.35rem"></div>
+        <div style="margin-top:.3rem">
+          <button type="button" id="exp-analyze-btn" class="btn btn-ghost btn-sm hidden" onclick="analyzeExpenseReceipt('exp')">🔍 Analizar comprobante</button>
+        </div>
+        <p class="text-muted text-sm" style="margin-top:.25rem">Podés adjuntar varios archivos. Máx. 5 por vez, 10 MB c/u.</p>
       </div>
       <div class="flex gap-2" style="margin-top:.5rem">
         <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-new-expense')">Cancelar</button>
@@ -254,13 +271,15 @@ export async function openNewExpenseModal() {
 }
 
 export async function saveNewExpense() {
-  const desc        = document.getElementById('exp-desc')?.value.trim();
-  const cat         = document.getElementById('exp-cat')?.value;
-  const amount      = parseFloat(document.getElementById('exp-amount')?.value);
-  const date        = document.getElementById('exp-date')?.value;
-  const provider    = document.getElementById('exp-provider')?.value;
-  const method      = document.getElementById('exp-method')?.value;
-  const expType     = document.getElementById('exp-type')?.value || 'ordinary';
+  const desc          = document.getElementById('exp-desc')?.value.trim();
+  const cat           = document.getElementById('exp-cat')?.value;
+  const amount        = parseFloat(document.getElementById('exp-amount')?.value);
+  const date          = document.getElementById('exp-date')?.value;
+  const provider      = document.getElementById('exp-provider')?.value;
+  const method        = document.getElementById('exp-method')?.value;
+  const expType       = document.getElementById('exp-type')?.value || 'ordinary';
+  const invoiceNumber = document.getElementById('exp-invoice-number')?.value.trim();
+  const invoiceCuit   = document.getElementById('exp-invoice-cuit')?.value.trim();
   const isChargeable  = expType === 'extraordinary' && document.getElementById('exp-chargeable')?.checked;
   const billingMode   = isChargeable ? (document.getElementById('exp-billing-mode')?.value || 'fixed_total') : 'fixed_total';
   const isPerUnit     = isChargeable && billingMode === 'per_unit';
@@ -274,6 +293,27 @@ export async function saveNewExpense() {
   const btn = document.getElementById('btn-save-expense');
   btn.disabled = true; btn.textContent = 'Guardando…';
 
+  // Verificación de duplicados
+  if (invoiceNumber || invoiceCuit) {
+    try {
+      const params = {};
+      if (invoiceNumber) params.invoiceNumber = invoiceNumber;
+      if (invoiceCuit)   params.invoiceCuit   = invoiceCuit;
+      const dupRes = await api.expenses.checkDuplicate(params);
+      if (dupRes.data.isDuplicate) {
+        const dup = dupRes.data.possibleDuplicates[0];
+        const fecha = dup.date ? new Date(dup.date).toLocaleDateString('es-AR') : '';
+        const proceed = confirm(
+          `Ya existe un gasto similar:\n"${dup.description}" · $${dup.amount?.toLocaleString('es-AR')}${fecha ? ' · ' + fecha : ''}\n\n¿Continuar de todas formas?`
+        );
+        if (!proceed) {
+          btn.disabled = false; btn.textContent = 'Guardar';
+          return;
+        }
+      }
+    } catch { /* si falla la verificación, continuar */ }
+  }
+
   try {
     let body;
     if (files?.length) {
@@ -282,8 +322,10 @@ export async function saveNewExpense() {
       fd.append('category', cat);
       fd.append('amount', isPerUnit ? 0 : amount);
       fd.append('date', date);
-      if (provider) fd.append('provider', provider);
-      if (method)   fd.append('paymentMethod', method);
+      if (provider)      fd.append('provider', provider);
+      if (method)        fd.append('paymentMethod', method);
+      if (invoiceNumber) fd.append('invoiceNumber', invoiceNumber);
+      if (invoiceCuit)   fd.append('invoiceCuit', invoiceCuit);
       fd.append('expenseType', expType);
       fd.append('isChargeable', isChargeable);
       if (isChargeable) fd.append('extraordinaryBillingMode', billingMode);
@@ -292,9 +334,12 @@ export async function saveNewExpense() {
       body = fd;
     } else {
       body = { description: desc, category: cat, amount: isPerUnit ? 0 : amount, date, expenseType: expType, isChargeable,
-               ...(provider && { provider }), ...(method && { paymentMethod: method }),
-               ...(isChargeable && { extraordinaryBillingMode: billingMode }),
-               ...(isPerUnit && { unitAmount: unitAmountVal }) };
+               ...(provider      && { provider }),
+               ...(method        && { paymentMethod: method }),
+               ...(invoiceNumber && { invoiceNumber }),
+               ...(invoiceCuit   && { invoiceCuit }),
+               ...(isChargeable  && { extraordinaryBillingMode: billingMode }),
+               ...(isPerUnit     && { unitAmount: unitAmountVal }) };
     }
 
     await api.expenses.create(body);
@@ -381,11 +426,12 @@ export async function openEditExpenseModal(id) {
       CACHE_TTL.PROVIDERS,
       () => api.providers.getAll()
     );
+    _expProvidersCache = res.data.providers || [];
     const currentProviderId = expense.provider?._id || expense.provider;
-    providersHtml += res.data.providers.map(p =>
+    providersHtml += _expProvidersCache.map(p =>
       `<option value="${p._id}" ${currentProviderId === p._id ? 'selected' : ''}>${p.name} (${CAT_LABELS[p.serviceType] || p.serviceType})</option>`
     ).join('');
-  } catch { /* sin proveedores */ }
+  } catch { _expProvidersCache = []; }
 
   const dateStr = expense.date ? expense.date.split('T')[0] : '';
 
@@ -432,7 +478,17 @@ export async function openEditExpenseModal(id) {
         </div>
         <div style="flex:1">
           <label class="label">Proveedor</label>
-          <select id="ee-provider" class="input">${providersHtml}</select>
+          <select id="ee-provider" class="input" onchange="updateExpInvoiceCuit('ee')">${providersHtml}</select>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <div style="flex:1">
+          <label class="label">N° de Factura</label>
+          <input id="ee-invoice-number" class="input" placeholder="A0001-00001234" value="${expense.invoiceNumber || ''}">
+        </div>
+        <div style="flex:1">
+          <label class="label">CUIT del emisor</label>
+          <input id="ee-invoice-cuit" class="input" placeholder="20-12345678-0" value="${expense.invoiceCuit || ''}">
         </div>
       </div>
       <div>
@@ -472,8 +528,12 @@ export async function openEditExpenseModal(id) {
       <div>
         <label class="label">Agregar comprobantes</label>
         ${existingAttachments}
-        <input id="ee-receipt" class="input" type="file" accept=".pdf,image/*" multiple>
-        <p class="text-muted text-sm" style="margin-top:.2rem">Los archivos nuevos se agregan a los existentes.</p>
+        <input id="ee-receipt" class="input" type="file" accept=".pdf,image/*" multiple onchange="showExpFilePreview('ee', this.files)">
+        <div id="ee-file-preview" class="hidden" style="margin-top:.35rem"></div>
+        <div style="margin-top:.3rem">
+          <button type="button" id="ee-analyze-btn" class="btn btn-ghost btn-sm hidden" onclick="analyzeExpenseReceipt('ee')">🔍 Analizar comprobante</button>
+        </div>
+        <p class="text-muted text-sm" style="margin-top:.25rem">Los archivos nuevos se agregan a los existentes.</p>
       </div>
       <div class="flex gap-2" style="margin-top:.5rem">
         <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-edit-expense')">Cancelar</button>
@@ -484,13 +544,15 @@ export async function openEditExpenseModal(id) {
 }
 
 export async function saveEditExpense(id) {
-  const desc        = document.getElementById('ee-desc')?.value.trim();
-  const cat         = document.getElementById('ee-cat')?.value;
-  const amount      = parseFloat(document.getElementById('ee-amount')?.value);
-  const date        = document.getElementById('ee-date')?.value;
-  const provider    = document.getElementById('ee-provider')?.value;
-  const method      = document.getElementById('ee-method')?.value;
-  const expType     = document.getElementById('ee-type')?.value || 'ordinary';
+  const desc          = document.getElementById('ee-desc')?.value.trim();
+  const cat           = document.getElementById('ee-cat')?.value;
+  const amount        = parseFloat(document.getElementById('ee-amount')?.value);
+  const date          = document.getElementById('ee-date')?.value;
+  const provider      = document.getElementById('ee-provider')?.value;
+  const method        = document.getElementById('ee-method')?.value;
+  const expType       = document.getElementById('ee-type')?.value || 'ordinary';
+  const invoiceNumber = document.getElementById('ee-invoice-number')?.value.trim();
+  const invoiceCuit   = document.getElementById('ee-invoice-cuit')?.value.trim();
   const isChargeable  = expType === 'extraordinary' && document.getElementById('ee-chargeable')?.checked;
   const billingMode   = isChargeable ? (document.getElementById('ee-billing-mode')?.value || 'fixed_total') : 'fixed_total';
   const isPerUnit     = isChargeable && billingMode === 'per_unit';
@@ -504,6 +566,28 @@ export async function saveEditExpense(id) {
   const btn = document.getElementById('btn-update-expense');
   btn.disabled = true; btn.textContent = 'Guardando…';
 
+  // Verificación de duplicados (excluye el gasto actual)
+  if (invoiceNumber || invoiceCuit) {
+    try {
+      const params = {};
+      if (invoiceNumber) params.invoiceNumber = invoiceNumber;
+      if (invoiceCuit)   params.invoiceCuit   = invoiceCuit;
+      const dupRes = await api.expenses.checkDuplicate(params);
+      const otherDups = dupRes.data.possibleDuplicates.filter(d => String(d._id) !== String(id));
+      if (otherDups.length > 0) {
+        const dup = otherDups[0];
+        const fecha = dup.date ? new Date(dup.date).toLocaleDateString('es-AR') : '';
+        const proceed = confirm(
+          `Ya existe un gasto similar:\n"${dup.description}" · $${dup.amount?.toLocaleString('es-AR')}${fecha ? ' · ' + fecha : ''}\n\n¿Continuar de todas formas?`
+        );
+        if (!proceed) {
+          btn.disabled = false; btn.textContent = 'Guardar';
+          return;
+        }
+      }
+    } catch { /* si falla la verificación, continuar */ }
+  }
+
   try {
     let body;
     if (files?.length) {
@@ -512,8 +596,10 @@ export async function saveEditExpense(id) {
       fd.append('category', cat);
       fd.append('amount', isPerUnit ? 0 : amount);
       fd.append('date', date);
-      if (provider) fd.append('provider', provider);
-      if (method)   fd.append('paymentMethod', method);
+      if (provider)      fd.append('provider', provider);
+      if (method)        fd.append('paymentMethod', method);
+      if (invoiceNumber) fd.append('invoiceNumber', invoiceNumber);
+      if (invoiceCuit)   fd.append('invoiceCuit', invoiceCuit);
       fd.append('expenseType', expType);
       fd.append('isChargeable', isChargeable);
       if (isChargeable) fd.append('extraordinaryBillingMode', billingMode);
@@ -522,9 +608,12 @@ export async function saveEditExpense(id) {
       body = fd;
     } else {
       body = { description: desc, category: cat, amount: isPerUnit ? 0 : amount, date, expenseType: expType, isChargeable,
-               ...(provider && { provider }), ...(method && { paymentMethod: method }),
-               ...(isChargeable && { extraordinaryBillingMode: billingMode }),
-               ...(isPerUnit && { unitAmount: unitAmountVal }) };
+               ...(provider      && { provider }),
+               ...(method        && { paymentMethod: method }),
+               ...(invoiceNumber && { invoiceNumber }),
+               ...(invoiceCuit   && { invoiceCuit }),
+               ...(isChargeable  && { extraordinaryBillingMode: billingMode }),
+               ...(isPerUnit     && { unitAmount: unitAmountVal }) };
     }
 
     await api.expenses.update(id, body);
@@ -534,6 +623,94 @@ export async function saveEditExpense(id) {
   } catch (err) {
     toast(err.message || 'Error al guardar.', 'error');
     btn.disabled = false; btn.textContent = 'Guardar';
+  }
+}
+
+// ── Auto-fill CUIT desde proveedor seleccionado ───────────────
+export function updateExpInvoiceCuit(prefix) {
+  const selectedId = document.getElementById(`${prefix}-provider`)?.value;
+  if (!selectedId) return;
+  const provider = _expProvidersCache.find(p => p._id === selectedId);
+  if (!provider?.cuit) return;
+  const cuitEl = document.getElementById(`${prefix}-invoice-cuit`);
+  if (cuitEl && !cuitEl.value) cuitEl.value = provider.cuit;
+}
+
+// ── Preview de archivos seleccionados ────────────────────────
+export function showExpFilePreview(prefix, files) {
+  const preview    = document.getElementById(`${prefix}-file-preview`);
+  const analyzeBtn = document.getElementById(`${prefix}-analyze-btn`);
+  if (!preview) return;
+  if (!files?.length) {
+    preview.classList.add('hidden');
+    preview.innerHTML = '';
+    if (analyzeBtn) analyzeBtn.classList.add('hidden');
+    return;
+  }
+  preview.innerHTML = Array.from(files).map(f => {
+    const isImage = f.type.startsWith('image/');
+    const sizeKb  = (f.size / 1024).toFixed(0);
+    return `<div class="flex" style="align-items:center;gap:.4rem;font-size:.82rem;margin-bottom:.15rem">
+      <span>${isImage ? '🖼️' : '📄'}</span>
+      <span style="color:var(--text-bright)">${f.name}</span>
+      <span class="text-muted">(${sizeKb} KB)</span>
+    </div>`;
+  }).join('');
+  preview.classList.remove('hidden');
+  if (analyzeBtn) analyzeBtn.classList.remove('hidden');
+}
+
+// ── Analizar comprobante (extracción por nombre de archivo) ───
+export async function analyzeExpenseReceipt(prefix) {
+  const fileInput = document.getElementById(`${prefix}-receipt`);
+  const file      = fileInput?.files?.[0];
+  if (!file) return toast('Seleccioná un archivo primero.', 'warning');
+
+  const btn = document.getElementById(`${prefix}-analyze-btn`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Analizando…'; }
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await api.expenses.previewInvoice(fd);
+    const { invoiceNumber, invoiceCuit, providerSuggestion } = res.data;
+
+    if (!invoiceNumber && !invoiceCuit && !providerSuggestion) {
+      toast('No se detectaron datos en el nombre del archivo.', 'warning');
+      return;
+    }
+
+    const invNumEl  = document.getElementById(`${prefix}-invoice-number`);
+    const invCuitEl = document.getElementById(`${prefix}-invoice-cuit`);
+    const provEl    = document.getElementById(`${prefix}-provider`);
+    const suggested = [];
+
+    if (invoiceNumber && invNumEl && !invNumEl.value) {
+      invNumEl.value = invoiceNumber;
+      invNumEl.style.borderColor = 'var(--accent)';
+      suggested.push(invoiceNumber);
+    }
+    if (invoiceCuit && invCuitEl && !invCuitEl.value) {
+      invCuitEl.value = invoiceCuit;
+      invCuitEl.style.borderColor = 'var(--accent)';
+      suggested.push(invoiceCuit);
+    }
+    if (providerSuggestion && provEl) {
+      const opt = provEl.querySelector(`option[value="${providerSuggestion._id}"]`);
+      if (opt && !provEl.value) {
+        provEl.value = providerSuggestion._id;
+        provEl.style.borderColor = 'var(--accent)';
+        suggested.push(providerSuggestion.name);
+      }
+    }
+
+    toast(suggested.length
+      ? `Sugerido desde nombre del archivo: ${suggested.join(', ')}`
+      : 'No se detectaron datos adicionales.', 'default');
+  } catch (err) {
+    toast(err.message || 'No se pudo analizar el archivo.', 'warning');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 Analizar comprobante'; }
   }
 }
 
@@ -587,3 +764,6 @@ window.downloadExpenseAttachment  = downloadExpenseAttachment;
 window.deleteExpenseAttachment    = deleteExpenseAttachment;
 window.expensesState              = expensesState;
 window._renderExpensesView        = _renderExpensesView;
+window.updateExpInvoiceCuit       = updateExpInvoiceCuit;
+window.showExpFilePreview         = showExpFilePreview;
+window.analyzeExpenseReceipt      = analyzeExpenseReceipt;
