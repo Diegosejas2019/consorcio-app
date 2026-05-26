@@ -258,7 +258,7 @@ export async function openNewExpenseModal() {
         <input id="exp-receipt" class="input" type="file" accept=".pdf,image/*" multiple onchange="showExpFilePreview('exp', this.files)">
         <div id="exp-file-preview" class="hidden" style="margin-top:.35rem"></div>
         <div style="margin-top:.3rem">
-          <button type="button" id="exp-analyze-btn" class="btn btn-ghost btn-sm hidden" onclick="analyzeExpenseReceipt('exp')">🔍 Analizar comprobante</button>
+          <button type="button" id="exp-analyze-btn" class="btn btn-ghost btn-sm hidden" onclick="analyzeExpenseReceipt('exp')">🔍 Análisis preliminar</button>
         </div>
         <p class="text-muted text-sm" style="margin-top:.25rem">Podés adjuntar varios archivos. Máx. 5 por vez, 10 MB c/u.</p>
       </div>
@@ -531,7 +531,7 @@ export async function openEditExpenseModal(id) {
         <input id="ee-receipt" class="input" type="file" accept=".pdf,image/*" multiple onchange="showExpFilePreview('ee', this.files)">
         <div id="ee-file-preview" class="hidden" style="margin-top:.35rem"></div>
         <div style="margin-top:.3rem">
-          <button type="button" id="ee-analyze-btn" class="btn btn-ghost btn-sm hidden" onclick="analyzeExpenseReceipt('ee')">🔍 Analizar comprobante</button>
+          <button type="button" id="ee-analyze-btn" class="btn btn-ghost btn-sm hidden" onclick="analyzeExpenseReceipt('ee')">🔍 Análisis preliminar</button>
         </div>
         <p class="text-muted text-sm" style="margin-top:.25rem">Los archivos nuevos se agregan a los existentes.</p>
       </div>
@@ -710,7 +710,7 @@ export async function analyzeExpenseReceipt(prefix) {
   } catch (err) {
     toast(err.message || 'No se pudo analizar el archivo.', 'warning');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔍 Analizar comprobante'; }
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 Análisis preliminar'; }
   }
 }
 
