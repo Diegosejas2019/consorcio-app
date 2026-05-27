@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GestionAr — Admin: Solicitudes de Acceso (Etapa 5)
+   GestionAr — Admin: Solicitudes de Acceso (Etapa 12)
    ═══════════════════════════════════════════════════════════════ */
 
 import { apiCall }           from '../../core/apiWrapper.js';
@@ -10,6 +10,7 @@ import { skeleton }          from '../../ui/skeleton.js';
 let _activeTab = 'pending';
 let _requests  = [];
 let _query     = '';
+let _settings  = null;
 
 const TABS = [
   { key: 'pending',  label: 'Pendientes' },
@@ -44,7 +45,10 @@ export async function renderAdminAccessRequests() {
       <div class="flex between" style="flex-wrap:wrap;gap:0.75rem">
         <h1 style="margin:0">Solicitudes de acceso</h1>
       </div>
-      <div class="flex" style="gap:0.5rem;flex-wrap:wrap" id="ar-tabs">
+
+      <div id="ar-settings">${skeleton(2)}</div>
+
+      <div class="flex" style="gap:0.5rem;flex-wrap:wrap;margin-top:0.25rem" id="ar-tabs">
         ${TABS.map(t => `
           <button class="btn-secondary btn-sm ar-tab ${t.key === _activeTab ? 'active' : ''}"
                   data-tab="${t.key}" onclick="window._arSetTab('${t.key}')">
@@ -59,8 +63,127 @@ export async function renderAdminAccessRequests() {
     </div>
   `;
 
-  await _loadRequests();
+  await Promise.all([_loadSettings(), _loadRequests()]);
 }
+
+// ── Configuración de registro público ────────────────────────
+async function _loadSettings() {
+  try {
+    const res = await api.accessRequests.getSettings();
+    _settings = res.data || null;
+    _renderSettings();
+  } catch {
+    const el = document.getElementById('ar-settings');
+    if (el) el.innerHTML = '';
+  }
+}
+
+function _joinUrl(code) {
+  return `${window.location.origin}/join.html?code=${encodeURIComponent(code)}`;
+}
+
+function _renderSettings() {
+  const el = document.getElementById('ar-settings');
+  if (!el) return;
+
+  if (!_settings) { el.innerHTML = ''; return; }
+
+  const enabled = _settings.publicJoinEnabled;
+  const code    = _settings.publicJoinCode;
+  const joinUrl = code ? _joinUrl(code) : null;
+  const qrSrc   = joinUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(joinUrl)}&format=svg&ecc=M`
+    : null;
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <div>
+          <strong style="color:var(--text-bright)">Enlace de registro público</strong>
+          <p style="margin:0.25rem 0 0;font-size:0.82rem;color:var(--muted)">
+            Compartí este enlace para que los propietarios soliciten acceso sin que el admin los cargue manualmente.
+          </p>
+        </div>
+        <span class="badge ${enabled ? 'badge-success' : 'badge-neutral'}">${enabled ? 'Habilitado' : 'Deshabilitado'}</span>
+      </div>
+      <div class="card-body" style="display:flex;gap:1.5rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          ${joinUrl ? `
+            <div class="form-group" style="margin-bottom:0.75rem">
+              <label style="font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Enlace de solicitud</label>
+              <div class="flex" style="gap:0.4rem;margin-top:0.35rem">
+                <input id="ar-link-input" class="input" value="${joinUrl}" readonly
+                       style="font-size:0.8rem;cursor:text"
+                       onfocus="this.select()" />
+                <button class="btn-secondary btn-sm" onclick="window._arCopyLink()">Copiar</button>
+                <a class="btn-secondary btn-sm" href="${joinUrl}" target="_blank" rel="noreferrer"
+                   style="text-decoration:none;display:inline-flex;align-items:center">Abrir</a>
+              </div>
+            </div>
+            <p style="font-size:0.78rem;color:var(--muted);margin:0 0 0.25rem">
+              Código: <code style="background:var(--surface-2);padding:1px 6px;border-radius:4px;font-size:0.78rem">${code}</code>
+            </p>
+          ` : `
+            <p style="color:var(--muted);font-size:0.85rem;margin:0 0 0.75rem">
+              No hay un código generado. Hacé clic en "Generar código" para crear el enlace de registro.
+            </p>
+          `}
+          <div class="flex" style="gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem">
+            <button class="btn-secondary btn-sm" onclick="window._arTogglePublic(${!enabled})">
+              ${enabled ? 'Deshabilitar registro' : 'Habilitar registro'}
+            </button>
+            <button class="btn-secondary btn-sm" onclick="window._arRegenerateCode()" title="Genera un nuevo código. El enlace anterior dejará de funcionar.">
+              ${code ? 'Regenerar código' : 'Generar código'}
+            </button>
+          </div>
+          ${code ? `<p style="font-size:0.75rem;color:var(--muted);margin:0.5rem 0 0">⚠️ Regenerar el código invalida el enlace anterior.</p>` : ''}
+        </div>
+        ${qrSrc ? `
+          <div style="flex-shrink:0;text-align:center">
+            <p style="font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin:0 0 0.5rem">Código QR</p>
+            <img src="${qrSrc}" alt="QR de registro" width="130" height="130"
+                 style="border-radius:8px;background:#fff;padding:6px;display:block"
+                 onerror="this.style.display='none'" />
+            <p style="font-size:0.72rem;color:var(--muted);margin:0.4rem 0 0">Escaneá para solicitar acceso</p>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ── Handlers globales de configuración ───────────────────────
+window._arTogglePublic = async function(enable) {
+  try {
+    await apiCall(() => api.accessRequests.updateSettings({ publicJoinEnabled: enable }), {
+      loadingText: enable ? 'Habilitando…' : 'Deshabilitando…',
+    });
+    await _loadSettings();
+    toast(`Registro público ${enable ? 'habilitado' : 'deshabilitado'}.`, 'success');
+  } catch (err) {
+    toast(err.message || 'Error al actualizar configuración.', 'error');
+  }
+};
+
+window._arRegenerateCode = async function() {
+  const hasCode = !!_settings?.publicJoinCode;
+  if (hasCode && !confirm('¿Regenerar el código? El enlace anterior dejará de funcionar.')) return;
+  try {
+    await apiCall(() => api.accessRequests.regenerateCode(), { loadingText: 'Generando código…' });
+    await _loadSettings();
+    toast('Código generado. Compartí el nuevo enlace.', 'success');
+  } catch (err) {
+    toast(err.message || 'Error al generar código.', 'error');
+  }
+};
+
+window._arCopyLink = function() {
+  const input = document.getElementById('ar-link-input');
+  if (!input) return;
+  navigator.clipboard.writeText(input.value)
+    .then(() => toast('Enlace copiado.', 'success'))
+    .catch(() => { input.select(); toast('Seleccioná el texto para copiarlo manualmente.', 'default'); });
+};
 
 async function _loadRequests() {
   const el = document.getElementById('ar-list');
@@ -156,12 +279,32 @@ window._arOpenApprove = async function(id) {
       api.units.getAll({ limit: 200 }),
     ]);
     const r = reqRes.data?.request;
-    const units = (unitsRes.data?.units || []).filter(u => !u.owner || u.status === 'available');
-    const unitOptions = units.map(u => `<option value="${u._id}">${u.name}</option>`).join('');
+    const allUnits = unitsRes.data?.units || [];
+    const availableUnits = allUnits.filter(u => (!u.owner || u.status === 'available') && u.active !== false);
+
+    // Sugerencias por label declarado (match parcial, case-insensitive)
+    const query = (r.requestedUnitLabel || '').toLowerCase().trim();
+    const suggested = query
+      ? availableUnits.filter(u => u.name?.toLowerCase().includes(query) || query.includes(u.name?.toLowerCase() || ''))
+      : [];
+    const otherUnits = availableUnits.filter(u => !suggested.find(s => s._id === u._id));
+
+    const unitOption = (u, preselect) =>
+      `<option value="${u._id}" ${preselect ? 'selected' : ''}>${u.name}</option>`;
+
+    const unitOptions = [
+      ...suggested.map(u => unitOption(u, true)),
+      ...otherUnits.map(u => unitOption(u, false)),
+    ].join('');
+
     const existingBanner = r.isExistingUser
       ? `<div style="background:rgba(251,191,36,0.1);border:1px solid var(--warning);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.85rem;color:var(--warning)">
            ⚠️ Este email ya tiene una cuenta en GestionAr. Se vinculará sin modificar su contraseña.
          </div>`
+      : '';
+
+    const suggestionNote = suggested.length
+      ? `<p style="font-size:0.78rem;color:var(--accent);margin:0.3rem 0 0">✓ ${suggested.length} unidad${suggested.length > 1 ? 'es' : ''} sugerida${suggested.length > 1 ? 's' : ''} por el nombre declarado.</p>`
       : '';
 
     document.getElementById('modal').innerHTML = `
@@ -171,14 +314,17 @@ window._arOpenApprove = async function(id) {
       <div style="background:var(--surface-2);border-radius:8px;padding:0.875rem;margin-bottom:1.25rem">
         <p style="margin:0 0 0.4rem;font-weight:600;color:var(--text-bright)">${r.name}</p>
         <p style="margin:0 0 0.25rem;font-size:0.85rem;color:var(--muted)">${r.email}</p>
+        ${r.phone ? `<p style="margin:0 0 0.25rem;font-size:0.82rem;color:var(--muted)">📞 ${r.phone}</p>` : ''}
         ${r.requestedUnitLabel ? `<p style="margin:0;font-size:0.85rem;color:var(--muted)">Solicita: <b>${r.requestedUnitLabel}</b></p>` : ''}
+        ${r.message ? `<p style="margin:0.4rem 0 0;font-size:0.82rem;color:var(--muted);font-style:italic">"${r.message}"</p>` : ''}
       </div>
       <div class="form-group">
-        <label>Unidades a asignar</label>
-        <select id="ar-approve-units" class="select" multiple style="height:auto;min-height:80px">
+        <label>Unidad${availableUnits.length !== 1 ? 'es' : ''} a asignar <span style="font-weight:400;color:var(--muted)">(${availableUnits.length} disponibles)</span></label>
+        <select id="ar-approve-units" class="select" multiple style="height:auto;min-height:90px">
           ${unitOptions}
         </select>
         <small style="color:var(--muted)">Mantené Ctrl/Cmd para seleccionar varias. Opcional.</small>
+        ${suggestionNote}
       </div>
       <div class="flex" style="align-items:center;gap:0.5rem;margin-top:0.75rem">
         <input type="checkbox" id="ar-charge-now" checked style="accent-color:var(--accent)">
