@@ -3,7 +3,7 @@ import { skeleton } from '../../ui/skeleton.js';
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { svgIcon } from '../../ui/icons.js';
-import { debounce, downloadReceipt, escapeHtml, formatMonth } from '../../ui/helpers.js';
+import { debounce, downloadReceipt, escapeHtml, formatARS, formatMonth } from '../../ui/helpers.js';
 import { viewOwnerDetail, openRegisterPaymentModal } from './owners.js';
 import { hasPermission } from '../../services/permissionService.js';
 import { HELP_TEXTS } from '../../content/helpTexts.js';
@@ -51,7 +51,7 @@ export const debouncedAdminPaymentsSearch = debounce(() => {
   renderAdminPayments();
 }, 350);
 
-const money = value => `$${Number(value || 0).toLocaleString('es-AR')}`;
+const money = value => formatARS(value);
 
 const jsString = value => String(value ?? '')
   .replace(/\\/g, '\\\\')

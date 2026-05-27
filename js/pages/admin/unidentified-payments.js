@@ -2,7 +2,7 @@ import { apiCall } from '../../core/apiWrapper.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
-import { debounce, escapeHtml, formatDate } from '../../ui/helpers.js';
+import { debounce, escapeHtml, formatARS, formatDate } from '../../ui/helpers.js';
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -37,7 +37,7 @@ const state = {
 };
 
 function money(value) {
-  return `$${Number(value || 0).toLocaleString('es-AR')}`;
+  return formatARS(value);
 }
 
 function params() {

@@ -19,11 +19,35 @@ export function formatDate(d) {
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+export function formatDateTime(d) {
+  if (!d) return 'â€”';
+  return new Date(d).toLocaleString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function formatMonth(m) {
   if (!m) return '—';
   const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const [y, mo] = m.split('-');
   return `${months[parseInt(mo) - 1]} ${y}`;
+}
+
+export function formatARS(value, options = {}) {
+  const {
+    minimumFractionDigits = 0,
+    maximumFractionDigits = 0,
+    withCode = true,
+  } = options;
+  const amount = Number(value || 0).toLocaleString('es-AR', {
+    minimumFractionDigits,
+    maximumFractionDigits,
+  });
+  return withCode ? `ARS ${amount}` : `$${amount}`;
 }
 
 export function paymentConceptLabel(payment) {
