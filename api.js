@@ -85,6 +85,7 @@ function inferInvalidationScope(endpoint, method) {
   if (endpoint.startsWith('/debt-items')) return 'owners';
   if (/^\/owners\/[^/]+\/debt-items/.test(endpoint)) return 'owners';
   if (endpoint.startsWith('/admin/users')) return 'admin-users';
+  if (endpoint.startsWith('/agenda')) return 'agenda';
   return null;
 }
 
@@ -425,6 +426,9 @@ const api = {
     processScheduled: () =>
       request('/notices/process-scheduled', { method: 'POST' }),
 
+    previewRecipients: (data) =>
+      request('/notices/preview-recipients', { method: 'POST', body: JSON.stringify(data) }),
+
     stats: (id) =>
       request(`/notices/${id}/stats`),
 
@@ -509,6 +513,11 @@ const api = {
       request(`/mercadopago/payment/${mpPaymentId}`),
   },
 
+  // ── Admin multi-org ───────────────────────────────────────────
+  admin: {
+    getMultiOrgSummary: () => request('/admin/multi-organization-summary'),
+  },
+
   // ── Proveedores ───────────────────────────────────────────────
   adminUsers: {
     permissionsMe: () => request('/admin/permissions/me'),
@@ -522,12 +531,14 @@ const api = {
   },
 
   providers: {
-    getAll:           (params = {}) => request(`/providers?${new URLSearchParams(params)}`),
-    create:           (data) => request('/providers', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
-    update:           (id, data) => request(`/providers/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
-    delete:           (id) => request(`/providers/${id}`, { method: 'DELETE' }),
-    getDocumentUrl:   (id, index) => `${API_BASE}/providers/${id}/document/${index}`,
-    deleteDocument:   (id, index) => request(`/providers/${id}/document/${index}`, { method: 'DELETE' }),
+    getAll:             (params = {}) => request(`/providers?${new URLSearchParams(params)}`),
+    create:             (data) => request('/providers', { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
+    update:             (id, data) => request(`/providers/${id}`, { method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) }),
+    delete:             (id) => request(`/providers/${id}`, { method: 'DELETE' }),
+    getDetails:         (id) => request(`/providers/${id}/details`),
+    updateDocumentMeta: (id, index, data) => request(`/providers/${id}/document/${index}/meta`, { method: 'PATCH', body: JSON.stringify(data) }),
+    getDocumentUrl:     (id, index) => `${API_BASE}/providers/${id}/document/${index}`,
+    deleteDocument:     (id, index) => request(`/providers/${id}/document/${index}`, { method: 'DELETE' }),
   },
 
   // ── Gastos ────────────────────────────────────────────────────
@@ -624,7 +635,11 @@ const api = {
       request(`/visits/${id}/check-in`,  { method: 'POST', body: JSON.stringify({ comment }) }),
     checkOut: (id, comment) =>
       request(`/visits/${id}/check-out`, { method: 'POST', body: JSON.stringify({ comment }) }),
-    delete: (id) => request(`/visits/${id}`, { method: 'DELETE' }),
+    delete:      (id) => request(`/visits/${id}`, { method: 'DELETE' }),
+    generateQr:  (id) => request(`/visits/${id}/generate-qr`, { method: 'POST' }),
+    validateQr:  (token) => request(`/visits/qr/${token}`),
+    checkInByQr: (token, comment = '') =>
+      request(`/visits/qr/${token}/check-in`, { method: 'POST', body: JSON.stringify({ comment }) }),
   },
 
   // ── Espacios comunes ──────────────────────────────────────────
@@ -734,6 +749,14 @@ const api = {
     archive: (id, reason) => request(`/unidentified-payments/${id}/archive`, { method: 'POST', body: JSON.stringify({ reason }) }),
     importPreview: (formData) => request('/unidentified-payments/import?preview=true', { method: 'POST', body: formData }),
     import: (formData) => request('/unidentified-payments/import', { method: 'POST', body: formData }),
+  },
+
+  // ── Agenda ────────────────────────────────────────────────────
+  agenda: {
+    get:          ()     => request('/agenda'),
+    createTask:   (data) => request('/agenda/tasks', { method: 'POST', body: JSON.stringify(data) }),
+    completeTask: (id)   => request(`/agenda/tasks/${id}/complete`, { method: 'PATCH' }),
+    deleteTask:   (id)   => request(`/agenda/tasks/${id}`, { method: 'DELETE' }),
   },
 };
 

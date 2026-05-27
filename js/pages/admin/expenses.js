@@ -25,7 +25,7 @@ const BILLING_LABELS = {
   by_coefficient: 'Por coeficiente',
 };
 
-const expensesState = { all: [], page: 1, perPage: 15, filterMonth: '', filterCategory: '' };
+const expensesState = { all: [], page: 1, perPage: 15, filterMonth: '', filterCategory: '', filterProvider: '' };
 
 let _expProvidersCache = [];
 
@@ -37,6 +37,15 @@ export async function renderAdminExpenses() {
     const params = { limit: 200 };
     if (expensesState.filterMonth)    params.month    = expensesState.filterMonth;
     if (expensesState.filterCategory) params.category = expensesState.filterCategory;
+    if (expensesState.filterProvider) params.provider = expensesState.filterProvider;
+
+    // cargar proveedores para el filtro si aún no tenemos cache
+    if (!_expProvidersCache.length) {
+      try {
+        const pr = await getCachedOrFetch('providers:active', CACHE_TTL.PROVIDERS, () => api.providers.getAll());
+        _expProvidersCache = pr.data.providers || [];
+      } catch { _expProvidersCache = []; }
+    }
 
     const res = await getCachedOrFetch(
       `expenses:admin:${stableParams(params)}`,
@@ -91,7 +100,13 @@ function _renderExpensesView() {
             `<option value="${v}" ${expensesState.filterCategory === v ? 'selected' : ''}>${l}</option>`
           ).join('')}
         </select>
-        ${expensesState.filterMonth || expensesState.filterCategory ? `<button class="btn-clear-filter" onclick="expensesState.filterMonth='';expensesState.filterCategory='';expensesState.page=1;renderAdminExpenses()">✕ Limpiar</button>` : ''}
+        <select class="input" onchange="expensesState.filterProvider=this.value;expensesState.page=1;renderAdminExpenses()">
+          <option value="">Todos los proveedores</option>
+          ${_expProvidersCache.map(p =>
+            `<option value="${p._id}" ${expensesState.filterProvider === p._id ? 'selected' : ''}>${p.name}</option>`
+          ).join('')}
+        </select>
+        ${expensesState.filterMonth || expensesState.filterCategory || expensesState.filterProvider ? `<button class="btn-clear-filter" onclick="expensesState.filterMonth='';expensesState.filterCategory='';expensesState.filterProvider='';expensesState.page=1;renderAdminExpenses()">✕ Limpiar</button>` : ''}
       </div>
 
       <div class="owners-meta">
