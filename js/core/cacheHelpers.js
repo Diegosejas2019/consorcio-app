@@ -24,6 +24,7 @@ export const CACHE_TTL = {
   VISITS:         60 * 1000,
   RESERVATIONS:   60 * 1000,
   SPACES:         60 * 1000,
+  AGENDA:         60 * 1000,
 };
 
 export function stableParams(params = {}) {
@@ -68,6 +69,7 @@ export function invalidateAppCaches(scope) {
     reservations: ['reservations:'],
     spaces:   ['spaces:'],
     reports:  ['reports:'],
+    agenda:   ['agenda:'],
     all:      [''],
   };
 

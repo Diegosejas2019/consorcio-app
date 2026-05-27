@@ -2,7 +2,7 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { SVG } from '../../ui/icons.js';
-import { formatDate, errorState } from '../../ui/helpers.js';
+import { formatDate, errorState, escapeHtml } from '../../ui/helpers.js';
 import { HELP_TEXTS } from '../../content/helpTexts.js';
 import { state } from '../../core/state.js';
 import { hasPermission } from '../../services/permissionService.js';
@@ -144,7 +144,10 @@ async function _renderGuardView(el) {
     const searchId = 'guard-search-' + Date.now();
     el.innerHTML = `
       <div class="flex col gap-3">
-        <h1>Visitas de hoy</h1>
+        <div class="flex between" style="align-items:center">
+          <h1>Visitas de hoy</h1>
+          <button class="btn btn-ghost btn-sm" onclick="openQrValidationModal()">Buscar por código</button>
+        </div>
         <div class="card">
           <div class="card-body" style="padding:.85rem 1rem">
             <input class="input" id="${searchId}" placeholder="Buscar por nombre o propietario…"
@@ -208,7 +211,10 @@ export async function renderAdminVisits() {
 
     el.innerHTML = `
       <div class="flex col gap-3">
-        <h1>Visitas</h1>
+        <div class="flex between" style="align-items:center">
+          <h1>Visitas</h1>
+          <button class="btn btn-ghost btn-sm" onclick="openQrValidationModal()">Buscar por código</button>
+        </div>
 
         <div class="card">
           <div class="card-body" style="display:flex;gap:.75rem;flex-wrap:wrap;padding:.85rem 1rem">
@@ -372,7 +378,82 @@ export async function renderAdminVisitsLog() {
   }
 }
 
+// ── QR / código de acceso ─────────────────────────────────────
+export function openQrValidationModal() {
+  openModal(`
+    <div class="modal-handle"></div>
+    <h2>Validar acceso</h2>
+    <p class="text-sm text-muted">Ingresá el código de la invitación</p>
+    <div class="form-group">
+      <input id="qr-token-input" class="input" type="text"
+        placeholder="Ej: 3a9f2b1c4d5e6f7a"
+        style="font-family:monospace;font-size:1.1rem;letter-spacing:.1em;text-transform:lowercase"
+        oninput="this.value=this.value.toLowerCase()">
+    </div>
+    <button class="btn btn-primary w-full" onclick="validateQrCode()">Validar</button>
+    <div id="qr-result"></div>
+  `);
+}
+
+export async function validateQrCode() {
+  const token = document.getElementById('qr-token-input')?.value?.trim().toLowerCase();
+  if (!token) return toast('Ingresá el código de la invitación.', 'error');
+  const resultEl = document.getElementById('qr-result');
+  if (!resultEl) return;
+  resultEl.innerHTML = skeleton(2);
+  try {
+    const res = await api.visits.validateQr(token);
+    const v = res.data;
+    const statusCls    = v.status === 'approved' ? 'badge-success' : v.status === 'inside' ? 'badge-warning' : 'badge-danger';
+    const statusLabels = { approved: 'Aprobada', pending: 'Pendiente', rejected: 'Rechazada', inside: 'Adentro', exited: 'Finalizada' };
+    resultEl.innerHTML = `
+      <div class="card" style="margin-top:1rem">
+        <div class="card-body">
+          <div class="flex between">
+            <strong>${escapeHtml(v.visitorName)}</strong>
+            <span class="badge ${statusCls}">${statusLabels[v.status] || v.status}</span>
+          </div>
+          <p class="text-sm text-muted">${escapeHtml(v.ownerName)} — ${escapeHtml(v.ownerUnit)}</p>
+          <p class="text-sm text-muted">${escapeHtml(VISIT_TYPES[v.type] || v.type)} · ${new Date(v.expectedDate).toLocaleString('es-AR')}</p>
+          ${v.guardNote ? `<p class="text-sm" style="color:var(--accent)">${escapeHtml(v.guardNote)}</p>` : ''}
+          ${v.reason ? `<p class="text-sm" style="color:var(--danger);margin-top:.5rem">${escapeHtml(v.reason)}</p>` : ''}
+          ${v.canCheckIn ? `
+            <div class="form-group" style="margin-top:1rem">
+              <input id="qr-checkin-comment" class="input" type="text" placeholder="Observación (opcional)" maxlength="500">
+            </div>
+            <button class="btn btn-primary w-full" onclick="confirmQrCheckIn('${token}')">
+              Registrar ingreso
+            </button>` : ''}
+          ${v.canCheckOut ? `
+            <button class="btn btn-secondary w-full" style="margin-top:.5rem"
+              onclick="closeModal();window._openCheckModal('${v.visitId}','check_out')">
+              Registrar salida
+            </button>` : ''}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    resultEl.innerHTML = `<p class="text-sm" style="color:var(--danger);margin-top:1rem">${escapeHtml(err.message || 'Código no encontrado.')}</p>`;
+  }
+}
+
+export async function confirmQrCheckIn(token) {
+  const comment = document.getElementById('qr-checkin-comment')?.value?.trim() || undefined;
+  try {
+    await api.visits.checkInByQr(token, comment);
+    closeModal();
+    window.gestionarInvalidateCaches?.('visits');
+    toast('Ingreso registrado correctamente.', 'success');
+    renderAdminVisits(true);
+  } catch (err) {
+    toast(err.message || 'No se pudo registrar el ingreso.', 'error');
+  }
+}
+
 window.renderAdminVisits    = renderAdminVisits;
 window.renderAdminVisitsLog = renderAdminVisitsLog;
 window.updateVisitStatus    = updateVisitStatus;
 window.deleteVisit          = deleteVisit;
+window.openQrValidationModal = openQrValidationModal;
+window.validateQrCode        = validateQrCode;
+window.confirmQrCheckIn      = confirmQrCheckIn;

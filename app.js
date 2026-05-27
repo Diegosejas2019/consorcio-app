@@ -51,6 +51,8 @@ import { renderAdminSalaries }     from './js/pages/admin/salaries.js';
 import { renderAdminPaymentPlans } from './js/pages/admin/payment-plans.js';
 import { renderAdminUnidentifiedPayments } from './js/pages/admin/unidentified-payments.js';
 import { renderAdminAccessRequests } from './js/pages/admin/access-requests.js';
+import { renderAdminMultiOrg }       from './js/pages/admin/multi-org.js';
+import { renderAdminAgenda }         from './js/pages/admin/agenda.js';
 
 // ── Owner pages ───────────────────────────────────────────────
 import { renderOwnerHome }         from './js/pages/owner/home.js';
@@ -70,6 +72,7 @@ import { renderChangeTemporaryPassword } from './js/pages/owner/changeTemporaryP
 import { renderTermsPage }         from './js/pages/legal/terms.js';
 import { renderPrivacyPage }       from './js/pages/legal/privacy.js';
 import { renderHelpPage }          from './js/pages/help.js';
+import { renderMySupport }         from './js/pages/my-support.js';
 
 // ── Registrar renderers en el router ─────────────────────────
 PAGE_RENDERERS['page-admin-home']      = () => renderAdminHome();
@@ -97,6 +100,9 @@ PAGE_RENDERERS['page-admin-salaries']        = () => renderAdminSalaries();
 PAGE_RENDERERS['page-admin-payment-plans']   = () => renderAdminPaymentPlans();
 PAGE_RENDERERS['page-admin-unidentified-payments'] = () => renderAdminUnidentifiedPayments();
 PAGE_RENDERERS['page-admin-access-requests']       = () => renderAdminAccessRequests();
+PAGE_RENDERERS['page-admin-multi-org']             = () => renderAdminMultiOrg();
+PAGE_RENDERERS['page-admin-agenda']                = () => renderAdminAgenda();
+window.renderAdminAgenda = renderAdminAgenda;
 PAGE_RENDERERS['page-owner-home']          = () => renderOwnerHome();
 PAGE_RENDERERS['page-owner-pay']       = () => renderUploadPage();
 PAGE_RENDERERS['page-owner-history']   = () => renderOwnerHistory();
@@ -114,12 +120,14 @@ PAGE_RENDERERS['page-change-temp-password']    = () => renderChangeTemporaryPass
 PAGE_RENDERERS['page-terms']                 = () => renderTermsPage();
 PAGE_RENDERERS['page-privacy']               = () => renderPrivacyPage();
 PAGE_RENDERERS['page-help']                  = () => renderHelpPage();
+PAGE_RENDERERS['page-my-support']            = () => renderMySupport();
 
 // Exponer PAGE_RENDERERS globalmente (usado en admin/home.js y owner/home.js)
 window.PAGE_RENDERERS = PAGE_RENDERERS;
 window.renderAdminPaymentPlans  = renderAdminPaymentPlans;
 window.renderOwnerPaymentPlans  = renderOwnerPaymentPlans;
 window.renderHelpPage           = renderHelpPage;
+window.renderMySupport          = renderMySupport;
 
 // ── Service Worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {

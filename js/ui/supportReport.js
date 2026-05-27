@@ -11,12 +11,14 @@ const SUPPORT_TYPES = {
 };
 
 function buildSupportContext() {
+  const activePage = document.querySelector('.page.active');
   return {
     route: window.location.pathname,
     userAgent: navigator.userAgent,
-    action: 'global_report_button',
+    action: 'support_ticket_form',
     metadata: {
       timestamp: new Date().toISOString(),
+      pageId: activePage?.id || null,
     },
   };
 }
@@ -72,7 +74,8 @@ export async function submitSupportTicket() {
       context: buildSupportContext(),
     });
     closeModal();
-    toast('Tu reporte fue enviado correctamente.', 'success');
+    toast('Ticket enviado. Podés seguirlo en Mis tickets.', 'success');
+    setTimeout(() => { showPage?.('page-my-support'); renderMySupport?.(); }, 1500);
   } catch (err) {
     toast(err.message || 'No se pudo enviar el reporte.', 'error');
     setBtnLoading(btn, false);

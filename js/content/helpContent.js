@@ -186,6 +186,13 @@ export const HELP_CONTENT = {
         fn: 'renderOwnerClaims',
       },
       {
+        q: '¿Cuándo uso Reclamos y cuándo uso Soporte técnico?',
+        a: 'Reclamos es para comunicarte con tu administrador sobre situaciones del consorcio: filtraciones, ruidos, problemas con gastos, etc. Soporte técnico (botón "Reportar un problema técnico") es para reportar errores o consultas sobre la aplicación GestionAr en sí. Son canales separados.',
+        section: 'reclamos',
+        page: 'page-owner-claims',
+        fn: 'renderOwnerClaims',
+      },
+      {
         q: '¿Cómo veo los avisos?',
         a: 'Los avisos están en la sección Comunidad → Avisos. Los urgentes aparecen destacados. También podés recibir notificaciones en tu celular si habilitás los permisos correspondientes.',
         section: 'avisos',

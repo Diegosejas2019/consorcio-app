@@ -135,6 +135,7 @@ function _renderAgenda(week) {
                   <span class="rv-event-type" style="color:${meta.color}">${meta.label}</span>
                   ${v.note ? `<span class="rv-event-sep">·</span><span class="rv-event-note">${v.note}</span>` : ''}
                 </div>
+                ${(v.status === 'approved' || v.status === 'inside') ? `<button class="btn btn-ghost btn-sm rv-event-inv" onclick="openInvitationModal('${v._id}')">Invitación</button>` : ''}
                 ${canDelete ? `<button class="rv-event-del" onclick="deleteVisit('${v._id}')">Eliminar</button>` : ''}
               </div>
             </article>`;
@@ -429,6 +430,34 @@ export async function submitVisit() {
   }
 }
 
-window.renderOwnerVisits = renderOwnerVisits;
-window.openNewVisitModal = openNewVisitModal;
-window.submitVisit       = submitVisit;
+export async function openInvitationModal(visitId) {
+  try {
+    const res = await api.visits.generateQr(visitId);
+    const { token, qrSvg, expiresAt } = res.data;
+    const expiryLabel = new Date(expiresAt).toLocaleDateString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    document.getElementById('modal').innerHTML = `
+      <div class="modal-handle"></div>
+      <h2>Invitación de acceso</h2>
+      <p class="text-sm text-muted">Compartí el código o el QR con tu visitante</p>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;margin:1.5rem 0">
+        <div style="background:#fff;padding:12px;border-radius:12px">${qrSvg}</div>
+        <div style="font-family:monospace;font-size:1.5rem;font-weight:700;letter-spacing:.15em;color:var(--text-bright)">${token}</div>
+        <p class="text-sm text-muted">Válido hasta: ${expiryLabel}</p>
+      </div>
+      <div class="flex gap-1">
+        <button class="btn btn-ghost w-full" onclick="navigator.clipboard?.writeText('${token}');toast('Código copiado.','success')">Copiar código</button>
+      </div>
+      <button class="btn btn-secondary w-full mt-2" onclick="closeModal()">Cerrar</button>
+    `;
+    openModal();
+  } catch (err) {
+    toast(err.message || 'No se pudo generar la invitación.', 'error');
+  }
+}
+
+window.renderOwnerVisits  = renderOwnerVisits;
+window.openNewVisitModal  = openNewVisitModal;
+window.submitVisit        = submitVisit;
+window.openInvitationModal = openInvitationModal;

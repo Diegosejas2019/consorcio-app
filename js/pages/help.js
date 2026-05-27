@@ -28,12 +28,27 @@ export function renderHelpPage() {
   const visibleIds = new Set(visibleSections.map(s => s.id));
   const visibleFaqs = content.faqs.filter(f => !f.section || visibleIds.has(f.section));
 
+  const isOwner = state.role === 'owner';
+
   el.innerHTML = `
     <div class="help-page">
       <div class="help-header">
         <h2>Ayuda</h2>
         <input type="search" class="input" id="help-search" placeholder="Buscar en la ayuda…" autocomplete="off">
       </div>
+
+      <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:.25rem">
+        <button class="btn btn-secondary btn-sm" onclick="openSupportTicketModal()">Reportar un problema técnico</button>
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-my-support');renderMySupport()">Ver mis tickets enviados</button>
+      </div>
+
+      ${isOwner ? `
+      <div class="card" style="background:rgba(156,242,123,0.04);border-color:rgba(156,242,123,0.15);margin-bottom:.25rem">
+        <div class="card-body" style="padding:.8rem 1rem">
+          <p class="text-sm"><strong>¿Reclamo al consorcio o soporte técnico?</strong></p>
+          <p class="text-sm text-muted" style="margin-top:.3rem">Si tenés un problema con un vecino, un gasto o la administración → usá <button class="btn btn-ghost btn-sm" style="display:inline;padding:0 .3rem" onclick="showPage('page-owner-claims');renderOwnerClaims?.()">Reclamos</button>. Si la app no funciona o tenés una consulta técnica → usá "Reportar un problema técnico".</p>
+        </div>
+      </div>` : ''}
 
       <div class="help-chips" id="help-chips">
         <button class="help-chip is-active" data-section="" onclick="helpFilterSection(this,'')">Todas</button>

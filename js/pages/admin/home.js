@@ -38,10 +38,8 @@ export async function renderAdminHome() {
   const el = document.getElementById('page-admin-home');
   el.innerHTML = `<div class="flex col gap-3">${skeleton(5)}</div>`;
   try {
-    const { statsRes, pendingRes, cfgRes, claimsRes } = await getCachedOrFetch(
-      'admin-home',
-      CACHE_TTL.ADMIN_HOME,
-      async () => {
+    const [cachedHome, agendaRes] = await Promise.all([
+      getCachedOrFetch('admin-home', CACHE_TTL.ADMIN_HOME, async () => {
         const [statsRes, pendingRes, cfgRes, claimsRes] = await Promise.all([
           hasPermission('dashboard.read') ? api.owners.getStats() : Promise.resolve({ data: {} }),
           hasPermission('payments.read') ? api.payments.getAll({ status: 'pending', limit: 20 }) : Promise.resolve({ data: { payments: [] } }),
@@ -49,24 +47,44 @@ export async function renderAdminHome() {
           hasPermission('claims.read') ? api.claims.getAll({ status: 'open', limit: 10 }) : Promise.resolve({ data: { claims: [] } }),
         ]);
         return { statsRes, pendingRes, cfgRes, claimsRes };
-      }
-    );
+      }),
+      hasPermission('dashboard.read')
+        ? getCachedOrFetch('agenda:', CACHE_TTL.AGENDA, () => api.agenda.get())
+            .catch(() => ({ data: { summary: { total: 0, high: 0 } } }))
+        : Promise.resolve({ data: { summary: { total: 0, high: 0 } } }),
+    ]);
+    const { statsRes, pendingRes, cfgRes, claimsRes } = cachedHome;
+    const agendaSummary = agendaRes.data?.summary || { total: 0, high: 0 };
 
     const stats      = statsRes.data;
     const pending    = pendingRes.data.payments;
     const cfg        = cfgRes.data.config;
     const openClaims = claimsRes.data.claims;
 
-    const firstName     = (state.user?.name || '').split(' ')[0] || 'Admin';
-    const compRate      = stats.complianceRate || 0;
-    const unpaiedCount  = Math.max(0, (stats.totalOwners || 0) - (stats.upToDate || 0));
-    const pendingCount  = stats.pendingPayments || 0;
-    const debtorCount   = stats.debtors || 0;
-    const claimCount    = openClaims.length;
-    const periodLabel   = (cfg.expenseMonth || '').toUpperCase();
+    const firstName       = (state.user?.name || '').split(' ')[0] || 'Admin';
+    const compRate        = stats.complianceRate || 0;
+    const unpaiedCount    = Math.max(0, (stats.totalOwners || 0) - (stats.upToDate || 0));
+    const pendingCount    = stats.pendingPayments || 0;
+    const debtorCount     = stats.debtors || 0;
+    const claimCount      = openClaims.length;
+    const periodLabel     = (cfg.expenseMonth || '').toUpperCase();
+    const adminOrgCount   = (state.availableContexts || []).filter(c => c.role === 'admin').length;
 
     el.innerHTML = `
       <div class="flex col gap-3">
+
+        ${adminOrgCount > 1 ? `
+        <!-- Panel multi-consorcio -->
+        <div class="card" style="cursor:pointer;border-color:rgba(156,242,123,0.25)" onclick="showPage('page-admin-multi-org');renderAdminMultiOrg()">
+          <div class="card-body flex between center" style="padding:0.9rem 1.25rem">
+            <div>
+              <div style="font-weight:600;color:var(--text-bright);font-size:0.9rem">Mis organizaciones</div>
+              <div style="font-size:0.78rem;color:var(--muted);margin-top:0.15rem">${adminOrgCount} consorcios administrados</div>
+            </div>
+            <span style="color:var(--accent);font-size:1.1rem;font-weight:700">›</span>
+          </div>
+        </div>
+        ` : ''}
 
         <!-- Greeting -->
         <div class="home-greeting">
@@ -103,6 +121,11 @@ export async function renderAdminHome() {
             <div class="hero-chip" onclick="showPage('page-admin-claims');renderAdminClaims()" title="Ver reclamos">
               <span class="chip-num">${claimCount}</span>
               <span class="chip-lbl">Reclamos</span>
+            </div>
+            <div class="hero-chip ${agendaSummary.high > 0 ? 'alert' : agendaSummary.total > 0 ? 'warn' : ''}"
+                 onclick="showPage('page-admin-agenda');renderAdminAgenda()" title="Ver agenda">
+              <span class="chip-num">${agendaSummary.total}</span>
+              <span class="chip-lbl">Agenda</span>
             </div>
           </div>
         </div>

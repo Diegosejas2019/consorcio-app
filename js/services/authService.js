@@ -606,6 +606,7 @@ const SVG_S_SALARY = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"
 const SVG_S_HELP   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
 const SVG_S_EMP    = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 const SVG_S_PLAN   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l2 2 4-4"/></svg>`;
+const SVG_S_AGENDA = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="8" cy="16" r="1.2" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1.2" fill="currentColor" stroke="none"/></svg>`;
 // Nav-bar sized profile icon (22px)
 const SVG_PROFILE  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" width="22" height="22"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`;
 
@@ -642,12 +643,14 @@ const ADMIN_NAV_GROUPS = {
   },
   mas: {
     label: 'Más',
-    pages: ['page-admin-providers', 'page-admin-documents', 'page-admin-admins', 'page-admin-settings', 'page-help'],
+    pages: ['page-admin-agenda', 'page-admin-providers', 'page-admin-documents', 'page-admin-admins', 'page-admin-settings', 'page-help', 'page-my-support'],
     items: [
+      { page: 'page-admin-agenda',    label: 'Agenda',        fn: 'renderAdminAgenda',    icon: SVG_S_AGENDA },
       { page: 'page-admin-providers', label: 'Proveedores',   fn: 'renderAdminProviders', icon: SVG_S_PROV },
       { page: 'page-admin-documents', label: 'Documentacion', fn: 'renderAdminDocuments', icon: SVG_S_REPORT },
       { page: 'page-admin-admins',    label: 'Administradores', fn: 'renderAdminAdministrators', icon: SVG_S_USERS },
       { page: 'page-admin-settings',  label: 'Configuración', fn: 'renderAdminSettings',  icon: SVG_S_SETT },
+      { page: 'page-my-support',      label: 'Mis tickets',   fn: 'renderMySupport',      icon: SVG_S_SUPPORT },
       { page: 'page-help',            label: 'Ayuda',         fn: 'renderHelpPage',       icon: SVG_S_HELP },
     ],
   },
@@ -656,7 +659,7 @@ const ADMIN_NAV_GROUPS = {
 const OWNER_NAV_GROUPS = {
   comunidad: {
     label: 'Comunidad',
-    pages: ['page-owner-notices', 'page-owner-claims', 'page-owner-expenses', 'page-owner-documents', 'page-owner-votes', 'page-owner-visits', 'page-owner-reservations', 'page-help'],
+    pages: ['page-owner-notices', 'page-owner-claims', 'page-owner-expenses', 'page-owner-documents', 'page-owner-votes', 'page-owner-visits', 'page-owner-reservations', 'page-help', 'page-my-support'],
     items: [
       { page: 'page-owner-expenses',     label: 'Gastos',      fn: 'renderOwnerExpenses',     icon: SVG_S_EXP   },
       { page: 'page-owner-documents',    label: 'Documentos',  fn: 'renderOwnerDocuments',    icon: SVG_S_REPORT },
@@ -665,6 +668,7 @@ const OWNER_NAV_GROUPS = {
       { page: 'page-owner-votes',        label: 'Votaciones',  fn: 'renderOwnerVotes',        icon: SVG_S_VOTE  },
       { page: 'page-owner-visits',       label: 'Visitas',     fn: 'renderOwnerVisits',       icon: SVG_S_VISIT },
       { page: 'page-owner-reservations', label: 'Reservas',    fn: 'renderOwnerReservations', icon: SVG_S_RESV  },
+      { page: 'page-my-support',         label: 'Mis tickets', fn: 'renderMySupport',         icon: SVG_S_SUPPORT },
       { page: 'page-help',               label: 'Ayuda',       fn: 'renderHelpPage',          icon: SVG_S_HELP  },
     ],
   },
@@ -778,9 +782,27 @@ export function setupNav() {
   }
 
   nav.querySelector('[data-pages="page-admin-providers,page-admin-settings"]')
-    ?.setAttribute('data-pages', 'page-admin-providers,page-admin-documents,page-admin-admins,page-admin-settings,page-help');
+    ?.setAttribute('data-pages', 'page-admin-agenda,page-admin-providers,page-admin-documents,page-admin-admins,page-admin-settings,page-help,page-my-support');
   nav.querySelector('[data-pages="page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-votes,page-owner-visits,page-owner-reservations"]')
-    ?.setAttribute('data-pages', 'page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-documents,page-owner-votes,page-owner-visits,page-owner-reservations,page-help');
+    ?.setAttribute('data-pages', 'page-owner-notices,page-owner-claims,page-owner-expenses,page-owner-documents,page-owner-votes,page-owner-visits,page-owner-reservations,page-help,page-my-support');
+
+  const adminOrgCountForNav = (state.availableContexts || []).filter(c => c.role === 'admin').length;
+  if (state.role === 'admin' && adminOrgCountForNav > 1) {
+    const SVG_MULTI = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="19" height="19"><rect x="3" y="7" width="7" height="13"/><rect x="14" y="3" width="7" height="17"/><line x1="3" y1="20" x2="21" y2="20"/></svg>`;
+    const masBtn = nav.querySelector('[data-pages="page-admin-agenda,page-admin-providers,page-admin-documents,page-admin-admins,page-admin-settings,page-help"]');
+    masBtn?.setAttribute('data-pages', 'page-admin-agenda,page-admin-providers,page-admin-documents,page-admin-admins,page-admin-settings,page-help,page-admin-multi-org');
+    _navCurrentGroups = {
+      ...ADMIN_NAV_GROUPS,
+      mas: {
+        ...ADMIN_NAV_GROUPS.mas,
+        pages: [...ADMIN_NAV_GROUPS.mas.pages, 'page-admin-multi-org'],
+        items: [
+          { page: 'page-admin-multi-org', label: 'Mis orgs', fn: 'renderAdminMultiOrg', icon: SVG_MULTI },
+          ...ADMIN_NAV_GROUPS.mas.items,
+        ],
+      },
+    };
+  }
 
   // Badge de solicitudes pendientes (asíncrono, no bloquea el render)
   if (state.role === 'admin') {

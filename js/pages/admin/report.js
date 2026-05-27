@@ -895,6 +895,9 @@ function _renderTabRendicion() {
         <button class="btn btn-secondary" onclick="window._rendLoadAnnual()" style="gap:.4rem;display:flex;align-items:center">
           ${SVG.list} Ver rendición anual
         </button>
+        <button class="btn btn-secondary" id="btn-rend-annual-excel" onclick="window._rendExportAnnualExcel()" style="gap:.4rem;display:flex;align-items:center;display:none">
+          ${_ICON_DL} Exportar Excel
+        </button>
       </div>
       <div id="rend-annual-content" style="margin-top:1rem;"></div>
     </div>
@@ -1221,66 +1224,199 @@ window._rendLoadHistory = async function() {
 window._rendLoadAnnual = async function() {
   const year  = document.getElementById('rend-year')?.value || new Date().getFullYear();
   const area  = document.getElementById('rend-annual-content');
+  const exBtn = document.getElementById('btn-rend-annual-excel');
   if (!area) return;
   area.innerHTML = `<p class="text-muted text-sm">Cargando rendición anual ${year}…</p>`;
+  if (exBtn) exBtn.style.display = 'none';
+
   try {
     const res = await api.renditions.getAnnual(year);
+    _rpt.annualData = res.data;
     const { rows, totals, warnings } = res.data;
 
+    // Tarjetas de resumen
+    const cards = _summaryBadge([
+      { label: 'Recaudación total',    value: _fmt$(totals.income),   color: 'var(--success)' },
+      { label: 'Egresos totales',      value: _fmt$(totals.expTotal),  color: 'var(--danger)' },
+      { label: 'Saldo final',          value: _fmt$(totals.resultado), color: totals.resultado >= 0 ? 'var(--success)' : 'var(--danger)' },
+      { label: 'Prom. ing. mensual',   value: _fmt$(totals.averageMonthlyIncome),   color: 'var(--accent)' },
+      { label: 'Prom. egr. mensual',   value: _fmt$(totals.averageMonthlyExpenses), color: 'var(--muted)' },
+      { label: 'Meses con rendición',  value: `${totals.monthsWithRendition ?? '—'} / 12`, color: 'var(--accent)' },
+      { label: 'Meses saldo negativo', value: totals.negativeBalanceMonths || 0, color: totals.negativeBalanceMonths > 0 ? 'var(--danger)' : 'var(--muted)' },
+    ]);
+
+    // Advertencias
     const warnHtml = warnings.length > 0
-      ? `<div style="margin-bottom:.75rem;padding:.6rem 1rem;background:var(--accent-lt);border-radius:8px;font-size:.82rem;color:var(--text);">
-          ${warnings.map(w => `ℹ️ ${escapeHtml(w.message)}`).join('<br>')}
+      ? `<div class="card" style="margin-bottom:1rem;padding:1rem;border-left:3px solid var(--warning);">
+          <strong style="font-size:.8rem;color:var(--warning);display:block;margin-bottom:.5rem;">Advertencias (${warnings.length})</strong>
+          ${warnings.map(w => `<div style="font-size:.82rem;color:var(--text);margin-bottom:.25rem;">
+            ${w.severity === 'critical' ? '🔴' : w.severity === 'warning' ? '🟡' : 'ℹ️'} ${escapeHtml(w.message)}
+          </div>`).join('')}
         </div>` : '';
 
+    // Filas de la tabla
     const monthRows = rows.map((r, i) => {
       if (r.error) return `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:.5rem .75rem;font-size:.82rem;">${escapeHtml(r.periodLabel)}</td>
-        <td colspan="6" style="padding:.5rem .75rem;font-size:.82rem;color:var(--muted);">Error al calcular.</td>
+        <td colspan="7" style="padding:.5rem .75rem;font-size:.82rem;color:var(--muted);">Error al calcular.</td>
       </tr>`;
-      const res = (r.resultado || 0) >= 0;
+      const bal = (r.resultado || 0) >= 0;
+      const hasPending = (r.pendingPaymentsCount || 0) > 0;
       return `<tr style="border-bottom:1px solid var(--border);background:${i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.02)'};">
         <td style="padding:.5rem .75rem;font-size:.82rem;font-weight:600;">${escapeHtml(r.periodLabel)}</td>
         <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;color:var(--success);">${_fmt$(r.income)}</td>
         <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;color:var(--danger);">${_fmt$(r.expTotal)}</td>
         <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(r.ordinaryTotal)}</td>
         <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(r.extraordinaryTotal)}</td>
-        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;font-weight:700;color:${res ? 'var(--success)' : 'var(--danger)'};">${_fmt$(r.resultado)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:right;font-weight:700;color:${bal ? 'var(--success)' : 'var(--danger)'};">${_fmt$(r.resultado)}</td>
+        <td style="padding:.5rem .75rem;font-size:.82rem;text-align:center;color:${hasPending ? 'var(--warning)' : 'var(--muted)'};">
+          ${r.approvedPaymentsCount || 0} ap${hasPending ? ` / <strong>${r.pendingPaymentsCount}</strong> pend` : ''}
+        </td>
         <td style="padding:.5rem .75rem;font-size:.82rem;text-align:center;">
           ${r.hasSavedRendition ? `<a href="${r.savedPdfUrl}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="padding:.2rem .5rem;font-size:.72rem;">${_ICON_PDF}</a>` : '<span class="text-muted text-sm">—</span>'}
         </td>
       </tr>`;
     }).join('');
 
-    area.innerHTML = `${warnHtml}
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
-        <thead><tr style="border-bottom:2px solid var(--border-md);">
-          <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Mes</th>
-          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Ingresos</th>
-          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Total gastos</th>
-          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Ordinarios</th>
-          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Extraord.</th>
-          <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Resultado</th>
-          <th style="padding:.5rem .75rem;text-align:center;color:var(--muted);font-size:.75rem;text-transform:uppercase;">PDF</th>
-        </tr></thead>
-        <tbody>${monthRows}</tbody>
-        <tfoot>
-          <tr style="border-top:2px solid var(--border-md);font-weight:700;">
-            <td style="padding:.6rem .75rem;font-size:.82rem;">TOTAL ${year}</td>
-            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:var(--success);">${_fmt$(totals.income)}</td>
-            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:var(--danger);">${_fmt$(totals.expTotal)}</td>
-            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(totals.ordinaryTotal)}</td>
-            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(totals.extraordinaryTotal)}</td>
-            <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:${totals.resultado >= 0 ? 'var(--success)' : 'var(--danger)'};">${_fmt$(totals.resultado)}</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>`;
+    // Categorías de gastos anuales (suma todas las filas)
+    const annualCatTotals = {};
+    rows.forEach(r => {
+      if (r.error || !r.expenseByCategory) return;
+      r.expenseByCategory.forEach(({ key, label, amount }) => {
+        if (!annualCatTotals[key]) annualCatTotals[key] = { label, amount: 0 };
+        annualCatTotals[key].amount += amount;
+      });
+    });
+    const catEntries = Object.entries(annualCatTotals).sort((a, b) => b[1].amount - a[1].amount);
+    const catRows = catEntries.map(([, { label, amount }]) => {
+      const pct = totals.expTotal > 0 ? ((amount / totals.expTotal) * 100).toFixed(1) : '0.0';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:.4rem .75rem;font-size:.82rem;">${escapeHtml(label)}</td>
+        <td style="padding:.4rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(amount)}</td>
+        <td style="padding:.4rem .75rem;font-size:.82rem;text-align:right;color:var(--muted);">${pct}%</td>
+      </tr>`;
+    }).join('');
+
+    const catHtml = catEntries.length > 0
+      ? `<div class="card" style="margin-top:1rem;padding:1rem 1.25rem;">
+          <strong style="font-size:.82rem;color:var(--text-bright);display:block;margin-bottom:.75rem;">Categorías de gasto — ${year}</strong>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+              <thead><tr style="border-bottom:2px solid var(--border-md);">
+                <th style="padding:.4rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;text-align:left;">Categoría</th>
+                <th style="padding:.4rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;text-align:right;">Total ARS</th>
+                <th style="padding:.4rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;text-align:right;">% del total</th>
+              </tr></thead>
+              <tbody>${catRows}</tbody>
+            </table>
+          </div>
+        </div>` : '';
+
+    const highHtml = (totals.highestIncomeMonth || totals.highestExpenseMonth)
+      ? `<div style="margin-top:.5rem;font-size:.78rem;color:var(--muted);">
+          ${totals.highestIncomeMonth ? `Mayor recaudación: <strong style="color:var(--text)">${escapeHtml(totals.highestIncomeMonth)}</strong>` : ''}
+          ${totals.highestIncomeMonth && totals.highestExpenseMonth ? ' · ' : ''}
+          ${totals.highestExpenseMonth ? `Mayor gasto: <strong style="color:var(--text)">${escapeHtml(totals.highestExpenseMonth)}</strong>` : ''}
+        </div>` : '';
+
+    area.innerHTML = `
+      ${cards}
+      ${highHtml}
+      ${warnHtml}
+      <div style="overflow-x:auto;margin-top:.5rem;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+          <thead><tr style="border-bottom:2px solid var(--border-md);">
+            <th style="padding:.5rem .75rem;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Mes</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Ingresos</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Total gastos</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Ordinarios</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Extraord.</th>
+            <th style="padding:.5rem .75rem;text-align:right;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Resultado</th>
+            <th style="padding:.5rem .75rem;text-align:center;color:var(--muted);font-size:.75rem;text-transform:uppercase;">Pagos</th>
+            <th style="padding:.5rem .75rem;text-align:center;color:var(--muted);font-size:.75rem;text-transform:uppercase;">PDF</th>
+          </tr></thead>
+          <tbody>${monthRows}</tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--border-md);font-weight:700;">
+              <td style="padding:.6rem .75rem;font-size:.82rem;">TOTAL ${year}</td>
+              <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:var(--success);">${_fmt$(totals.income)}</td>
+              <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:var(--danger);">${_fmt$(totals.expTotal)}</td>
+              <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(totals.ordinaryTotal)}</td>
+              <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;">${_fmt$(totals.extraordinaryTotal)}</td>
+              <td style="padding:.6rem .75rem;font-size:.82rem;text-align:right;color:${totals.resultado >= 0 ? 'var(--success)' : 'var(--danger)'};">${_fmt$(totals.resultado)}</td>
+              <td></td><td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      ${catHtml}`;
+
+    if (exBtn) exBtn.style.display = 'flex';
   } catch (err) {
     area.innerHTML = errorState(err.message, '_rendLoadAnnual()');
     toast(err.message, 'error');
   }
+};
+
+window._rendExportAnnualExcel = function() {
+  const data = _rpt.annualData;
+  if (!data) { toast('Cargá la rendición anual primero.', 'error'); return; }
+  const { year, rows, totals } = data;
+  const XLSX = window.XLSX;
+  if (!XLSX) { toast('SheetJS no disponible.', 'error'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Hoja 1: Resumen anual
+  const resumenRows = [
+    ['Cierre Anual ' + year],
+    [],
+    ['Recaudación total',          totals.income],
+    ['Egresos totales',            totals.expTotal],
+    ['Saldo final',                totals.resultado],
+    ['Gastos ordinarios',          totals.ordinaryTotal],
+    ['Gastos extraordinarios',     totals.extraordinaryTotal],
+    ['Promedio ing. mensual',      totals.averageMonthlyIncome],
+    ['Promedio egr. mensual',      totals.averageMonthlyExpenses],
+    ['Meses con rendición',        totals.monthsWithRendition],
+    ['Meses saldo negativo',       totals.negativeBalanceMonths],
+    ['Mes mayor recaudación',      totals.highestIncomeMonth || '—'],
+    ['Mes mayor gasto',            totals.highestExpenseMonth || '—'],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(resumenRows);
+  ws1['!cols'] = [{ wch: 32 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Resumen');
+
+  // Hoja 2: Mensual
+  const mensualHeaders = ['Mes', 'Ingresos', 'Total gastos', 'Ordinarios', 'Extraordinarios', 'Resultado', 'Pagos aprobados', 'Pagos pendientes', 'Estado rendición'];
+  const mensualData = rows.map(r => r.error ? [r.periodLabel, 'Error', '', '', '', '', '', '', ''] : [
+    r.periodLabel, r.income, r.expTotal, r.ordinaryTotal, r.extraordinaryTotal, r.resultado,
+    r.approvedPaymentsCount || 0, r.pendingPaymentsCount || 0, r.status || '—',
+  ]);
+  mensualData.push(['TOTAL ' + year, totals.income, totals.expTotal, totals.ordinaryTotal, totals.extraordinaryTotal, totals.resultado, '', '', '']);
+  const ws2 = XLSX.utils.aoa_to_sheet([mensualHeaders, ...mensualData]);
+  ws2['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Mensual');
+
+  // Hoja 3: Categorías anuales
+  const annualCatTotals = {};
+  rows.forEach(r => {
+    if (r.error || !r.expenseByCategory) return;
+    r.expenseByCategory.forEach(({ key, label, amount }) => {
+      if (!annualCatTotals[key]) annualCatTotals[key] = { label, amount: 0 };
+      annualCatTotals[key].amount += amount;
+    });
+  });
+  const catEntries = Object.entries(annualCatTotals).sort((a, b) => b[1].amount - a[1].amount);
+  const catHeaders = ['Categoría', 'Total ARS', '% del total'];
+  const catData = catEntries.map(([, { label, amount }]) => [
+    label, amount, totals.expTotal > 0 ? parseFloat(((amount / totals.expTotal) * 100).toFixed(1)) : 0,
+  ]);
+  const ws3 = XLSX.utils.aoa_to_sheet([catHeaders, ...catData]);
+  ws3['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Categorías');
+
+  XLSX.writeFile(wb, `cierre_anual_${year}.xlsx`);
 };
 
 function _fmtPeriodLabel(yyyymm) {

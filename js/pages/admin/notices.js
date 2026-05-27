@@ -236,9 +236,10 @@ function editorHtml(existing = null) {
       </div>
       <div class="form-group"><label>Mensaje</label><textarea class="input" id="n-body" style="min-height:120px" maxlength="5000">${esc(n.body)}</textarea></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-        ${selectHtml('n-target-type', 'Destinatarios', [['all','Todos los propietarios'], ['debtors','Morosos'], ['specific_units','Unidades especificas'], ['specific_users','Propietarios especificos']], n.targetType, "toggleTargetSelectors()")}
+        ${selectHtml('n-target-type', 'Destinatarios', [['all','Todos los propietarios'], ['debtors','Morosos'], ['non_debtors','Propietarios al dia'], ['specific_units','Unidades especificas'], ['specific_users','Propietarios especificos']], n.targetType, "toggleTargetSelectors()")}
         <div class="form-group"><label>Programar</label><input class="input" id="n-scheduled-at" type="datetime-local" value="${toLocalInput(n.scheduledAt)}"></div>
       </div>
+      <div id="n-recipients-preview" style="font-size:.82rem;color:var(--muted);min-height:1.2rem;margin-top:-.25rem"></div>
       <div id="n-target-units" class="form-group" style="display:${n.targetType === 'specific_units' ? 'flex' : 'none'}">
         <label>Unidades</label><select class="select" id="n-unit-ids" multiple size="5">${unitOptions(n.targetFilters?.unitIds)}</select>
       </div>
@@ -349,6 +350,33 @@ export function openNoticeEditor(id = '') {
   const notice = id ? _notices.find(n => n._id === id) : null;
   openModal(editorHtml(notice), undefined, { closeOnBackdrop: false });
   ['n-title', 'n-body'].forEach(id => document.getElementById(id)?.addEventListener('input', updateNoticePreview));
+  ['n-unit-ids', 'n-user-ids'].forEach(id => document.getElementById(id)?.addEventListener('change', updateRecipientsPreview));
+  setTimeout(updateRecipientsPreview, 0);
+}
+
+async function updateRecipientsPreview() {
+  const el = document.getElementById('n-recipients-preview');
+  if (!el) return;
+  const targetType = document.getElementById('n-target-type')?.value || 'all';
+  const targetFilters = {
+    unitIds: targetType === 'specific_units' ? selectedValues('n-unit-ids') : [],
+    userIds: targetType === 'specific_users' ? selectedValues('n-user-ids') : [],
+  };
+  el.style.color = 'var(--muted)';
+  el.textContent = 'Calculando...';
+  try {
+    const res = await api.notices.previewRecipients({ targetType, targetFilters });
+    const { count, warnings } = res.data;
+    if (warnings?.length) {
+      el.style.color = 'var(--warning)';
+      el.textContent = warnings[0];
+    } else {
+      el.style.color = 'var(--accent)';
+      el.textContent = `Este aviso llegara a ${count} propietario${count !== 1 ? 's' : ''}.`;
+    }
+  } catch {
+    el.textContent = '';
+  }
 }
 
 export function toggleTargetSelectors() {
@@ -357,6 +385,7 @@ export function toggleTargetSelectors() {
   const users = document.getElementById('n-target-users');
   if (units) units.style.display = target === 'specific_units' ? 'flex' : 'none';
   if (users) users.style.display = target === 'specific_users' ? 'flex' : 'none';
+  updateRecipientsPreview();
 }
 
 export function updateNoticePreview() {
