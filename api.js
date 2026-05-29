@@ -300,6 +300,9 @@ const api = {
     getMySummary: (params = {}) =>
       request(`/owners/me/summary?${new URLSearchParams(params)}`),
 
+    downloadInvoicePdf: (period) =>
+      requestBlob(`/owners/me/invoice-pdf?period=${encodeURIComponent(period)}`),
+
     getOne: (id) => request(`/owners/${id}`),
 
     getAvailableItems: (id) => request(`/owners/${id}/available-items`),

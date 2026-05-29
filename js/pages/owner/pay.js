@@ -276,9 +276,14 @@ export async function renderUploadPage() {
             <h1 class="page-title">Pagar</h1>
             <p class="page-sub">Selecciona los conceptos que queres pagar.</p>
           </div>
-          <button class="btn btn-ghost pay-history-btn" onclick="showPage('page-owner-history');renderOwnerHistory()">
-            ${svgIcon('doc', 16)} Historial
-          </button>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${months.length > 0 ? `<button class="btn btn-ghost btn-sm" id="btn-download-invoice-pdf" onclick="downloadOwnerInvoicePdf('${months[0].value}')" style="font-size:.8rem;gap:4px;display:flex;align-items:center">
+              ${svgIcon('pdf', 14)} Liquidación
+            </button>` : ''}
+            <button class="btn btn-ghost pay-history-btn" onclick="showPage('page-owner-history');renderOwnerHistory()">
+              ${svgIcon('doc', 16)} Historial
+            </button>
+          </div>
         </div>
 
         <div class="seg" style="margin-top:18px" id="pay-tab-seg">
@@ -287,6 +292,8 @@ export async function renderUploadPage() {
           <button class="seg-btn" id="tab-online" onclick="switchPayTab('online')">${svgIcon('wallet', 16)} Pago online</button>
           ` : ''}
         </div>
+
+        ${cfg.dueDayOfMonth ? `<p style="font-size:.8rem;color:var(--muted);text-align:center;margin:.75rem 0 0">Vencimiento: día ${cfg.dueDayOfMonth} de cada mes</p>` : ''}
 
         ${activePlan ? (() => {
           const formatC = n => Number(n || 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
@@ -821,6 +828,27 @@ export async function submitInstallmentPayment(installmentId) {
   }
 }
 
+export async function downloadOwnerInvoicePdf(period) {
+  if (!period) return;
+  const btn = document.getElementById('btn-download-invoice-pdf');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
+  try {
+    const blob = await api.owners.downloadInvoicePdf(period);
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `liquidacion_${period}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    toast(err.message || 'No se pudo descargar la liquidación.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = `${svgIcon('pdf', 14)} Liquidación`; }
+  }
+}
+
 window.renderUploadPage              = renderUploadPage;
 window.handleFileSelect              = handleFileSelect;
 window.handleFileDrop                = handleFileDrop;
@@ -840,3 +868,4 @@ window.initMercadoPagoNew            = initMercadoPagoNew;
 window.handleInstallmentFileSelect   = handleInstallmentFileSelect;
 window.clearInstallmentFile          = clearInstallmentFile;
 window.submitInstallmentPayment      = submitInstallmentPayment;
+window.downloadOwnerInvoicePdf       = downloadOwnerInvoicePdf;

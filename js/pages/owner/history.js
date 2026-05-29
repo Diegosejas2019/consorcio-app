@@ -1,6 +1,6 @@
 import { skeleton } from '../../ui/skeleton.js';
 import { svgIcon } from '../../ui/icons.js';
-import { errorState } from '../../ui/helpers.js';
+import { errorState, escapeHtml } from '../../ui/helpers.js';
 import { getOwnerPayments } from '../../services/ownerSummaryService.js';
 
 let _payments = [];
@@ -55,6 +55,7 @@ function _paymentRow(p) {
           <span class="list-sub">${_shortDate(p.createdAt)} · ${method}</span>
           ${_statusBadge(p.status)}
         </div>
+        ${p.status === 'rejected' && p.rejectionNote ? `<div style="font-size:.8rem;color:var(--danger);background:rgba(248,113,113,.12);border-radius:6px;padding:5px 8px;margin-top:5px">Motivo: ${escapeHtml(p.rejectionNote)}</div>` : ''}
       </div>
       ${receiptActions ? `<div style="display:flex;gap:6px;align-items:center">${receiptActions}</div>` : ''}
     </div>`;
