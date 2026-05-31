@@ -13,6 +13,49 @@ export const VISIT_TYPES = {
   delivery: 'Delivery',
 };
 
+let _cameraStream   = null;
+let _scanInterval   = null;
+
+function _stopCamera() {
+  if (_scanInterval)  { clearInterval(_scanInterval); _scanInterval = null; }
+  if (_cameraStream)  { _cameraStream.getTracks().forEach(t => t.stop()); _cameraStream = null; }
+}
+
+async function _startCamera() {
+  try {
+    _cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('qr-video');
+    if (!video) { _stopCamera(); return; }
+    video.srcObject = _cameraStream;
+
+    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+    _scanInterval = setInterval(async () => {
+      if (!video || video.readyState < 2) return;
+      try {
+        const codes = await detector.detect(video);
+        if (codes.length > 0) {
+          _stopCamera();
+          validateQrCode(codes[0].rawValue);
+        }
+      } catch { /* ignorar errores de frame */ }
+    }, 300);
+  } catch {
+    const area = document.getElementById('qr-scanner-area');
+    if (area) area.innerHTML = `<p class="text-sm" style="color:var(--warning);padding:1rem;text-align:center">No se pudo acceder a la cámara. Ingresá el código manualmente.</p>`;
+  }
+}
+
+function _watchModalClose() {
+  const overlay = document.getElementById('modal-overlay');
+  const observer = new MutationObserver(() => {
+    if (overlay.classList.contains('hidden')) {
+      _stopCamera();
+      observer.disconnect();
+    }
+  });
+  observer.observe(overlay, { attributes: true });
+}
+
 const ACTION_LABELS = { check_in: 'Ingreso', check_out: 'Egreso' };
 
 function formatDateTime(d) {
@@ -380,10 +423,22 @@ export async function renderAdminVisitsLog() {
 
 // ── QR / código de acceso ─────────────────────────────────────
 export function openQrValidationModal() {
+  _stopCamera();
+  const hasScanner = 'BarcodeDetector' in window;
   openModal(`
     <div class="modal-handle"></div>
     <h2>Validar acceso</h2>
-    <p class="text-sm text-muted">Ingresá el código de la invitación</p>
+    ${hasScanner ? `
+      <div id="qr-scanner-area" style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:1rem">
+        <video id="qr-video" style="width:100%;height:100%;object-fit:cover" autoplay playsinline muted></video>
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:.4rem;background:rgba(0,0,0,.55);text-align:center;font-size:.75rem;color:#fff">
+          Apuntá la cámara al QR del visitante
+        </div>
+      </div>
+    ` : `
+      <p class="text-sm" style="color:var(--warning);margin-bottom:.75rem">El scanner de cámara no está disponible en este dispositivo.</p>
+    `}
+    <p class="text-sm text-muted">O ingresá el código manualmente</p>
     <div class="form-group">
       <input id="qr-token-input" class="input" type="text"
         placeholder="Ej: 3a9f2b1c4d5e6f7a"
@@ -393,10 +448,11 @@ export function openQrValidationModal() {
     <button class="btn btn-primary w-full" onclick="validateQrCode()">Validar</button>
     <div id="qr-result"></div>
   `);
+  if (hasScanner) { _startCamera(); _watchModalClose(); }
 }
 
-export async function validateQrCode() {
-  const token = document.getElementById('qr-token-input')?.value?.trim().toLowerCase();
+export async function validateQrCode(tokenOverride) {
+  const token = tokenOverride ?? document.getElementById('qr-token-input')?.value?.trim().toLowerCase();
   if (!token) return toast('Ingresá el código de la invitación.', 'error');
   const resultEl = document.getElementById('qr-result');
   if (!resultEl) return;
