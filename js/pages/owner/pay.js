@@ -6,6 +6,7 @@ import { setBtnLoading } from '../../ui/loading.js';
 import { state } from '../../core/state.js';
 import { getOwnerSummary } from '../../services/ownerSummaryService.js';
 import { openRequestPlanModal } from './payment-plans.js';
+import { isFeatureEnabled } from '../../services/featureService.js';
 import { HELP_TEXTS } from '../../content/helpTexts.js';
 
 let selectedFile  = null;
@@ -460,15 +461,18 @@ export async function renderUploadPage() {
           ${svgIcon('check', 18)} Enviar comprobante · $${initTotal.toLocaleString('es-AR')}
         </button>
         <div style="padding:8px 0 0;text-align:center">
-          <button class="btn btn-ghost btn-sm" id="btn-request-plan" style="font-size:.82rem;color:var(--muted)">
-            ¿Necesitás financiar tu deuda? Solicitar plan de pagos
-          </button>
+          ${isFeatureEnabled('paymentPlans.allowOwnerRequests')
+            ? `<button class="btn btn-ghost btn-sm" id="btn-request-plan" style="font-size:.82rem;color:var(--muted)">
+                ¿Necesitás financiar tu deuda? Solicitar plan de pagos
+               </button>`
+            : `<p style="font-size:.82rem;color:var(--muted);margin:0">La solicitud de planes de pago no está habilitada por la administración.</p>`
+          }
         </div>
       </div>` : ''}`;
 
     updatePayTotal();
 
-    // Botón de solicitar plan de pagos
+    // Botón de solicitar plan de pagos (solo si la feature está habilitada)
     document.getElementById('btn-request-plan')?.addEventListener('click', () => {
       const selected = [...document.querySelectorAll('.period-card.is-selected')];
       if (!selected.length) {
