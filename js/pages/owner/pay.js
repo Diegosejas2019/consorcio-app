@@ -459,12 +459,11 @@ export async function renderUploadPage() {
         <button class="btn btn-primary btn-lg btn-block pay-submit-btn" id="btn-submit-receipt-sticky" style="box-shadow:var(--glow-accent)" data-requires-network onclick="submitReceipt()">
           ${svgIcon('check', 18)} Enviar comprobante · $${initTotal.toLocaleString('es-AR')}
         </button>
-      </div>` : ''}
-      ${hasForm ? `
-      <div style="padding:0 16px 16px;text-align:center">
-        <button class="btn btn-ghost btn-sm" id="btn-request-plan" style="font-size:.82rem;color:var(--muted)">
-          ¿Necesitás financiar tu deuda? Solicitar plan de pagos
-        </button>
+        <div style="padding:8px 0 0;text-align:center">
+          <button class="btn btn-ghost btn-sm" id="btn-request-plan" style="font-size:.82rem;color:var(--muted)">
+            ¿Necesitás financiar tu deuda? Solicitar plan de pagos
+          </button>
+        </div>
       </div>` : ''}`;
 
     updatePayTotal();
