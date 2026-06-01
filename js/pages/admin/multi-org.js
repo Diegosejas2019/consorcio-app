@@ -39,7 +39,7 @@ function orgCardHtml(org) {
         ${alertBadgeHtml(org.alertLevel)}
       </div>
       <div class="card-body">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div style="display:grid;grid-template-columns:repeat(3, minmax(130px, 1fr));gap:0.75rem;margin-bottom:1rem">
           <div class="stat-card">
             <div class="stat-label">Recaudado</div>
             <div class="stat-value" style="font-size:1.1rem">${fmtMoney(org.approvedPaymentsAmountCurrentPeriod)}</div>
