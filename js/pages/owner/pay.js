@@ -102,7 +102,7 @@ export async function renderUploadPage() {
     const hasPendingBalancePayment = payments.some(p => p.type === 'balance' && p.status === 'pending');
     const unitDebts = (owner?.unitDebts || []).filter(u => Number(u.balanceOwed || 0) > 0);
     const availableBalanceUnits = available.balanceUnits || [];
-    _balanceDebtAmount = available.balanceDebt > 0 ? Number(available.balanceDebt || 0) : Math.max(0, -Number(owner.balance || 0));
+    _balanceDebtAmount = Number(available.balanceDebt || 0);
     const hasBalanceDebt = _balanceDebtAmount > 0 && !hasPendingBalancePayment;
     const hasDebt  = (isDebtor || months.length > 0) && unpaidPeriods.length > 0;
     _balanceDebtUnitIds = availableBalanceUnits.map(u => String(u._id || u.id)).filter(Boolean);
@@ -127,12 +127,12 @@ export async function renderUploadPage() {
             </div>
             <div class="flex between" style="align-items:center;padding:.55rem .75rem;background:rgba(255,255,255,.06);border-radius:8px">
               <span class="text-sm text-muted">Saldo pendiente</span>
-              <strong style="color:#f87171">-$${Math.abs(owner.balance).toLocaleString('es-AR')}</strong>
+              <strong style="color:#f87171">-$${_balanceDebtAmount.toLocaleString('es-AR')}</strong>
             </div>
             ${unitDebtHtml}
             <div class="form-group">
               <label>Importe a pagar ($)</label>
-              <input class="input" type="number" id="balance-amount" value="${Math.abs(owner.balance)}" min="1" placeholder="Ingresá el importe">
+              <input class="input" type="number" id="balance-amount" value="${_balanceDebtAmount}" min="1" max="${_balanceDebtAmount}" placeholder="Ingresá el importe">
             </div>
             <div class="form-group">
               <label>Comprobante (PDF o imagen)</label>
@@ -611,6 +611,10 @@ export async function initMercadoPagoNew() {
   const extraordinaryIds = selected.filter(c => c.dataset.type === 'extra').map(c => c.dataset.value);
   const debtItemIds = selected.filter(c => c.dataset.type === 'debt-item').map(c => c.dataset.value);
   const balanceAmount = selected.some(c => c.dataset.type === 'balance') ? _balanceDebtAmount : 0;
+  if (balanceAmount > 0 && (periods.length > 0 || extraordinaryIds.length > 0)) {
+    toast('La deuda inicial se paga en una operación separada.', 'error');
+    return;
+  }
   if (debtItemIds.length > 0) {
     toast('Los saldos y ajustes manuales se pagan subiendo comprobante.', 'warning');
     switchPayTab('upload');
@@ -763,7 +767,7 @@ export async function submitBalancePayment() {
   if (!_selectedBalanceFile)         { toast('Adjuntá el comprobante (PDF o imagen)', 'error'); return; }
 
   const formData = new FormData();
-  formData.append('amount', amount);
+  formData.append('balanceAmount', amount);
   if (_balanceDebtUnitId) formData.append('balanceUnitId', _balanceDebtUnitId);
   formData.append('receipt', _selectedBalanceFile);
 
