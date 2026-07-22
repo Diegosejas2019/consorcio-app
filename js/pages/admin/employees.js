@@ -195,14 +195,39 @@ window.saveNewEmployee = async function() {
 window.openEditEmployeeModal = function(id) {
   const e = empState.all.find(x => x._id === id);
   if (!e) return;
+  const canCreateAccess = e.role === 'security' && !e.userId && e.isActive;
   openModal(`
     <h2 style="margin-bottom:1rem">Editar empleado</h2>
     ${_employeeForm(e)}
+    ${canCreateAccess ? `
+      <div class="form-group" style="margin-top:.5rem">
+        <button class="btn btn-ghost btn-sm" style="width:100%" onclick="createEmployeeAccess('${id}')">Crear acceso de portería</button>
+      </div>
+    ` : ''}
+    ${e.userId ? '<p class="text-muted text-sm" style="margin-top:.5rem">Este empleado ya tiene acceso al portal.</p>' : ''}
     <div class="flex gap-2" style="margin-top:.5rem">
       <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" id="btn-save-emp" style="flex:1" onclick="saveEditEmployee('${id}')">Guardar</button>
     </div>
   `);
+};
+
+window.createEmployeeAccess = async function(id) {
+  const e = empState.all.find(x => x._id === id);
+  if (!e) return;
+  let email = e.email;
+  if (!email) {
+    email = prompt('El empleado no tiene email registrado. Ingresá un email para crear el acceso:');
+    if (!email) return;
+  }
+  try {
+    const res = await api.employees.createAccess(id, { email });
+    toast(res.message || 'Acceso creado correctamente.', 'success');
+    closeModal();
+    await renderAdminEmployees();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 };
 
 window.saveEditEmployee = async function(id) {
