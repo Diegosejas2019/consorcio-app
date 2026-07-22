@@ -180,6 +180,15 @@ small { font-size: .8rem; color: var(--muted); }
 .btn-success:hover:not(:disabled) {
   background: rgba(34,197,94,0.22);
 }
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--danger);
+  border: 1.5px solid rgba(248,113,113,0.35);
+}
+.btn-danger-ghost:hover:not(:disabled) {
+  background: var(--danger-lt);
+  border-color: var(--danger);
+}
 .btn-sm       { padding: .38rem .85rem; font-size: .8rem; border-radius: 7px; }
 .btn-icon     {
   padding: .45rem; border-radius: 8px;

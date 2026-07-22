@@ -210,10 +210,40 @@ window.openEditEmployeeModal = function(id) {
 function _portalButton(e) {
   if (e.role !== 'security' || !e.isActive) return '';
   if (e.userId) {
-    return `<button class="btn btn-sm btn-danger-ghost" title="Desvincular acceso al portal" onclick="confirmUnlinkEmployeeAccess('${e._id}','${e.name.replace(/'/g,"\\'")}')">${svgIcon('key', 14)} Desvincular</button>`;
+    return `<button class="btn btn-sm btn-ghost" title="Gestionar acceso al portal" onclick="openManageAccessModal('${e._id}')">${svgIcon('key', 14)} Portal</button>`;
   }
   return `<button class="btn btn-sm btn-ghost" title="Crear acceso de portería" onclick="openCreateAccessModal('${e._id}')">${svgIcon('key', 14)} Portal</button>`;
 }
+
+window.openManageAccessModal = function(id) {
+  const e = empState.all.find(x => x._id === id);
+  if (!e) return;
+  openModal(`
+    <h2 style="margin-bottom:1rem">Acceso al portal</h2>
+    <div class="form-group">
+      <label>Email</label>
+      <input class="input" readonly value="${escapeHtml(e.email || '')}">
+    </div>
+    <p class="text-sm text-muted" style="margin:.5rem 0 1rem">Por seguridad, la contraseña no queda almacenada en texto plano y no puede consultarse luego de creada. Para dársela de nuevo al portero, restablecela: se genera una nueva y se muestra una única vez (también se reenvía por email).</p>
+    <div class="flex col gap-2">
+      <button class="btn btn-secondary" onclick="resetEmployeeAccessPassword('${id}')">${svgIcon('key', 16)} Restablecer contraseña</button>
+      <button class="btn btn-danger-ghost" onclick="confirmUnlinkEmployeeAccess('${id}','${e.name.replace(/'/g,"\\'")}')">Desvincular acceso</button>
+    </div>
+    <div class="flex gap-2" style="margin-top:1rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cerrar</button>
+    </div>
+  `);
+};
+
+window.resetEmployeeAccessPassword = async function(id) {
+  try {
+    const res = await api.employees.resetAccessPassword(id);
+    closeModal();
+    _showAccessCredentials(res.data.email, { isReset: true, tempPassword: res.data.tempPassword });
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+};
 
 window.openCreateAccessModal = function(id) {
   const e = empState.all.find(x => x._id === id);
@@ -249,16 +279,19 @@ window.createEmployeeAccess = async function(id) {
 
 function _showAccessCredentials(email, data) {
   const isNewUser = data?.isNewUser;
+  const isReset = data?.isReset;
   openModal(`
-    <h2 style="margin-bottom:1rem">Acceso creado</h2>
-    <p class="text-sm" style="margin-bottom:1rem">${isNewUser
-      ? 'Se creó el usuario con una contraseña temporal (también enviada por email). Se le pedirá cambiarla en el primer inicio de sesión.'
-      : 'Se vinculó el acceso a una cuenta existente con este email.'}</p>
+    <h2 style="margin-bottom:1rem">${isReset ? 'Contraseña restablecida' : 'Acceso creado'}</h2>
+    <p class="text-sm" style="margin-bottom:1rem">${isReset
+      ? 'Se generó una nueva contraseña temporal (también enviada por email). Se le pedirá cambiarla en el próximo inicio de sesión.'
+      : isNewUser
+        ? 'Se creó el usuario con una contraseña temporal (también enviada por email). Se le pedirá cambiarla en el primer inicio de sesión.'
+        : 'Se vinculó el acceso a una cuenta existente con este email.'}</p>
     <div class="form-group">
       <label>Email</label>
       <input class="input" readonly value="${escapeHtml(email)}">
     </div>
-    ${isNewUser && data?.tempPassword ? `
+    ${(isNewUser || isReset) && data?.tempPassword ? `
       <div class="form-group">
         <label>Contraseña temporal</label>
         <input class="input" readonly value="${escapeHtml(data.tempPassword)}">
