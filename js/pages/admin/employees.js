@@ -2,6 +2,7 @@ import { toast } from '../../ui/toast.js';
 import { openModal, closeModal } from '../../ui/modal.js';
 import { skeleton } from '../../ui/skeleton.js';
 import { downloadAttachment, errorState, escapeHtml } from '../../ui/helpers.js';
+import { svgIcon } from '../../ui/icons.js';
 
 const ROLE_LABELS = {
   security:    'Seguridad',
@@ -81,6 +82,7 @@ function _renderEmployeesView() {
                     <td><span class="badge ${e.isActive ? 'badge-green' : 'badge-gray'}">${e.isActive ? 'Activo' : 'Baja'}</span></td>
                     <td class="actions">
                       <button class="btn btn-sm btn-ghost" onclick="openEditEmployeeModal('${e._id}')">Editar</button>
+                      ${_portalButton(e)}
                       ${e.isActive ? `<button class="btn btn-sm btn-danger-ghost" onclick="confirmDeactivateEmployee('${e._id}','${e.name.replace(/'/g,"\\'")}')">Dar de baja</button>` : ''}
                     </td>
                   </tr>
@@ -195,16 +197,9 @@ window.saveNewEmployee = async function() {
 window.openEditEmployeeModal = function(id) {
   const e = empState.all.find(x => x._id === id);
   if (!e) return;
-  const canCreateAccess = e.role === 'security' && !e.userId && e.isActive;
   openModal(`
     <h2 style="margin-bottom:1rem">Editar empleado</h2>
     ${_employeeForm(e)}
-    ${canCreateAccess ? `
-      <div class="form-group" style="margin-top:.5rem">
-        <button class="btn btn-ghost btn-sm" style="width:100%" onclick="createEmployeeAccess('${id}')">Crear acceso de portería</button>
-      </div>
-    ` : ''}
-    ${e.userId ? '<p class="text-muted text-sm" style="margin-top:.5rem">Este empleado ya tiene acceso al portal.</p>' : ''}
     <div class="flex gap-2" style="margin-top:.5rem">
       <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" id="btn-save-emp" style="flex:1" onclick="saveEditEmployee('${id}')">Guardar</button>
@@ -212,21 +207,92 @@ window.openEditEmployeeModal = function(id) {
   `);
 };
 
-window.createEmployeeAccess = async function(id) {
+function _portalButton(e) {
+  if (e.role !== 'security' || !e.isActive) return '';
+  if (e.userId) {
+    return `<button class="btn btn-sm btn-danger-ghost" title="Desvincular acceso al portal" onclick="confirmUnlinkEmployeeAccess('${e._id}','${e.name.replace(/'/g,"\\'")}')">${svgIcon('key', 14)} Desvincular</button>`;
+  }
+  return `<button class="btn btn-sm btn-ghost" title="Crear acceso de portería" onclick="openCreateAccessModal('${e._id}')">${svgIcon('key', 14)} Portal</button>`;
+}
+
+window.openCreateAccessModal = function(id) {
   const e = empState.all.find(x => x._id === id);
   if (!e) return;
-  let email = e.email;
-  if (!email) {
-    email = prompt('El empleado no tiene email registrado. Ingresá un email para crear el acceso:');
-    if (!email) return;
-  }
+  openModal(`
+    <h2 style="margin-bottom:1rem">Crear acceso de portería</h2>
+    <p class="text-sm text-muted" style="margin-bottom:1rem">Se creará un usuario para que <strong>${escapeHtml(e.name)}</strong> pueda ingresar al portal y gestionar visitas (check-in/check-out).</p>
+    <div class="form-group">
+      <label>Email *</label>
+      <input class="input" id="access-email" type="email" value="${e.email || ''}" placeholder="email@ejemplo.com">
+    </div>
+    <div class="flex gap-2" style="margin-top:1rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-create-access" style="flex:1" onclick="createEmployeeAccess('${id}')">Crear acceso</button>
+    </div>
+  `);
+};
+
+window.createEmployeeAccess = async function(id) {
+  const btn = document.getElementById('btn-create-access');
+  const email = document.getElementById('access-email')?.value.trim();
+  if (!email) { toast('El email es obligatorio.', 'error'); return; }
+  if (btn) btn.disabled = true;
   try {
     const res = await api.employees.createAccess(id, { email });
-    toast(res.message || 'Acceso creado correctamente.', 'success');
+    await renderAdminEmployees();
+    _showAccessCredentials(email, res.data);
+  } catch (err) {
+    toast(err.message, 'error');
+    if (btn) btn.disabled = false;
+  }
+};
+
+function _showAccessCredentials(email, data) {
+  const isNewUser = data?.isNewUser;
+  openModal(`
+    <h2 style="margin-bottom:1rem">Acceso creado</h2>
+    <p class="text-sm" style="margin-bottom:1rem">${isNewUser
+      ? 'Se creó el usuario con una contraseña temporal (también enviada por email). Se le pedirá cambiarla en el primer inicio de sesión.'
+      : 'Se vinculó el acceso a una cuenta existente con este email.'}</p>
+    <div class="form-group">
+      <label>Email</label>
+      <input class="input" readonly value="${escapeHtml(email)}">
+    </div>
+    ${isNewUser && data?.tempPassword ? `
+      <div class="form-group">
+        <label>Contraseña temporal</label>
+        <input class="input" readonly value="${escapeHtml(data.tempPassword)}">
+      </div>
+      <p class="text-sm text-muted" style="margin-top:.25rem">Esta contraseña no se puede volver a consultar después de cerrar este mensaje.</p>
+    ` : ''}
+    <div class="flex gap-2" style="margin-top:1rem">
+      <button class="btn btn-primary" style="flex:1" onclick="closeModal()">Entendido</button>
+    </div>
+  `);
+}
+
+window.confirmUnlinkEmployeeAccess = function(id, name) {
+  openModal(`
+    <h2 style="margin-bottom:1rem">Desvincular acceso</h2>
+    <p>¿Confirmás quitarle a <strong>${escapeHtml(name)}</strong> el acceso al portal? Podrá volver a crearse más adelante.</p>
+    <div class="flex gap-2" style="margin-top:1rem">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-danger" id="btn-unlink-access" style="flex:1" onclick="unlinkEmployeeAccess('${id}')">Desvincular</button>
+    </div>
+  `);
+};
+
+window.unlinkEmployeeAccess = async function(id) {
+  const btn = document.getElementById('btn-unlink-access');
+  if (btn) btn.disabled = true;
+  try {
+    await api.employees.unlinkAccess(id);
+    toast('Acceso desvinculado.', 'success');
     closeModal();
     await renderAdminEmployees();
   } catch (err) {
     toast(err.message, 'error');
+    if (btn) btn.disabled = false;
   }
 };
 

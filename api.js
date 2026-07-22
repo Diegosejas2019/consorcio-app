@@ -577,6 +577,7 @@ const api = {
     getDocumentUrl: (id, index) => `${API_BASE}/employees/${id}/document/${index}`,
     deleteDocument: (id, index) => request(`/employees/${id}/document/${index}`, { method: 'DELETE' }),
     createAccess: (id, data = {}) => request(`/employees/${id}/create-access`, { method: 'POST', body: JSON.stringify(data) }),
+    unlinkAccess: (id) => request(`/employees/${id}/unlink-user`, { method: 'DELETE' }),
   },
 
   // ── Sueldos ───────────────────────────────────────────────────
